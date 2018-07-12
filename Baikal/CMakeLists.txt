@@ -19,9 +19,6 @@ set(POSTEFFECT_SOURCES
     PostEffects/bilateral_denoiser.h
     PostEffects/wavelet_denoiser.h
     PostEffects/AreaMap33.h
-    PostEffects/ML/buffer.h
-    PostEffects/ML/inference_impl.cpp
-    PostEffects/ML/inference_impl.h
     )
     
 set(RENDERERS_SOURCES
@@ -139,7 +136,7 @@ set(SOURCES
     
 source_group("Controllers" FILES ${CONTROLLERS_SOURCES})
 source_group("Estimators" FILES ${ESTIMATORS_SOURCES})
-source_group("PostEffects/ML" FILES ${ML_SOURCES})
+source_group("PostEffects" FILES ${ML_SOURCES})
 source_group("Output" FILES ${OUTPUT_SOURCES})
 source_group("Posteffect" FILES ${POSTEFFECT_SOURCES})
 source_group("Renderers" FILES ${RENDERERS_SOURCES})

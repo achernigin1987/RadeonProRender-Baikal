@@ -1,8 +1,8 @@
 #pragma once
 
-#include <vector>
 #include <cstddef>
 #include <memory>
+#include <tuple>
 
 
 namespace Baikal
@@ -13,15 +13,15 @@ namespace Baikal
         {
         public:
             using ValueType = float;
-            using Data = std::unique_ptr<ValueType[]>;
-            using Shape = std::tupel<size_t, size_t, size_t>;
+            using Data = std::shared_ptr<ValueType[]>;
+            using Shape = std::tuple<size_t, size_t, size_t>;
 
-            Buffer(Data data, Shape shape) :
-                m_data(std::move(data)),
-                m_shape(std::move(shape)),
-                m_size(std::get<0>(m_shape) *
-                       std::get<1>(m_shape) *
-                       std::get<2>(m_shape))
+            Buffer(Data data, Shape shape)
+                : m_data(std::move(data))
+                , m_shape(std::move(shape))
+                , m_size(std::get<0>(m_shape) *
+                         std::get<1>(m_shape) *
+                         std::get<2>(m_shape))
             {
             }
 

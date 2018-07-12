@@ -8,7 +8,7 @@ namespace Baikal
         class InferenceImpl : public Inference
         {
         public:
-            explicit InferenceImpl(size_t width, size_t height);
+            InferenceImpl(size_t width, size_t height);
 
             Buffer GetInputBuffer() override;
             void PushInput(Buffer&& buffer) override;
