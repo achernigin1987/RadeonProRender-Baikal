@@ -14,7 +14,7 @@ namespace Baikal
         public:
             using ValueType = float;
             using Data = std::unique_ptr<ValueType[]>;
-            using Shape = std::vector<size_t>;
+            using Shape = std::tupel<size_t, size_t, size_t>;
 
             Buffer(Data data, Shape shape) :
                 m_data(std::move(data)),
