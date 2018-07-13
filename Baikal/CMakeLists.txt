@@ -136,7 +136,6 @@ set(SOURCES
     
 source_group("Controllers" FILES ${CONTROLLERS_SOURCES})
 source_group("Estimators" FILES ${ESTIMATORS_SOURCES})
-source_group("PostEffects" FILES ${ML_SOURCES})
 source_group("Output" FILES ${OUTPUT_SOURCES})
 source_group("Posteffect" FILES ${POSTEFFECT_SOURCES})
 source_group("Renderers" FILES ${RENDERERS_SOURCES})
