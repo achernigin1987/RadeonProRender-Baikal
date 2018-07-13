@@ -7,13 +7,13 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        enum class DenoiseInputs
+        enum class MLDenoiserInputs
         {
             kColorDepthNormalGloss7,
         };
 
-        std::unique_ptr<Inference> CreateDenoiser(size_t width,
-                                                  size_t height,
-                                                  DenoiseInputs inputs);
+        std::unique_ptr<Inference> CreateMLDenoiser(MLDenoiserInputs inputs,
+                                                    size_t width,
+                                                    size_t height);
     }
 }
