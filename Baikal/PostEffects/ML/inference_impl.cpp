@@ -40,7 +40,7 @@ namespace Baikal
             return AllocBuffer(std::get<2>(GetOutputShape()));
         }
 
-        Tensor InferenceImpl::AllocBuffer(size_t channels)
+        Tensor InferenceImpl::AllocTensor(size_t channels)
         {
             auto deleter = [](Tensor::ValueType* data)
             {

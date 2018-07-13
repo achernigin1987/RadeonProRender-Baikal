@@ -19,7 +19,7 @@ namespace Baikal
             Tensor PopOutput() override;
 
         private:
-            Tensor AllocBuffer(size_t channels);
+            Tensor AllocTensor(size_t channels);
 
             size_t m_width;
             size_t m_height;
