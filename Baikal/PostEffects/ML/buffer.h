@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <memory>
 #include <tuple>
 
@@ -27,7 +26,7 @@ namespace Baikal
 
             bool empty() const
             {
-                return m_size == 0;
+                return m_data == nullptr;
             }
 
             ValueType* data() const

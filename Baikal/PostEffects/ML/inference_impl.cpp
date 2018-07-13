@@ -32,8 +32,12 @@ namespace Baikal
 
         Buffer InferenceImpl::AllocBuffer(size_t channels)
         {
+            auto deleter = [](Buffer::ValueType* data)
+            {
+                delete[] data;
+            };
             size_t size = m_width * m_height * channels;
-            return Buffer(Buffer::Data(new Buffer::ValueType[size]),
+            return Buffer(Buffer::Data(new Buffer::ValueType[size], deleter),
                           {m_height, m_width, channels});
         }
     }
