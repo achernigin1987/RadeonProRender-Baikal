@@ -1,4 +1,4 @@
-#include "inference_impl.h"
+#include "Baikal/PostEffects/ML/inference_impl.h"
 
 #include <functional>
 #include <numeric>
@@ -8,36 +8,46 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        InferenceImpl::InferenceImpl(size_t width, size_t height)
+        InferenceImpl::InferenceImpl(const std::string& model_path,
+                                     size_t width,
+                                     size_t height)
             : m_width(width), m_height(height)
         {
         }
 
-        Buffer InferenceImpl::GetInputBuffer()
+        Tensor::Shape InferenceImpl::GetInputShape() const
         {
-            return AllocBuffer(INPUT_CHANNELS);
+            return {m_height, m_width, 7};
         }
 
-        void InferenceImpl::PushInput(Buffer&& buffer)
+        Tensor::Shape InferenceImpl::GetOutputShape() const
         {
-            assert(buffer.shape()[0] == m_height);
-            assert(buffer.shape()[1] == m_width);
-            assert(buffer.shape()[2] == INPUT_CHANNELS);
+            return {m_height, m_width, 3};
         }
 
-        Buffer InferenceImpl::PopOutput()
+        Tensor InferenceImpl::GetInputTensor()
         {
-            return AllocBuffer(OUTPUT_CHANNELS);
+            return AllocBuffer(GetInputShape());
         }
 
-        Buffer InferenceImpl::AllocBuffer(size_t channels)
+        void InferenceImpl::PushInput(Tensor&& tensor)
         {
-            auto deleter = [](Buffer::ValueType* data)
+            assert(tensor.shape() == std::get<2>(GetInputShape()));
+        }
+
+        Tensor InferenceImpl::PopOutput()
+        {
+            return AllocBuffer(std::get<2>(GetOutputShape()));
+        }
+
+        Tensor InferenceImpl::AllocBuffer(size_t channels)
+        {
+            auto deleter = [](Tensor::ValueType* data)
             {
                 delete[] data;
             };
             size_t size = m_width * m_height * channels;
-            return Buffer(Buffer::Data(new Buffer::ValueType[size], deleter),
+            return Tensor(Tensor::Data(new Tensor::ValueType[size], deleter),
                           {m_height, m_width, channels});
         }
     }

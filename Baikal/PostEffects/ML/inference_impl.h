@@ -1,4 +1,4 @@
-#include "inference.h"
+#include "Baikal/PostEffects/ML/inference.h"
 
 
 namespace Baikal
@@ -8,14 +8,18 @@ namespace Baikal
         class InferenceImpl : public Inference
         {
         public:
-            InferenceImpl(size_t width, size_t height);
+            InferenceImpl(const std::string& model_path,
+                          size_t width,
+                          size_t height);
 
-            Buffer GetInputBuffer() override;
-            void PushInput(Buffer&& buffer) override;
-            Buffer PopOutput() override;
+            Tensor::Shape GetInputShape() const override;
+            Tensor::Shape GetOutputShape() const override;
+            Tensor GetInputTensor() override;
+            void PushInput(Tensor&& tensor) override;
+            Tensor PopOutput() override;
 
         private:
-            Buffer AllocBuffer(size_t channels);
+            Tensor AllocBuffer(size_t channels);
 
             size_t m_width;
             size_t m_height;

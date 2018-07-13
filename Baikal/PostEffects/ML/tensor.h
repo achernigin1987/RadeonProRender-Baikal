@@ -8,14 +8,14 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        class Buffer
+        class Tensor
         {
         public:
             using ValueType = float;
             using Data = std::shared_ptr<ValueType[]>;
             using Shape = std::tuple<size_t, size_t, size_t>;
 
-            Buffer(Data data, Shape shape)
+            Tensor(Data data, Shape shape)
                 : m_data(std::move(data))
                 , m_shape(std::move(shape))
                 , m_size(std::get<0>(m_shape) *
