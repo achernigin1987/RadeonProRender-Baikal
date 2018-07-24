@@ -1,5 +1,5 @@
-#include "PostEffects/ML/model.h"
 #include "PostEffects/ML/inference.h"
+#include "PostEffects/ML/model_holder.h"
 #include "../RadeonRays/RadeonRays/src/async/thread_pool.h"
 
 #include <cstddef>
@@ -35,16 +35,17 @@ namespace Baikal
 
             RadeonRays::thread_safe_queue<Tensor> m_input_queue;
             RadeonRays::thread_safe_queue<Tensor> m_output_queue;
-            std::thread m_worker;
 
-            std::unique_ptr<ML::Model> m_model;
+            ModelHolder m_model;
 
             std::size_t m_width;
             std::size_t m_height;
 
             std::size_t m_input_channels;
-            static const std::size_t m_output_channels = 3;
 
+            const std::size_t m_output_channels = 3;
+
+            std::thread m_worker;
             std::atomic_flag m_keep_running = ATOMIC_FLAG_INIT;
         };
     }

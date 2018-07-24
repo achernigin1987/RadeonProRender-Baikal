@@ -14,14 +14,12 @@ namespace Baikal
                                      std::size_t width,
                                      std::size_t height,
                                      std::size_t input_channels)
-            : m_width(width)
+            : m_model(model_path, gpu_memory_fraction, visible_devices)
+            , m_width(width)
             , m_height(height)
             , m_input_channels(input_channels)
+            , m_worker(&InferenceImpl::DoInference, this)
         {
-            m_model.reset(ML::LoadModel(
-                model_path.c_str(), gpu_memory_fraction, visible_devices.c_str()));
-
-            m_worker = std::thread(&InferenceImpl::DoInference, this);
         }
 
         InferenceImpl::~InferenceImpl()
