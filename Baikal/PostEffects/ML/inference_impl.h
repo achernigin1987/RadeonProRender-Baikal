@@ -29,7 +29,6 @@ namespace Baikal
             Tensor PopOutput() override;
 
         private:
-            std::unique_ptr<ML::Model> m_model;
             void Shutdown();
             Tensor AllocTensor(std::size_t channels);
             void DoInference();
@@ -37,6 +36,8 @@ namespace Baikal
             RadeonRays::thread_safe_queue<Tensor> m_input_queue;
             RadeonRays::thread_safe_queue<Tensor> m_output_queue;
             std::thread m_worker;
+
+            std::unique_ptr<ML::Model> m_model;
 
             std::size_t m_width;
             std::size_t m_height;
