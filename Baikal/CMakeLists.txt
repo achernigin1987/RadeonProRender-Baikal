@@ -22,7 +22,8 @@ set(POSTEFFECT_SOURCES
 
 SET(MLDENOISER_SOURCES
     PostEffects/ML/model.h
-    PostEffects/ML/model.cpp
+    PostEffects/ML/model_holder.h
+    PostEffects/ML/model_holder.cpp
     PostEffects/ML/tensor.h
     PostEffects/ML/denoiser.h
     PostEffects/ML/denoiser.cpp
@@ -201,5 +202,12 @@ if (WIN32)
     target_compile_options(Baikal PUBLIC /WX)
 elseif (UNIX)
     target_compile_options(Baikal PUBLIC -Wall -Werror)
+    if (BAIKAL_ENABLE_MLDENOISER)
+        target_link_libraries(Baikal PUBLIC dl)
+    endif (BAIKAL_ENABLE_MLDENOISER)
 endif (WIN32)
-    
+
+if ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
+    (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0.0))
+    target_compile_options(Baikal PUBLIC -Wno-class-memaccess)
+endif()

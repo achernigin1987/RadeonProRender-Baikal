@@ -13,7 +13,7 @@ namespace Baikal
         {
         public:
             using ValueType = float;
-            using Data = std::shared_ptr<ValueType[]>;
+            using Data = std::shared_ptr<ValueType>;
             using Shape = std::tuple<std::size_t, std::size_t, std::size_t>;
 
             Tensor(Tensor const&) = delete;
