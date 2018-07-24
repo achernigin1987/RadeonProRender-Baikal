@@ -17,7 +17,6 @@ namespace Baikal
             : m_width(width)
             , m_height(height)
             , m_input_channels(input_channels)
-            , m_shutdown(false)
         {
             m_model.reset(ML::LoadModel(
                 model_path.c_str(), gpu_memory_fraction, visible_devices.c_str()));
@@ -71,31 +70,27 @@ namespace Baikal
 
         void InferenceImpl::DoInference()
         {
-            while (!m_shutdown)
+            while (m_keep_running.test_and_set())
             {
                 Tensor input_tensor;
-                if (m_input_queue.wait_and_pop(input_tensor))
-                {
-                    Tensor output_tensor = AllocTensor(m_output_channels);
-                    m_model->infer(
-                        input_tensor.data(),
-                        m_width,
-                        m_height,
-                        m_output_channels,
-                        output_tensor.data());
+                m_input_queue.wait_and_pop(input_tensor);
 
-                    m_output_queue.push(std::move(output_tensor));
-                }
+                Tensor output_tensor = AllocTensor(m_output_channels);
+                m_model->infer(
+                    input_tensor.data(),
+                    m_width,
+                    m_height,
+                    m_output_channels,
+                    output_tensor.data());
+
+                m_output_queue.push(std::move(output_tensor));
             }
         }
 
         void InferenceImpl::Shutdown()
         {
-            m_shutdown = true;
-            m_input_queue.disable();
-
-            if (m_worker.joinable())
-                m_worker.join();
+            m_keep_running.clear();
+            m_worker.join();
         }
     }
 }

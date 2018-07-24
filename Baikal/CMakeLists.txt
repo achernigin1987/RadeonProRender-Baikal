@@ -28,8 +28,7 @@ SET(MLDENOISER_SOURCES
     PostEffects/ML/denoiser.cpp
     PostEffects/ML/inference.h
     PostEffects/ML/inference_impl.h
-    PostEffects/ML/inference_impl.cpp
-    PostEffects/ML/thread_safe_queue.h)
+    PostEffects/ML/inference_impl.cpp)
 
 set(RENDERERS_SOURCES
     Renderers/adaptive_renderer.cpp
