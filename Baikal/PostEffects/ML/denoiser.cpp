@@ -57,7 +57,7 @@ namespace Baikal
                    : m_inference(std::move(inference))
         {
             m_context = std::make_unique<CLWContext>(context);
-            m_primitives = std::move(std::make_unique<CLWParallelPrimitives>(context));
+            m_primitives = std::make_unique<CLWParallelPrimitives>(context);
 
             auto shape = m_inference->GetInputShape();
             auto width = std::get<0>(shape);
@@ -76,10 +76,10 @@ namespace Baikal
             {
                 case MLDenoiserInputs::kColorDepthNormalGloss7:
                 {
-                    m_layout.emplace(OutputType::kColor, 0u);
-                    m_layout.emplace(OutputType::kDepth, 3 * width * height);
-                    m_layout.emplace(OutputType::kViewShadingNormal, 4 * width * height);
-                    m_layout.emplace(OutputType::kGloss, 6 * width * height);
+                    m_layout.emplace(OutputType::kColor, 3 * width * height);
+                    m_layout.emplace(OutputType::kDepth, width * height);
+                    m_layout.emplace(OutputType::kViewShadingNormal, 2 * width * height);
+                    m_layout.emplace(OutputType::kGloss, width * height);
                 }
             }
         }
@@ -116,30 +116,27 @@ namespace Baikal
             {
                 auto type = input.first;
                 auto clw_output = static_cast<ClwOutput*>(input.second);
+                auto mem_to_write = host_mem;
                 auto device_mem = clw_output->data();
 
                 switch (type)
                 {
                     case Renderer::OutputType::kColor:
                     {
-                        auto mem_to_write = host_mem + m_layout[OutputType::kColor];
                         ProcessOutput<cl_float3, RadeonRays::float3>(device_mem, mem_to_write);
                         break;
                     }
                     case Renderer::OutputType::kDepth:
                     {
-                        auto mem_to_write = host_mem + m_layout[OutputType::kDepth];
                         ProcessOutput<cl_float, Tensor::ValueType>(device_mem, mem_to_write);
                         break;
                     }
                     case Renderer::OutputType::kViewShadingNormal:
                     {
-                        auto mem_to_write = host_mem + m_layout[OutputType::kViewShadingNormal];
-
                         ProcessOutput<cl_float3, RadeonRays::float3>(device_mem,
-                            (Tensor::ValueType*)m_host_cache.get());
+                            reinterpret_cast<Tensor::ValueType*>(m_host_cache.get()));
 
-                        // remove third chanel
+                        // copy only the first two channels
                         for (auto i = 0u; i < 3 * width * height; i += 3)
                         {
                             mem_to_write[i / 3] = m_host_cache[i];
@@ -153,9 +150,9 @@ namespace Baikal
                         auto mem_to_write = host_mem + m_layout[OutputType::kGloss];
                         
                         ProcessOutput<cl_float3, RadeonRays::float3>(device_mem,
-                            (Tensor::ValueType*)m_host_cache.get());
+                            reinterpret_cast<Tensor::ValueType*>(m_host_cache.get()));
 
-                        // remove second and third chanels
+                        // copy only the first channel
                         for (auto i = 0u; i < 3 * width * height; i += 3)
                         {
                             mem_to_write[i / 3] = m_host_cache[i];
@@ -163,12 +160,13 @@ namespace Baikal
                         break;
                     }
                 }
+                mem_to_write = host_mem + m_layout[type];
             }
 
             m_inference->PushInput(std::move(tensor));
-            auto clw_output = dynamic_cast<ClwOutput*>(&output);
+            auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
 
-            if (!clw_output)
+            if (!clw_inference_output)
             {
                 throw std::runtime_error("MLDenoiser::Apply(...): can not cast output");
             }
@@ -179,7 +177,7 @@ namespace Baikal
             if (!inference_res.empty())
             {
                 m_context->WriteBuffer<RadeonRays::float3>(0,
-                    clw_output->data(),
+                    clw_inference_output->data(),
                     (RadeonRays::float3*)inference_res.data(),
                     inference_res.size()).Wait();
             }
@@ -190,7 +188,7 @@ namespace Baikal
                 auto height = std::get<1>(shape);
 
                 m_context->WriteBuffer<RadeonRays::float3>(0,
-                    clw_output->data(),
+                    clw_inference_output->data(),
                     (RadeonRays::float3*)(host_mem + m_layout[OutputType::kColor]),
                     width * height).Wait();
             }
