@@ -51,6 +51,16 @@ source_group("Application" FILES ${APPLICATION_SOURCES})
 source_group("ImGUI" FILES ${IMGUI_SORUCES})
 source_group("Utils" FILES ${UTILS_SOURCES})
 source_group("Kernels\\GLSL" FILES ${KERNEL_SOURCES})
+
+if (BAIKAL_ENABLE_MLDENOISER)
+    set(ML_DENOISER_SOURCES
+        MLDenoiser/ml_denoiser.h
+        MLDenoiser/ml_denoiser.cpp)
+
+    list(APPEND SOURCES ${ML_DENOISER_SOURCES})
+    source_group("MLDenoiser" FILES ${ML_DENOISER_SOURCES})
+endif(BAIKAL_ENABLE_MLDENOISER)
+
     
 add_executable(BaikalStandalone ${SOURCES})
 target_compile_features(BaikalStandalone PRIVATE cxx_std_14)
@@ -63,6 +73,10 @@ target_link_libraries(BaikalStandalone PRIVATE Baikal BaikalIO glfw3::glfw3 Open
 if (BAIKAL_ENABLE_DENOISER)
     target_compile_definitions(BaikalStandalone PUBLIC ENABLE_DENOISER)
 endif(BAIKAL_ENABLE_DENOISER)
+
+if (BAIKAL_ENABLE_MLDENOISER)
+    target_compile_definitions(BaikalStandalone PUBLIC ENABLE_ML_DENOISER)
+endif(BAIKAL_ENABLE_MLDENOISER)
 
 if (BAIKAL_ENABLE_GLTF)
     target_link_libraries(BaikalStandalone PRIVATE RadeonProRender RprSupport)

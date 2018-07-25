@@ -53,7 +53,7 @@ namespace Baikal
                                                    input_channels);
         }
 
-        MLDenoiser::MLDenoiser(CLWContext context, Inference::Ptr inference, MLDenoiserInputs inputs)
+        MLDenoiser::MLDenoiser(const CLWContext& context, Inference::Ptr inference, MLDenoiserInputs inputs)
                    : m_inference(std::move(inference))
         {
             m_context = std::make_unique<CLWContext>(context);

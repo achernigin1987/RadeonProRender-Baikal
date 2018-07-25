@@ -39,7 +39,7 @@ THE SOFTWARE.
 #include <GL/glx.h>
 #endif
 
-void ConfigManager::CreateConfigs(
+void CreateConfigs(
     Mode mode,
     bool interop,
     std::vector<Config>& configs,
@@ -85,10 +85,10 @@ void ConfigManager::CreateConfigs(
         {
             if (req_platform_index < 0)
             {
-                if ((mode == kUseGpus || mode == kUseSingleGpu) && platforms[i].GetDevice(d).GetType() != CL_DEVICE_TYPE_GPU)
+                if ((mode == Mode::kUseGpus || mode == Mode::kUseSingleGpu) && platforms[i].GetDevice(d).GetType() != CL_DEVICE_TYPE_GPU)
                     continue;
 
-                if ((mode == kUseCpus || mode == kUseSingleCpu) && platforms[i].GetDevice(d).GetType() != CL_DEVICE_TYPE_CPU)
+                if ((mode == Mode::kUseCpus || mode == Mode::kUseSingleCpu) && platforms[i].GetDevice(d).GetType() != CL_DEVICE_TYPE_CPU)
                     continue;
             }
 
@@ -129,23 +129,23 @@ void ConfigManager::CreateConfigs(
                 };
 #endif
                 cfg.context = CLWContext::Create(platforms[i].GetDevice(d), props);
-                cfg.type = kPrimary;
+                cfg.type = DeviceType::kPrimary;
                 cfg.caninterop = true;
                 hasprimary = true;
             }
             else
             {
                 cfg.context = CLWContext::Create(platforms[i].GetDevice(d));
-                cfg.type = kSecondary;
+                cfg.type = DeviceType::kSecondary;
             }
 
             configs.push_back(std::move(cfg));
 
-            if (mode == kUseSingleGpu || mode == kUseSingleCpu)
+            if (mode == Mode::kUseSingleGpu || mode == Mode::kUseSingleCpu)
                 break;
         }
 
-        if (configs.size() == 1 && (mode == kUseSingleGpu || mode == kUseSingleCpu))
+        if (configs.size() == 1 && (mode == Mode::kUseSingleGpu || mode == Mode::kUseSingleCpu))
             break;
     }
 
@@ -157,7 +157,7 @@ void ConfigManager::CreateConfigs(
 
     if (!hasprimary)
     {
-        configs[0].type = kPrimary;
+        configs[0].type = DeviceType::kPrimary;
     }
 
     for (std::size_t i = 0; i < configs.size(); ++i)
@@ -169,7 +169,7 @@ void ConfigManager::CreateConfigs(
 }
 
 #else
-void ConfigManager::CreateConfigs(
+void CreateConfigs(
     Mode mode,
     bool interop,
     std::vector<Config>& configs,

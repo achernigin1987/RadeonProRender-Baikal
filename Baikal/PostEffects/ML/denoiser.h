@@ -32,7 +32,6 @@ THE SOFTWARE.
 
 class CLWContext;
 class CLWParallelPrimitives;
-class CLWOutput;
 
 template <class T>
 class CLWBuffer;
@@ -46,12 +45,18 @@ namespace Baikal
             kColorDepthNormalGloss7,
         };
 
+        std::unique_ptr<Inference> CreateMLDenoiser(MLDenoiserInputs inputs,
+                                                    float gpu_memory_fraction,
+                                                    std::string const& visible_devices,
+                                                    std::size_t width,
+                                                    std::size_t height);
+
         class MLDenoiser : public PostEffect
         {
         public:
 
             // Constructor
-            MLDenoiser(CLWContext context, Inference::Ptr inference, MLDenoiserInputs inputs);
+            MLDenoiser(const CLWContext& context, Inference::Ptr inference, MLDenoiserInputs inputs);
 
             // Apply filter
             void Apply(InputSet const& input_set, Output& output) override;
