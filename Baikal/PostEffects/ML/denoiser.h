@@ -46,29 +46,30 @@ namespace Baikal
             kColorDepthNormalGloss7,
         };
 
-        Inference::Ptr CreateMLDenoiser(MLDenoiserInputs inputs,
-                                        float gpu_memory_fraction,
-                                        std::string const& visible_devices,
-                                        std::size_t width,
-                                        std::size_t height);
-
         class MLDenoiser : public PostEffect
         {
         public:
+
             // Constructor
-            MLDenoiser(CLWContext context, Inference::Ptr inference);
+            MLDenoiser(CLWContext context, Inference::Ptr inference, MLDenoiserInputs inputs);
 
             // Apply filter
             void Apply(InputSet const& input_set, Output& output) override;
 
         private:
+            using MemoryLayout = std::map<Renderer::OutputType, std::size_t>;
+
             template <class ClType, class Type>
             void ProcessOutput(CLWBuffer<RadeonRays::float3> input, Tensor::ValueType* host_mem);
 
             Inference::Ptr m_inference;
+            MemoryLayout m_layout;
             std::unique_ptr<CLWContext> m_context;
             std::unique_ptr<CLWParallelPrimitives> m_primitives;
-            std::unique_ptr<CLWBuffer<char>> m_cache;
+            // GPU cache
+            std::unique_ptr<CLWBuffer<char>> m_device_cache;
+            // CPU cache
+            std::unique_ptr<std::uint8_t[]> m_host_cache;
         };
     }
 }

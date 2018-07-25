@@ -34,6 +34,8 @@ namespace Baikal
 {
     namespace PostEffects
     {
+        using OutputType = Renderer::OutputType;
+
         std::unique_ptr<Inference> CreateMLDenoiser(MLDenoiserInputs inputs,
                                                     float gpu_memory_fraction,
                                                     std::string const& visible_devices,
@@ -51,23 +53,37 @@ namespace Baikal
                                                    input_channels);
         }
 
-        MLDenoiser::MLDenoiser(CLWContext context, Inference::Ptr inference)
+        MLDenoiser::MLDenoiser(CLWContext context, Inference::Ptr inference, MLDenoiserInputs inputs)
                    : m_inference(std::move(inference))
         {
             m_context = std::move(std::make_unique<CLWContext>(context));
             m_primitives = std::move(std::make_unique<CLWParallelPrimitives>(context));
 
             auto shape = m_inference->GetInputShape();
+            auto width = std::get<0>(shape);
+            auto height = std::get<1>(shape);
+            auto chanels_num = std::get<2>(shape);
 
-            size_t elems_count = sizeof(Tensor::ValueType) *
-                                 std::get<0>(shape) *
-                                 std::get<1>(shape);
+            size_t elems_count = sizeof(Tensor::ValueType) * width * height * chanels_num;
 
-            m_cache = std::move(std::make_unique<CLWBuffer<char>>(
-                                CLWBuffer<char>::Create(*m_context,
-                                                        CL_MEM_READ_WRITE,
-                                                        elems_count)));
+            m_device_cache = std::move(std::make_unique<CLWBuffer<char>>(
+                CLWBuffer<char>::Create(*m_context,
+                                        CL_MEM_READ_WRITE,
+                                        elems_count)));
 
+            m_host_cache = std::move(std::make_unique<std::uint8_t[]>(elems_count));
+
+            // compute memory layout
+            switch (inputs)
+            {
+                case MLDenoiserInputs::kColorDepthNormalGloss7:
+                {
+                    m_layout.emplace(OutputType::kColor, 0u);
+                    m_layout.emplace(OutputType::kDepth, 3 * width * height);
+                    m_layout.emplace(OutputType::kViewShadingNormal, 4 * width * height);
+                    m_layout.emplace(OutputType::kGloss, 6 * width * height);
+                }
+            }
         }
 
         template <class ClType, class Type>
@@ -75,7 +91,7 @@ namespace Baikal
                                        Tensor::ValueType* host_mem)
         {
             auto input_buf = CLWBuffer<ClType>::CreateFromClBuffer(input);
-            auto normalized_buf = CLWBuffer<ClType>::CreateFromClBuffer(*m_cache);
+            auto normalized_buf = CLWBuffer<ClType>::CreateFromClBuffer(*m_device_cache);
 
             m_primitives->Normalize(0,
                                     input_buf,
@@ -91,59 +107,60 @@ namespace Baikal
 
         void MLDenoiser::Apply(InputSet const& input_set, Output& output)
         {
-            size_t offset = 0;
             auto shape = m_inference->GetInputShape();
             auto width = std::get<0>(shape);
             auto height = std::get<1>(shape);
 
             auto tensor = m_inference->GetInputTensor();
+            auto host_mem = tensor.data();
 
             for (const auto& input : input_set)
             {
                 auto type = input.first;
                 auto clw_output = static_cast<ClwOutput*>(input.second);
-                auto host_mem = tensor.data();
                 auto device_mem = clw_output->data();
-                
+
                 switch (type)
                 {
                     case Renderer::OutputType::kColor:
                     {
-                        ProcessOutput<cl_float3, RadeonRays::float3>(device_mem, host_mem);
-                        offset += 3 * width * height;
+                        auto mem_to_write = host_mem + m_layout[OutputType::kColor];
+                        ProcessOutput<cl_float3, RadeonRays::float3>(device_mem, mem_to_write);
                         break;
                     }
                     case Renderer::OutputType::kDepth:
                     {
-                        ProcessOutput<cl_float, Tensor::ValueType>(device_mem, host_mem + offset);
-                        offset += width * height;
+                        auto mem_to_write = host_mem + m_layout[OutputType::kDepth];
+                        ProcessOutput<cl_float, Tensor::ValueType>(device_mem, mem_to_write);
                         break;
                     }
-                    case Renderer::OutputType::kWorldShadingNormal:
+                    case Renderer::OutputType::kViewShadingNormal:
                     {
-                        auto normals_place = host_mem + offset;
-                        ProcessOutput<cl_float3, RadeonRays::float3>(device_mem, normals_place);
+                        auto mem_to_write = host_mem + m_layout[OutputType::kViewShadingNormal];
+
+                        ProcessOutput<cl_float3, RadeonRays::float3>(device_mem,
+                            (Tensor::ValueType*)m_host_cache.get());
 
                         // remove third chanel
                         for (auto i = 0u; i < 3 * width * height; i += 3)
                         {
-                            normals_place[i / 3] = normals_place[i];
-                            normals_place[i / 3 + 1] = normals_place[i + 1];
+                            mem_to_write[i / 3] = m_host_cache[i];
+                            mem_to_write[i / 3 + 1] = m_host_cache[i + 1];
                         }
 
-                        offset += 2 * width * height;
                         break;
                     }
-                    // TODO: fix offsets
                     case Renderer::OutputType::kGloss:
                     {
-                        auto gloss_place = host_mem + offset;
-                        ProcessOutput<cl_float3, RadeonRays::float3>(device_mem, gloss_place);
+                        auto mem_to_write = host_mem + m_layout[OutputType::kGloss];
+                        
+                        ProcessOutput<cl_float3, RadeonRays::float3>(device_mem,
+                            (Tensor::ValueType*)m_host_cache.get());
 
-                        // remove third chanel
+                        // remove second and third chanels
                         for (auto i = 0u; i < 3 * width * height; i += 3)
                         {
-                            gloss_place[i / 3] = gloss_place[i];
+                            mem_to_write[i / 3] = m_host_cache[i];
                         }
                         break;
                     }
@@ -151,10 +168,6 @@ namespace Baikal
             }
 
             m_inference->PushInput(std::move(tensor));
-
-            // TODO: check empty
-            auto inference_res = m_inference->PopOutput();
-
             auto clw_output = dynamic_cast<ClwOutput*>(&output);
 
             if (!clw_output)
@@ -162,11 +175,27 @@ namespace Baikal
                 throw std::runtime_error("MLDenoiser::Apply(...): can not cast output");
             }
 
-            m_context->WriteBuffer<RadeonRays::float3>(0,
-                                                       clw_output->data(),
-                                                       (RadeonRays::float3*)tensor.data(),
-                                                       tensor.size()).Wait();
-        }
+            // TODO: check empty
+            auto inference_res = m_inference->PopOutput();
 
+            if (!inference_res.empty())
+            {
+                m_context->WriteBuffer<RadeonRays::float3>(0,
+                    clw_output->data(),
+                    (RadeonRays::float3*)inference_res.data(),
+                    inference_res.size()).Wait();
+            }
+            else
+            {
+                auto shape = m_inference->GetInputShape();
+                auto width = std::get<0>(shape);
+                auto height = std::get<1>(shape);
+
+                m_context->WriteBuffer<RadeonRays::float3>(0,
+                    clw_output->data(),
+                    (RadeonRays::float3*)(host_mem + m_layout[OutputType::kColor]),
+                    width * height).Wait();
+            }
+        }
     }
 }
