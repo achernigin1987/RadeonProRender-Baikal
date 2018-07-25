@@ -56,22 +56,20 @@ namespace Baikal
         MLDenoiser::MLDenoiser(CLWContext context, Inference::Ptr inference, MLDenoiserInputs inputs)
                    : m_inference(std::move(inference))
         {
-            m_context = std::move(std::make_unique<CLWContext>(context));
+            m_context = std::make_unique<CLWContext>(context);
             m_primitives = std::move(std::make_unique<CLWParallelPrimitives>(context));
 
             auto shape = m_inference->GetInputShape();
             auto width = std::get<0>(shape);
             auto height = std::get<1>(shape);
-            auto chanels_num = std::get<2>(shape);
+            auto channels_num = std::get<2>(shape);
 
-            size_t elems_count = sizeof(Tensor::ValueType) * width * height * chanels_num;
+            size_t elems_count = sizeof(Tensor::ValueType) * width * height * channels_num;
 
-            m_device_cache = std::move(std::make_unique<CLWBuffer<char>>(
-                CLWBuffer<char>::Create(*m_context,
-                                        CL_MEM_READ_WRITE,
-                                        elems_count)));
+            m_device_cache = std::make_unique<CLWBuffer<char>>(
+                CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, elems_count));
 
-            m_host_cache = std::move(std::make_unique<std::uint8_t[]>(elems_count));
+            m_host_cache = std::make_unique<std::uint8_t[]>(elems_count);
 
             // compute memory layout
             switch (inputs)
