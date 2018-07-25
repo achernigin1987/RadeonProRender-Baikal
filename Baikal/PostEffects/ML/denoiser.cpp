@@ -134,6 +134,7 @@ namespace Baikal
                         offset += 2 * width * height;
                         break;
                     }
+                    // TODO: fix offsets
                     case Renderer::OutputType::kGloss:
                     {
                         auto gloss_place = host_mem + offset;
@@ -150,6 +151,8 @@ namespace Baikal
             }
 
             m_inference->PushInput(std::move(tensor));
+
+            // TODO: check empty
             auto inference_res = m_inference->PopOutput();
 
             auto clw_output = dynamic_cast<ClwOutput*>(&output);
