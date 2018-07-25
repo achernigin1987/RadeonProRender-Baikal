@@ -13,6 +13,8 @@ namespace Baikal
         class Inference
         {
         public:
+            using Ptr = std::unique_ptr<Inference>;
+
             virtual Tensor::Shape GetInputShape() const = 0;
             virtual Tensor::Shape GetOutputShape() const = 0;
             virtual Tensor GetInputTensor() = 0;
