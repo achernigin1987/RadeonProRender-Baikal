@@ -85,7 +85,7 @@ namespace Baikal
         }
 
         template <class ClType, class Type>
-        void MLDenoiser::ProcessOutput(CLWBuffer<RadeonRays::float3> input,
+        void MLDenoiser::ProcessOutput(const CLWBuffer<RadeonRays::float3>& input,
                                        Tensor::ValueType* host_mem)
         {
             auto input_buf = CLWBuffer<ClType>::CreateFromClBuffer(input);
@@ -116,19 +116,18 @@ namespace Baikal
             {
                 auto type = input.first;
                 auto clw_output = static_cast<ClwOutput*>(input.second);
-                auto mem_to_write = host_mem;
                 auto device_mem = clw_output->data();
 
                 switch (type)
                 {
                     case Renderer::OutputType::kColor:
                     {
-                        ProcessOutput<cl_float3, RadeonRays::float3>(device_mem, mem_to_write);
+                        ProcessOutput<cl_float3, RadeonRays::float3>(device_mem, host_mem);
                         break;
                     }
                     case Renderer::OutputType::kDepth:
                     {
-                        ProcessOutput<cl_float, Tensor::ValueType>(device_mem, mem_to_write);
+                        ProcessOutput<cl_float, Tensor::ValueType>(device_mem, host_mem);
                         break;
                     }
                     case Renderer::OutputType::kViewShadingNormal:
@@ -139,28 +138,26 @@ namespace Baikal
                         // copy only the first two channels
                         for (auto i = 0u; i < 3 * width * height; i += 3)
                         {
-                            mem_to_write[i / 3] = m_host_cache[i];
-                            mem_to_write[i / 3 + 1] = m_host_cache[i + 1];
+                            host_mem[i / 3] = m_host_cache[i];
+                            host_mem[i / 3 + 1] = m_host_cache[i + 1];
                         }
 
                         break;
                     }
                     case Renderer::OutputType::kGloss:
                     {
-                        auto mem_to_write = host_mem + m_layout[OutputType::kGloss];
-                        
                         ProcessOutput<cl_float3, RadeonRays::float3>(device_mem,
                             reinterpret_cast<Tensor::ValueType*>(m_host_cache.get()));
 
                         // copy only the first channel
                         for (auto i = 0u; i < 3 * width * height; i += 3)
                         {
-                            mem_to_write[i / 3] = m_host_cache[i];
+                            host_mem[i / 3] = m_host_cache[i];
                         }
                         break;
                     }
                 }
-                mem_to_write = host_mem + m_layout[type];
+                host_mem += m_layout[type];
             }
 
             m_inference->PushInput(std::move(tensor));
@@ -171,7 +168,6 @@ namespace Baikal
                 throw std::runtime_error("MLDenoiser::Apply(...): can not cast output");
             }
 
-            // TODO: check empty
             auto inference_res = m_inference->PopOutput();
 
             if (!inference_res.empty())

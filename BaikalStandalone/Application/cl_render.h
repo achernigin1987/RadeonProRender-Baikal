@@ -140,8 +140,7 @@ namespace Baikal
         Renderer::OutputType m_output_type;
 
 #ifdef ENABLE_ML_DENOISER
-        using MLDenoiseProviderPtr = std::unique_ptr<MLDenoiseProvider>;
-        MLDenoiseProviderPtr m_denoiser;
+        std::unique_ptr<MLDenoiseProvider> m_denoiser;
 #endif // ENABLE_ML_DENOISER
     };
 }

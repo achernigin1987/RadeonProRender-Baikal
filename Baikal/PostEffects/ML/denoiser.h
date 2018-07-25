@@ -55,17 +55,15 @@ namespace Baikal
         {
         public:
 
-            // Constructor
             MLDenoiser(const CLWContext& context, Inference::Ptr inference, MLDenoiserInputs inputs);
 
-            // Apply filter
             void Apply(InputSet const& input_set, Output& output) override;
 
         private:
             using MemoryLayout = std::map<Renderer::OutputType, std::size_t>;
 
             template <class ClType, class Type>
-            void ProcessOutput(CLWBuffer<RadeonRays::float3> input, Tensor::ValueType* host_mem);
+            void ProcessOutput(const CLWBuffer<RadeonRays::float3>& input, Tensor::ValueType* host_mem);
 
             Inference::Ptr m_inference;
             MemoryLayout m_layout;

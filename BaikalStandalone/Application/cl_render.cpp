@@ -53,8 +53,7 @@ namespace Baikal
         LoadScene(settings);
 
 #ifdef ENABLE_ML_DENOISER
-        m_denoiser = std::make_unique<MLDenoiseProvider>(MLDenoiseProvider(
-            m_cfgs[m_primary], m_width, m_height));
+        m_denoiser = std::make_unique<MLDenoiseProvider>(m_cfgs[m_primary], m_width, m_height);
 #endif // ENABLE_ML_DENOISER
 
     }
