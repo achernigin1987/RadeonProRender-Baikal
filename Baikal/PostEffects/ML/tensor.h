@@ -21,7 +21,7 @@ namespace Baikal
                 std::size_t height;
                 std::size_t channels;
 
-                friend bool operator==(const Tensor::Shape& lhs, const Tensor::Shape& rhs)
+                friend bool operator==(const Shape& lhs, const Shape& rhs)
                 {
                     return lhs.width == rhs.width &&
                            lhs.height == rhs.height &&
