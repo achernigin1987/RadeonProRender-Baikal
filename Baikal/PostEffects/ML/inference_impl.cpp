@@ -29,12 +29,12 @@ namespace Baikal
 
         Tensor::Shape InferenceImpl::GetInputShape() const
         {
-            return {m_height, m_width, m_input_channels};
+            return Tensor::Shape({ m_width, m_height, m_input_channels });
         }
 
         Tensor::Shape InferenceImpl::GetOutputShape() const
         {
-            return {m_height, m_width, m_output_channels };
+            return Tensor::Shape({ m_width, m_height, m_output_channels });
         }
 
         Tensor InferenceImpl::GetInputTensor()
