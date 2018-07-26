@@ -17,15 +17,24 @@ namespace Baikal
 
             struct Shape
             {
-                std::size_t width;
-                std::size_t height;
-                std::size_t channels;
+                std::size_t width = 0;
+                std::size_t height = 0;
+                std::size_t channels = 0;
 
-                friend bool operator==(const Shape& lhs, const Shape& rhs)
+                Shape() = default;
+
+                Shape(std::size_t width_, std::size_t height_, std::size_t channels_)
+                    : width(width_)
+                    , height(height_)
+                    , channels(channels_)
                 {
-                    return lhs.width == rhs.width &&
-                           lhs.height == rhs.height &&
-                           lhs.channels == rhs.channels;
+                }
+
+                bool operator==(const Shape& rhs) const
+                {
+                    return width == rhs.width &&
+                        height == rhs.height &&
+                        channels == rhs.channels;
                 }
             };
 
@@ -49,7 +58,7 @@ namespace Baikal
             {
             }
 
-            Tensor(Tensor&&) = default ;
+            Tensor(Tensor&&) = default;
             Tensor& operator=(Tensor&&) = default;
 
             bool empty() const
