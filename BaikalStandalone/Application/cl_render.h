@@ -39,6 +39,9 @@
 #include "PostEffects/bilateral_denoiser.h"
 #endif
 
+#ifdef ENABLE_ML_DENOISER
+#include "MLDenoiser/ml_denoiser.h"
+#endif // ENABLE_ML_DENOISER
 
 namespace Baikal
 {
@@ -53,10 +56,12 @@ namespace Baikal
             std::unique_ptr<Baikal::Output> output_normal;
             std::unique_ptr<Baikal::Output> output_albedo;
             std::unique_ptr<Baikal::Output> output_mesh_id;
-            std::unique_ptr<Baikal::Output> output_denoised;
             std::unique_ptr<Baikal::PostEffect> denoiser;
 #endif
 
+#if defined(ENABLE_DENOISER) ||  defined(ENABLE_ML_DENOISER)
+            std::unique_ptr<Baikal::Output> output_denoised;
+#endif
             std::vector<float3> fdata;
             std::vector<unsigned char> udata;
             CLWBuffer<float3> copybuffer;
@@ -121,7 +126,7 @@ namespace Baikal
         OutputData m_shape_id_data;
         OutputData m_dummy_output_data;
         RadeonRays::float2 m_shape_id_pos;
-        std::vector<ConfigManager::Config> m_cfgs;
+        std::vector<Config> m_cfgs;
         std::vector<OutputData> m_outputs;
         std::unique_ptr<ControlData[]> m_ctrl;
         std::vector<std::thread> m_renderthreads;
@@ -133,5 +138,9 @@ namespace Baikal
         //save GL tex for no interop case
         GLuint m_tex;
         Renderer::OutputType m_output_type;
+
+#ifdef ENABLE_ML_DENOISER
+        std::unique_ptr<MLDenoiseProvider> m_denoiser;
+#endif // ENABLE_ML_DENOISER
     };
 }

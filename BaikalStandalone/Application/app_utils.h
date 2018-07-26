@@ -48,7 +48,7 @@ namespace Baikal
         int num_samples;
         bool interop;
         float cspeed;
-        ConfigManager::Mode mode;
+        Mode mode;
 
         //ao
         float ao_radius;
