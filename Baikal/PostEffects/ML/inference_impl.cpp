@@ -29,12 +29,12 @@ namespace Baikal
 
         Tensor::Shape InferenceImpl::GetInputShape() const
         {
-            return {m_height, m_width, m_input_channels};
+            return { m_width, m_height, m_input_channels };
         }
 
         Tensor::Shape InferenceImpl::GetOutputShape() const
         {
-            return {m_height, m_width, m_output_channels };
+            return { m_width, m_height, m_output_channels };
         }
 
         Tensor InferenceImpl::GetInputTensor()
@@ -63,7 +63,7 @@ namespace Baikal
             };
             size_t size = m_width * m_height * channels;
             return Tensor(Tensor::Data(new Tensor::ValueType[size], deleter),
-                          {m_height, m_width, channels});
+                          { m_width, m_height, channels });
         }
 
         void InferenceImpl::DoInference()

@@ -14,27 +14,47 @@ namespace Baikal
         public:
             using ValueType = float;
             using Data = std::shared_ptr<ValueType>;
-            using Shape = std::tuple<std::size_t, std::size_t, std::size_t>;
+
+            struct Shape
+            {
+                std::size_t width = 0;
+                std::size_t height = 0;
+                std::size_t channels = 0;
+
+                Shape() = default;
+
+                Shape(std::size_t width_, std::size_t height_, std::size_t channels_)
+                    : width(width_)
+                    , height(height_)
+                    , channels(channels_)
+                {
+                }
+
+                bool operator==(const Shape& rhs) const
+                {
+                    return width == rhs.width &&
+                        height == rhs.height &&
+                        channels == rhs.channels;
+                }
+            };
 
             Tensor(Tensor const&) = delete;
             Tensor& operator=(Tensor const&) = delete;
 
             Tensor()
-                : Tensor(std::make_tuple(0, 0, 0))
+                : Tensor(Shape())
             {
             }
 
-            Tensor(Shape shape)
-                : Tensor(nullptr, std::move(shape))
+            explicit Tensor(Shape shape)
+                : Tensor(nullptr, shape)
             {
             }
 
             Tensor(Data data, Shape shape)
                 : m_data(std::move(data))
-                , m_shape(std::move(shape))
-                , m_size(std::get<0>(m_shape) *
-                    std::get<1>(m_shape) *
-                    std::get<2>(m_shape))
+                , m_shape(shape)
+                , m_size(m_shape.width * m_shape.height * m_shape.channels)
             {
             }
 
@@ -66,5 +86,6 @@ namespace Baikal
             Shape m_shape;
             std::size_t m_size;
         };
+
     }
 }
