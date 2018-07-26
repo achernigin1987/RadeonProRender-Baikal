@@ -42,7 +42,7 @@ namespace Baikal
             Tensor& operator=(Tensor const&) = delete;
 
             Tensor()
-                : Tensor({0, 0, 0})
+                : Tensor(Shape())
             {
             }
 
