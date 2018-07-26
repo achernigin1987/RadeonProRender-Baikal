@@ -57,6 +57,7 @@ struct Config
     CLWContext context;
     bool caninterop;
 
+    Config() = default;
     Config(Config&& cfg) = default;
 };
 
