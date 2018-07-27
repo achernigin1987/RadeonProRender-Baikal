@@ -45,8 +45,8 @@ namespace Baikal
 
             const std::size_t m_output_channels = 3;
 
+            std::atomic<bool> m_interrupted;
             std::thread m_worker;
-            std::atomic_flag m_keep_running = ATOMIC_FLAG_INIT;
         };
     }
 }

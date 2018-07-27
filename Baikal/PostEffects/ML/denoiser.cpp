@@ -173,7 +173,7 @@ namespace Baikal
                 m_context->WriteBuffer<RadeonRays::float3>(0,
                     clw_inference_output->data(),
                     (RadeonRays::float3*)inference_res.data(),
-                    inference_res.size()).Wait();
+                    inference_res.size() / inference_res.shape().channels).Wait();
             }
             else
             {
