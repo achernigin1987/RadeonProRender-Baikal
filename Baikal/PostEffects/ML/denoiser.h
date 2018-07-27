@@ -76,6 +76,7 @@ namespace Baikal
             std::unique_ptr<CLWBuffer<char>> m_device_cache;
             // CPU cache
             std::unique_ptr<std::uint8_t[]> m_host_cache;
+            Tensor m_last_image;
         };
     }
 }

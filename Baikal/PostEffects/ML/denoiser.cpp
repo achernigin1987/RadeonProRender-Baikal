@@ -298,6 +298,26 @@ namespace Baikal
                     clw_inference_output->data(),
                     reinterpret_cast<float3*>(m_host_cache.get()),
                     inference_res.size() / 3).Wait();
+
+                m_last_image = std::move(inference_res);
+            }
+            else if (!m_last_image.empty())
+            {
+                auto dest = reinterpret_cast<float3*>(m_host_cache.get());
+                auto source = m_last_image.data();
+                for (auto i = 0u; i < shape.width * shape.height; ++i)
+                {
+                    dest->x = *source++;
+                    dest->y = *source++;
+                    dest->z = *source++;
+                    dest->w = 1;
+                    ++dest;
+                }
+
+                m_context->WriteBuffer<float3>(0,
+                                               clw_inference_output->data(),
+                                               reinterpret_cast<float3*>(m_host_cache.get()),
+                                               inference_res.size() / 3).Wait();
             }
             else
             {
