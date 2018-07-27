@@ -43,6 +43,7 @@ namespace Baikal
         enum class MLDenoiserInputs
         {
             kColorDepthNormalGloss7,
+            kColorAlbedoNormal8,
         };
 
         std::unique_ptr<Inference> CreateMLDenoiser(MLDenoiserInputs inputs,
@@ -63,7 +64,9 @@ namespace Baikal
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
             template <class ClType, class Type>
-            void ProcessOutput(const CLWBuffer<RadeonRays::float3>& input, Tensor::ValueType* host_mem);
+            void ProcessOutput(const CLWBuffer<RadeonRays::float3>& input,
+                               Tensor::ValueType* host_mem,
+                               std::size_t channels);
 
             Inference::Ptr m_inference;
             MemoryLayout m_layout;

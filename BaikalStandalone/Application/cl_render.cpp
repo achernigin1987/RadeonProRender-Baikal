@@ -336,7 +336,7 @@ namespace Baikal
 
             auto copykernel = static_cast<Baikal::MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetCopyKernel();
 
-#if defined(ENABLE_DENOISER) ||  defined(ENABLE_ML_DENOISER)
+#if defined(ENABLE_DENOISER) || defined(ENABLE_ML_DENOISER)
             auto output = m_outputs[m_primary].output_denoised.get();
 #else
             auto output = m_outputs[m_primary].output.get();

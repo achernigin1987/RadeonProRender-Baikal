@@ -26,7 +26,7 @@ THE SOFTWARE.
 using namespace Baikal;
 using namespace Baikal::PostEffects;
 
-#define OUTPUTS_NUM (4)
+#define OUTPUTS_NUM (5)
 
 MLDenoiseProvider::MLDenoiseProvider(const Config& config, size_t width, size_t height)
            : m_denoiser(config.context,
@@ -47,6 +47,7 @@ MLDenoiseProvider::MLDenoiseProvider(const Config& config, size_t width, size_t 
     config.renderer->SetOutput(Renderer::OutputType::kDepth, m_outputs[1].get());
     config.renderer->SetOutput(Renderer::OutputType::kViewShadingNormal, m_outputs[2].get());
     config.renderer->SetOutput(Renderer::OutputType::kGloss, m_outputs[3].get());
+    config.renderer->SetOutput(Renderer::OutputType::kAlbedo, m_outputs[4].get());
 }
 
 void MLDenoiseProvider::Process(Output* output)
@@ -58,6 +59,7 @@ void MLDenoiseProvider::Process(Output* output)
     input_set[Baikal::Renderer::OutputType::kDepth] = m_outputs[1].get();
     input_set[Baikal::Renderer::OutputType::kViewShadingNormal] = m_outputs[2].get();
     input_set[Baikal::Renderer::OutputType::kGloss] = m_outputs[3].get();
+    input_set[Baikal::Renderer::OutputType::kAlbedo] = m_outputs[4].get();
 
     m_denoiser.Apply(input_set, *output);
 }
