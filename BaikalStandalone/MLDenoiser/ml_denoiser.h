@@ -41,5 +41,6 @@ private:
 
     Baikal::PostEffects::MLDenoiser m_denoiser;
     std::vector<OutputPtr> m_outputs;
+    Baikal::PostEffect::InputSet m_input_set;
 };
 

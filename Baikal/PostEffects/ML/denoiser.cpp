@@ -88,15 +88,17 @@ namespace Baikal
             // compute memory layout
             switch (inputs)
             {
-                case MLDenoiserInputs::kColorDepthNormalGloss7:
-                {
-                    m_layout.emplace_back(OutputType::kColor, 3);
-                    m_layout.emplace_back(OutputType::kDepth, 1);
-                    m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
-                    m_layout.emplace_back(OutputType::kGloss, 1);
-                }
+            case MLDenoiserInputs::kColorDepthNormalGloss7:
+                m_layout.emplace_back(OutputType::kColor, 3);
+                m_layout.emplace_back(OutputType::kDepth, 1);
+                m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
+                m_layout.emplace_back(OutputType::kGloss, 1);
                 break;
-            default:
+
+            case MLDenoiserInputs::kColorAlbedoNormal8:
+                m_layout.emplace_back(OutputType::kColor, 3);
+                m_layout.emplace_back(OutputType::kAlbedo, 3);
+                m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                 break;
             }
         }

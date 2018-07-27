@@ -26,42 +26,35 @@ THE SOFTWARE.
 using namespace Baikal;
 using namespace Baikal::PostEffects;
 
-#define OUTPUTS_NUM (5)
-
 MLDenoiseProvider::MLDenoiseProvider(const Config& config, size_t width, size_t height)
            : m_denoiser(config.context,
-                        Baikal::PostEffects::CreateMLDenoiser(MLDenoiserInputs::kColorDepthNormalGloss7,
+                        Baikal::PostEffects::CreateMLDenoiser(MLDenoiserInputs::kColorAlbedoNormal8,
                                                               .1f,
                                                               std::string(),
                                                               width,
                                                               height),
-                        MLDenoiserInputs::kColorDepthNormalGloss7)
+                        MLDenoiserInputs::kColorAlbedoNormal8)
 {
-    for (int i = 0; i < OUTPUTS_NUM; i++)
+    auto add_input = [this, &config, width, height](Renderer::OutputType type)
     {
-        m_outputs.push_back(config.factory.get()->CreateOutput(static_cast<std::uint32_t>(width), 
-                                                               static_cast<std::uint32_t>(height)));
-    }
+        auto output = config.factory->CreateOutput(static_cast<std::uint32_t>(width),
+                                                   static_cast<std::uint32_t>(height));
+        config.renderer->SetOutput(type, output.get());
+        m_input_set[type] = output.get();
+        m_outputs.push_back(std::move(output));
+    };
 
-    config.renderer->SetOutput(Renderer::OutputType::kColor, m_outputs[0].get());
-    config.renderer->SetOutput(Renderer::OutputType::kDepth, m_outputs[1].get());
-    config.renderer->SetOutput(Renderer::OutputType::kViewShadingNormal, m_outputs[2].get());
-    config.renderer->SetOutput(Renderer::OutputType::kGloss, m_outputs[3].get());
-    config.renderer->SetOutput(Renderer::OutputType::kAlbedo, m_outputs[4].get());
+    add_input(Renderer::OutputType::kColor);
+    add_input(Renderer::OutputType::kDepth);
+    add_input(Renderer::OutputType::kViewShadingNormal);
+    add_input(Renderer::OutputType::kGloss);
+    add_input(Renderer::OutputType::kAlbedo);
 }
 
 void MLDenoiseProvider::Process(Output* output)
 {
     assert(output);
-
-    Baikal::PostEffect::InputSet input_set;
-    input_set[Baikal::Renderer::OutputType::kColor] = m_outputs[0].get();
-    input_set[Baikal::Renderer::OutputType::kDepth] = m_outputs[1].get();
-    input_set[Baikal::Renderer::OutputType::kViewShadingNormal] = m_outputs[2].get();
-    input_set[Baikal::Renderer::OutputType::kGloss] = m_outputs[3].get();
-    input_set[Baikal::Renderer::OutputType::kAlbedo] = m_outputs[4].get();
-
-    m_denoiser.Apply(input_set, *output);
+    m_denoiser.Apply(m_input_set, *output);
 }
 
 void MLDenoiseProvider::Clear(const Config& config)
