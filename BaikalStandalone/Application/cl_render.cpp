@@ -50,13 +50,19 @@ namespace Baikal
     AppClRender::AppClRender(AppSettings& settings, GLuint tex) : m_tex(tex), m_output_type(Renderer::OutputType::kColor)
     {
         InitCl(settings, m_tex);
-        LoadScene(settings);
 
-#ifdef ENABLE_ML_DENOISER
+#if defined(ENABLE_DENOISER)
+        m_clw_denoiser = std::make_unique<ClwDenoiseController>(
+                &(m_cfgs[m_primary]),
+                RenderFactory<Baikal::ClwScene>::PostEffectType::kWaveletDenoiser, m_width, m_height);
+        m_clw_denoiser->Init();
+
+#elif defined(ENABLE_ML_DENOISER)
         m_outputs[m_primary].output_denoised = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
         m_denoiser = std::make_unique<MLDenoiseProvider>(m_cfgs[m_primary], m_width, m_height);
-#endif // ENABLE_ML_DENOISER
+#endif
 
+        LoadScene(settings);
     }
 
     void AppClRender::InitCl(AppSettings& settings, GLuint tex)
@@ -134,12 +140,6 @@ namespace Baikal
         {
             m_outputs[i].output = m_cfgs[i].factory->CreateOutput(m_width, m_height);
 
-#ifdef ENABLE_DENOISER
-            CreateDenoiserOutputs(i, settings.width, settings.height);
-            SetDenoiserOutputs(i);
-            //m_outputs[i].denoiser = m_cfgs[i].factory->CreatePostEffect(Baikal::RenderFactory<Baikal::ClwScene>::PostEffectType::kBilateralDenoiser);
-            m_outputs[i].denoiser = m_cfgs[i].factory->CreatePostEffect(Baikal::RenderFactory<Baikal::ClwScene>::PostEffectType::kWaveletDenoiser);
-#endif
             m_cfgs[i].renderer->SetOutput(Baikal::Renderer::OutputType::kColor, m_outputs[i].output.get());
 
             m_outputs[i].fdata.resize(settings.width * settings.height);
@@ -254,7 +254,6 @@ namespace Baikal
 
     void AppClRender::UpdateScene()
     {
-
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
             if (i == static_cast<std::size_t>(m_primary))
@@ -263,7 +262,7 @@ namespace Baikal
                 m_cfgs[i].renderer->Clear(float3(0, 0, 0), *m_outputs[i].output);
 
 #ifdef ENABLE_DENOISER
-                ClearDenoiserOutputs(i);
+                m_clw_denoiser->Clear();
 #endif
 
 #ifdef ENABLE_ML_DENOISER
@@ -308,8 +307,10 @@ namespace Baikal
 
         if (!settings.interop)
         {
-#if defined(ENABLE_DENOISER) ||  defined(ENABLE_ML_DENOISER)
-            m_outputs[m_primary].output_denoised->GetData(&m_outputs[m_primary].fdata[0]);
+#if defined(ENABLE_DENOISER)
+            m_clw_denoiser->GetProcessedData(&m_outputs[m_primary].fdata[0]);
+#elif defined(ENABLE_ML_DENOISER)
+
 #else
             m_outputs[m_primary].output->GetData(&m_outputs[m_primary].fdata[0]);
 #endif
@@ -397,32 +398,22 @@ namespace Baikal
         }
 
 #ifdef ENABLE_DENOISER
-        Baikal::PostEffect::InputSet input_set;
-        input_set[Baikal::Renderer::OutputType::kColor] = m_outputs[m_primary].output.get();
-        input_set[Baikal::Renderer::OutputType::kWorldShadingNormal] = m_outputs[m_primary].output_normal.get();
-        input_set[Baikal::Renderer::OutputType::kWorldPosition] = m_outputs[m_primary].output_position.get();
-        input_set[Baikal::Renderer::OutputType::kAlbedo] = m_outputs[m_primary].output_albedo.get();
-        input_set[Baikal::Renderer::OutputType::kMeshID] = m_outputs[m_primary].output_mesh_id.get();
-
-        auto radius = 10U - RadeonRays::clamp((sample_cnt / 16), 1U, 9U);
-        auto position_sensitivity = 5.f + 10.f * (radius / 10.f);
-
-        const bool is_bilateral_denoiser = dynamic_cast<BilateralDenoiser*>(m_outputs[m_primary].denoiser.get()) != nullptr;
-
-        if (is_bilateral_denoiser)
+        if (m_clw_denoiser->GetType() == RenderFactory<ClwScene>::PostEffectType::kBilateralDenoiser)
         {
-
+            auto radius = 10U - RadeonRays::clamp((sample_cnt / 16), 1U, 9U);
+            auto position_sensitivity = 5.f + 10.f * (radius / 10.f);
             auto normal_sensitivity = 0.1f + (radius / 10.f) * 0.15f;
             auto color_sensitivity = (radius / 10.f) * 2.f;
             auto albedo_sensitivity = 0.5f + (radius / 10.f) * 0.5f;
-            m_outputs[m_primary].denoiser->SetParameter("radius", static_cast<float>(radius));
-            m_outputs[m_primary].denoiser->SetParameter("color_sensitivity", color_sensitivity);
-            m_outputs[m_primary].denoiser->SetParameter("normal_sensitivity", normal_sensitivity);
-            m_outputs[m_primary].denoiser->SetParameter("position_sensitivity", position_sensitivity);
-            m_outputs[m_primary].denoiser->SetParameter("albedo_sensitivity", albedo_sensitivity);
+
+            m_clw_denoiser->SetParameter("radius", static_cast<float>(radius));
+            m_clw_denoiser->SetParameter("color_sensitivity", color_sensitivity);
+            m_clw_denoiser->SetParameter("normal_sensitivity", normal_sensitivity);
+            m_clw_denoiser->SetParameter("position_sensitivity", position_sensitivity);
+            m_clw_denoiser->SetParameter("albedo_sensitivity", albedo_sensitivity);
         }
 
-        m_outputs[m_primary].denoiser->Apply(input_set, *m_outputs[m_primary].output_denoised);
+        m_clw_denoiser->Process();
 #endif
 
 #ifdef ENABLE_ML_DENOISER
@@ -676,60 +667,35 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
     void AppClRender::SetDenoiserFloatParam(const std::string& name, const float4& value)
     {
-        m_outputs[m_primary].denoiser->SetParameter(name, value);
+        m_clw_denoiser->SetParameter(name, value);
     }
 
     float4 AppClRender::GetDenoiserFloatParam(const std::string& name)
     {
-        return m_outputs[m_primary].denoiser->GetParameter(name);
-    }
-
-    void AppClRender::CreateDenoiserOutputs(std::size_t cfg_index, int width, int height)
-    {
-        m_outputs[cfg_index].output_denoised = m_cfgs[cfg_index].factory->CreateOutput(width, height);
-        m_outputs[cfg_index].output_normal = m_cfgs[cfg_index].factory->CreateOutput(width, height);
-        m_outputs[cfg_index].output_position = m_cfgs[cfg_index].factory->CreateOutput(width, height);
-        m_outputs[cfg_index].output_albedo = m_cfgs[cfg_index].factory->CreateOutput(width, height);
-        m_outputs[cfg_index].output_mesh_id = m_cfgs[cfg_index].factory->CreateOutput(width, height);
-    }
-
-    void AppClRender::SetDenoiserOutputs(std::size_t cfg_index) const
-    {
-        m_cfgs[cfg_index].renderer->SetOutput(Renderer::OutputType::kWorldShadingNormal, m_outputs[cfg_index].output_normal.get());
-        m_cfgs[cfg_index].renderer->SetOutput(Renderer::OutputType::kWorldPosition, m_outputs[cfg_index].output_position.get());
-        m_cfgs[cfg_index].renderer->SetOutput(Renderer::OutputType::kAlbedo, m_outputs[cfg_index].output_albedo.get());
-        m_cfgs[cfg_index].renderer->SetOutput(Renderer::OutputType::kMeshID, m_outputs[cfg_index].output_mesh_id.get());
-    }
-
-    void AppClRender::ClearDenoiserOutputs(std::size_t cfg_index) const
-    {
-        m_cfgs[cfg_index].renderer->Clear(float3(0, 0, 0), *m_outputs[cfg_index].output_normal);
-        m_cfgs[cfg_index].renderer->Clear(float3(0, 0, 0), *m_outputs[cfg_index].output_position);
-        m_cfgs[cfg_index].renderer->Clear(float3(0, 0, 0), *m_outputs[cfg_index].output_albedo);
-        m_cfgs[cfg_index].renderer->Clear(float3(0, 0, 0), *m_outputs[cfg_index].output_mesh_id);
+        return m_clw_denoiser->GetParameter(name);
     }
 
     void AppClRender::RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const
     {
-        switch (type)
-        {
-        case Renderer::OutputType::kWorldShadingNormal:
-            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_normal.get());
-            break;
-        case Renderer::OutputType::kWorldPosition:
-            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_position.get());
-            break;
-        case Renderer::OutputType::kAlbedo:
-            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_albedo.get());
-            break;
-        case Renderer::OutputType::kMeshID:
-            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_mesh_id.get());
-            break;
-        default:
-            // Nothing to restore
-            m_cfgs[cfg_index].renderer->SetOutput(type, nullptr);
-            break;
-        }
+//        switch (type)
+//        {
+//        case Renderer::OutputType::kWorldShadingNormal:
+//            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_normal.get());
+//            break;
+//        case Renderer::OutputType::kWorldPosition:
+//            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_position.get());
+//            break;
+//        case Renderer::OutputType::kAlbedo:
+//            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_albedo.get());
+//            break;
+//        case Renderer::OutputType::kMeshID:
+//            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_mesh_id.get());
+//            break;
+//        default:
+//            // Nothing to restore
+//            m_cfgs[cfg_index].renderer->SetOutput(type, nullptr);
+//            break;
+//        }
     }
 #endif
 } // Baikal

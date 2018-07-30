@@ -22,15 +22,17 @@ THE SOFTWARE.
 
 #pragma once
 
-#include "PostEffects/post_effect.h"
 #include "PostEffects/ML/inference.h"
+#include "PostEffects/post_effect.h"
 #include "tensor.h"
+
+#include "CLW.h"
 
 #include <cstddef>
 #include <memory>
 #include <string>
 
-class CLWContext;
+
 class CLWParallelPrimitives;
 
 template <class T>
@@ -46,17 +48,19 @@ namespace Baikal
             kColorAlbedoNormal8,
         };
 
-        std::unique_ptr<Inference> CreateMLDenoiser(MLDenoiserInputs inputs,
-                                                    float gpu_memory_fraction,
-                                                    std::string const& visible_devices,
-                                                    std::size_t width,
-                                                    std::size_t height);
+        struct MLDenoiserParams {
+            MLDenoiserInputs inputs;
+            float gpu_memory_fraction;
+            std::string const& visible_devices;
+            std::size_t width;
+            std::size_t height;
+        };
 
         class MLDenoiser : public PostEffect
         {
         public:
 
-            MLDenoiser(const CLWContext& context, Inference::Ptr inference, MLDenoiserInputs inputs);
+            MLDenoiser(CLWContext context, const MLDenoiserParams& params);
 
             void Apply(InputSet const& input_set, Output& output) override;
 
@@ -70,7 +74,7 @@ namespace Baikal
 
             Inference::Ptr m_inference;
             MemoryLayout m_layout;
-            std::unique_ptr<CLWContext> m_context;
+            CLWContext m_context;
             std::unique_ptr<CLWParallelPrimitives> m_primitives;
             // GPU cache
             std::unique_ptr<CLWBuffer<char>> m_device_cache;

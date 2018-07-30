@@ -57,6 +57,11 @@ namespace Baikal
         std::unique_ptr<PostEffect> 
             CreatePostEffect(PostEffectType type) const override;
 
+#ifdef ENABLE_MLDENOISER
+        // Create ML post effect of specified type
+        std::unique_ptr<PostEffect>
+            CreateMLPostEffect(MLPostEffectType type, const PostEffects::MLDenoiserParams& params) const override;
+#endif
         std::unique_ptr<SceneController<ClwScene>>
             CreateSceneController() const override;
 

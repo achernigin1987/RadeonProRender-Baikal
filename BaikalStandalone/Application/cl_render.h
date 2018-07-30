@@ -37,10 +37,11 @@
 
 #ifdef ENABLE_DENOISER
 #include "PostEffects/bilateral_denoiser.h"
+#include "Denoise/clw_denoise_controller.h"
 #endif
 
 #ifdef ENABLE_ML_DENOISER
-#include "MLDenoiser/ml_denoiser.h"
+#include "Denoise/ml_denoiser.h"
 #endif // ENABLE_ML_DENOISER
 
 namespace Baikal
@@ -113,6 +114,7 @@ namespace Baikal
         void ClearDenoiserOutputs(std::size_t cfg_index) const;
         void RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const;
 #endif
+
     private:
         void InitCl(AppSettings& settings, GLuint tex);
         void LoadScene(AppSettings& settings);
@@ -142,5 +144,8 @@ namespace Baikal
 #ifdef ENABLE_ML_DENOISER
         std::unique_ptr<MLDenoiseProvider> m_denoiser;
 #endif // ENABLE_ML_DENOISER
+#ifdef ENABLE_DENOISER
+        std::unique_ptr<DenoiseController> m_clw_denoiser;
+#endif
     };
 }

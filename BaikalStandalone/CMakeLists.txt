@@ -45,7 +45,11 @@ set(SOURCES
     ${IMGUI_SORUCES}
     ${MAIN_SOURCES}
     ${UTILS_SOURCES}
-    ${KERNEL_SOURCES})
+    ${KERNEL_SOURCES}
+        Denoise/denoise_controller.h
+        Denoise/denoise_controller.cpp
+        Denoise/clw_denoise_controller.h
+        Denoise/clw_denoise_controller.cpp)
 
 source_group("Application" FILES ${APPLICATION_SOURCES})
 source_group("ImGUI" FILES ${IMGUI_SORUCES})
@@ -54,11 +58,13 @@ source_group("Kernels\\GLSL" FILES ${KERNEL_SOURCES})
 
 if (BAIKAL_ENABLE_MLDENOISER)
     set(ML_DENOISER_SOURCES
-        MLDenoiser/ml_denoiser.h
-        MLDenoiser/ml_denoiser.cpp)
+            Denoise/denoise_controller.h
+            Denoise/denoise_controller.cpp
+            Denoise/ml_denoiser.h
+            Denoise/ml_denoiser.cpp)
 
     list(APPEND SOURCES ${ML_DENOISER_SOURCES})
-    source_group("MLDenoiser" FILES ${ML_DENOISER_SOURCES})
+    source_group("Denoise" FILES ${ML_DENOISER_SOURCES})
 endif(BAIKAL_ENABLE_MLDENOISER)
 
     

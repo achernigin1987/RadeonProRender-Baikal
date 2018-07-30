@@ -26,12 +26,25 @@
 #include "CLW.h"
 #include "Controllers/scene_controller.h"
 
+
 namespace Baikal
 {
     class Renderer;
     class Output;
     class PostEffect;
-    
+
+#ifdef ENABLE_MLDENOISER
+    namespace PostEffects
+    {
+        class MLDenoiserParams;
+    }
+
+    enum class MLPostEffectType
+    {
+        kMLDenoiser
+    };
+
+#endif
     /**
         \brief RenderFactory class is in charge of render entities creation.
      
@@ -65,6 +78,12 @@ namespace Baikal
 
         virtual 
         std::unique_ptr<PostEffect> CreatePostEffect(PostEffectType type) const = 0;
+
+#ifdef ENABLE_MLDENOISER
+        virtual
+        std::unique_ptr<PostEffect> CreateMLPostEffect(
+                MLPostEffectType type, const PostEffects::MLDenoiserParams& params) const = 0;
+#endif
 
         virtual
         std::unique_ptr<SceneController<Scene>> CreateSceneController() const = 0;

@@ -9,6 +9,9 @@
 #include "PostEffects/bilateral_denoiser.h"
 #include "PostEffects/wavelet_denoiser.h"
 #endif
+#ifdef ENABLE_MLDENOISER
+#include "PostEffects/ML/denoiser.h"
+#endif
 
 #include <memory>
 
@@ -74,6 +77,22 @@ namespace Baikal
         throw std::runtime_error("PostEffect is not supported");
 #endif
     }
+
+#ifdef ENABLE_MLDENOISER
+    // Create ML post effect of specified type
+    std::unique_ptr<PostEffect> ClwRenderFactory::CreateMLPostEffect(
+            MLPostEffectType type, const PostEffects::MLDenoiserParams& params) const
+    {
+        switch (type)
+        {
+            case MLPostEffectType::kMLDenoiser:
+                return std::make_unique<PostEffects::MLDenoiser>(m_context, params);
+            default:
+                throw std::runtime_error("PostEffect is not supported");
+        }
+
+    }
+#endif
 
     std::unique_ptr<SceneController<ClwScene>> ClwRenderFactory::CreateSceneController() const
     {
