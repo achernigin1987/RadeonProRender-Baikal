@@ -36,13 +36,9 @@
 #include "SceneGraph/camera.h"
 
 #ifdef ENABLE_DENOISER
-#include "PostEffects/bilateral_denoiser.h"
-#include "Denoise/clw_denoise_controller.h"
+#include "Denoise/post_effect_controller.h"
 #endif
 
-#ifdef ENABLE_ML_DENOISER
-#include "Denoise/ml_denoiser.h"
-#endif // ENABLE_ML_DENOISER
 
 namespace Baikal
 {
@@ -53,15 +49,15 @@ namespace Baikal
             std::unique_ptr<Baikal::Output> output;
 
 #ifdef ENABLE_DENOISER
-            std::unique_ptr<Baikal::Output> output_position;
-            std::unique_ptr<Baikal::Output> output_normal;
-            std::unique_ptr<Baikal::Output> output_albedo;
-            std::unique_ptr<Baikal::Output> output_mesh_id;
-            std::unique_ptr<Baikal::PostEffect> denoiser;
+//            std::unique_ptr<Baikal::Output> output_position;
+//            std::unique_ptr<Baikal::Output> output_normal;
+//            std::unique_ptr<Baikal::Output> output_albedo;
+//            std::unique_ptr<Baikal::Output> output_mesh_id;
+//            std::unique_ptr<Baikal::PostEffect> denoiser;
 #endif
 
 #if defined(ENABLE_DENOISER) ||  defined(ENABLE_ML_DENOISER)
-            std::unique_ptr<Baikal::Output> output_denoised;
+//            std::unique_ptr<Baikal::Output> output_denoised;
 #endif
             std::vector<float3> fdata;
             std::vector<unsigned char> udata;
@@ -106,12 +102,8 @@ namespace Baikal
         Baikal::Shape::Ptr GetShapeById(int shape_id);
 
 #ifdef ENABLE_DENOISER
-        // Denoiser
         void SetDenoiserFloatParam(const std::string& name, const float4& value);
         float4 GetDenoiserFloatParam(const std::string& name);
-        void CreateDenoiserOutputs(std::size_t cfg_index, int width, int height);
-        void SetDenoiserOutputs(std::size_t cfg_index) const;
-        void ClearDenoiserOutputs(std::size_t cfg_index) const;
         void RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const;
 #endif
 
@@ -141,11 +133,8 @@ namespace Baikal
         GLuint m_tex;
         Renderer::OutputType m_output_type;
 
-#ifdef ENABLE_ML_DENOISER
-        std::unique_ptr<MLDenoiseProvider> m_denoiser;
-#endif // ENABLE_ML_DENOISER
 #ifdef ENABLE_DENOISER
-        std::unique_ptr<DenoiseController> m_clw_denoiser;
+        std::unique_ptr<PostEffectController> m_denoiser;
 #endif
     };
 }

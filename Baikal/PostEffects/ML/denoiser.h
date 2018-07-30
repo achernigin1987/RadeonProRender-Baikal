@@ -60,7 +60,7 @@ namespace Baikal
         {
         public:
 
-            MLDenoiser(CLWContext context, const MLDenoiserParams& params);
+            MLDenoiser(CLWContext context, std::size_t width, std::size_t height);
 
             void Apply(InputSet const& input_set, Output& output) override;
 
@@ -72,6 +72,7 @@ namespace Baikal
                                Tensor::ValueType* host_mem,
                                std::size_t channels);
 
+            MLDenoiserInputs m_inputs;
             Inference::Ptr m_inference;
             MemoryLayout m_layout;
             CLWContext m_context;

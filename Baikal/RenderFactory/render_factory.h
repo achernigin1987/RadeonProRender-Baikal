@@ -33,18 +33,6 @@ namespace Baikal
     class Output;
     class PostEffect;
 
-#ifdef ENABLE_MLDENOISER
-    namespace PostEffects
-    {
-        class MLDenoiserParams;
-    }
-
-    enum class MLPostEffectType
-    {
-        kMLDenoiser
-    };
-
-#endif
     /**
         \brief RenderFactory class is in charge of render entities creation.
      
@@ -60,11 +48,12 @@ namespace Baikal
         {
             kUnidirectionalPathTracer
         };
-        
+
         enum class PostEffectType
         {
             kBilateralDenoiser,
-            kWaveletDenoiser
+            kWaveletDenoiser,
+            kMLDenoiser
         };
 
         RenderFactory() = default;
@@ -77,13 +66,8 @@ namespace Baikal
         std::unique_ptr<Output> CreateOutput(std::uint32_t w, std::uint32_t h) const = 0;
 
         virtual 
-        std::unique_ptr<PostEffect> CreatePostEffect(PostEffectType type) const = 0;
-
-#ifdef ENABLE_MLDENOISER
-        virtual
-        std::unique_ptr<PostEffect> CreateMLPostEffect(
-                MLPostEffectType type, const PostEffects::MLDenoiserParams& params) const = 0;
-#endif
+        std::unique_ptr<PostEffect> CreatePostEffect(
+                PostEffectType type, std::size_t width, std::size_t height) const = 0;
 
         virtual
         std::unique_ptr<SceneController<Scene>> CreateSceneController() const = 0;

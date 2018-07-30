@@ -5,13 +5,10 @@
 #include "Renderers/adaptive_renderer.h"
 #include "Estimators/path_tracing_estimator.h"
 
-#ifdef ENABLE_DENOISER
 #include "PostEffects/bilateral_denoiser.h"
 #include "PostEffects/wavelet_denoiser.h"
-#endif
-#ifdef ENABLE_MLDENOISER
 #include "PostEffects/ML/denoiser.h"
-#endif
+
 
 #include <memory>
 
@@ -34,8 +31,7 @@ namespace Baikal
     }
 
     // Create a renderer of specified type
-    std::unique_ptr<Renderer> ClwRenderFactory::CreateRenderer(
-                                                    RendererType type) const
+    std::unique_ptr<Renderer> ClwRenderFactory::CreateRenderer(RendererType type) const
     {
         switch (type)
         {
@@ -59,40 +55,20 @@ namespace Baikal
     }
 
     std::unique_ptr<PostEffect> ClwRenderFactory::CreatePostEffect(
-                                                    PostEffectType type) const
+            PostEffectType type, std::size_t width, std::size_t height) const
     {
-#ifdef ENABLE_DENOISER
         switch (type)
         {
             case PostEffectType::kBilateralDenoiser:
-                return std::unique_ptr<PostEffect>(
-                                            new BilateralDenoiser(m_context, &m_program_manager));
+                return std::make_unique<BilateralDenoiser>(m_context, &m_program_manager);
             case PostEffectType::kWaveletDenoiser:
-                return std::unique_ptr<PostEffect>(
-                                            new WaveletDenoiser(m_context, &m_program_manager));
+                return std::make_unique<WaveletDenoiser>(m_context, &m_program_manager);
+            case PostEffectType::kMLDenoiser:
+                return std::make_unique<PostEffects::MLDenoiser>(m_context, width, height);
             default:
                 throw std::runtime_error("PostEffect is not supported");
         }
-#else
-        throw std::runtime_error("PostEffect is not supported");
-#endif
     }
-
-#ifdef ENABLE_MLDENOISER
-    // Create ML post effect of specified type
-    std::unique_ptr<PostEffect> ClwRenderFactory::CreateMLPostEffect(
-            MLPostEffectType type, const PostEffects::MLDenoiserParams& params) const
-    {
-        switch (type)
-        {
-            case MLPostEffectType::kMLDenoiser:
-                return std::make_unique<PostEffects::MLDenoiser>(m_context, params);
-            default:
-                throw std::runtime_error("PostEffect is not supported");
-        }
-
-    }
-#endif
 
     std::unique_ptr<SceneController<ClwScene>> ClwRenderFactory::CreateSceneController() const
     {

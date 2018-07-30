@@ -40,34 +40,27 @@ set(KERNEL_SOURCES
     Kernels/GLSL/simple.fsh
     Kernels/GLSL/simple.vsh)
 
+set(DENOISER_SOURCES
+        Denoise/post_effect_controller.h
+        Denoise/post_effect_controller.cpp)
+
 set(SOURCES
     ${APPLICATION_SOURCES}
     ${IMGUI_SORUCES}
     ${MAIN_SOURCES}
     ${UTILS_SOURCES}
-    ${KERNEL_SOURCES}
-        Denoise/denoise_controller.h
-        Denoise/denoise_controller.cpp
-        Denoise/clw_denoise_controller.h
-        Denoise/clw_denoise_controller.cpp)
+    ${KERNEL_SOURCES})
 
 source_group("Application" FILES ${APPLICATION_SOURCES})
 source_group("ImGUI" FILES ${IMGUI_SORUCES})
 source_group("Utils" FILES ${UTILS_SOURCES})
 source_group("Kernels\\GLSL" FILES ${KERNEL_SOURCES})
 
-if (BAIKAL_ENABLE_MLDENOISER)
-    set(ML_DENOISER_SOURCES
-            Denoise/denoise_controller.h
-            Denoise/denoise_controller.cpp
-            Denoise/ml_denoiser.h
-            Denoise/ml_denoiser.cpp)
+if (BAIKAL_ENABLE_DENOISER)
+    list(APPEND SOURCES ${DENOISER_SOURCES})
+    source_group("Denoise" FILES ${DENOISER_SOURCES})
+endif(BAIKAL_ENABLE_DENOISER)
 
-    list(APPEND SOURCES ${ML_DENOISER_SOURCES})
-    source_group("Denoise" FILES ${ML_DENOISER_SOURCES})
-endif(BAIKAL_ENABLE_MLDENOISER)
-
-    
 add_executable(BaikalStandalone ${SOURCES})
 target_compile_features(BaikalStandalone PRIVATE cxx_std_14)
 #Add project root since BaikalStandalone directly includes Baikal/* files
@@ -79,10 +72,6 @@ target_link_libraries(BaikalStandalone PRIVATE Baikal BaikalIO glfw3::glfw3 Open
 if (BAIKAL_ENABLE_DENOISER)
     target_compile_definitions(BaikalStandalone PUBLIC ENABLE_DENOISER)
 endif(BAIKAL_ENABLE_DENOISER)
-
-if (BAIKAL_ENABLE_MLDENOISER)
-    target_compile_definitions(BaikalStandalone PUBLIC ENABLE_ML_DENOISER)
-endif(BAIKAL_ENABLE_MLDENOISER)
 
 if (BAIKAL_ENABLE_GLTF)
     target_link_libraries(BaikalStandalone PRIVATE RadeonProRender RprSupport)

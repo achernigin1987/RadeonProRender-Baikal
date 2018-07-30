@@ -51,15 +51,10 @@ namespace Baikal
     {
         InitCl(settings, m_tex);
 
-#if defined(ENABLE_DENOISER)
-        m_clw_denoiser = std::make_unique<ClwDenoiseController>(
+#ifdef ENABLE_DENOISER
+        m_denoiser = std::make_unique<PostEffectController>(
                 &(m_cfgs[m_primary]),
                 RenderFactory<Baikal::ClwScene>::PostEffectType::kWaveletDenoiser, m_width, m_height);
-        m_clw_denoiser->Init();
-
-#elif defined(ENABLE_ML_DENOISER)
-        m_outputs[m_primary].output_denoised = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
-        m_denoiser = std::make_unique<MLDenoiseProvider>(m_cfgs[m_primary], m_width, m_height);
 #endif
 
         LoadScene(settings);
@@ -262,11 +257,11 @@ namespace Baikal
                 m_cfgs[i].renderer->Clear(float3(0, 0, 0), *m_outputs[i].output);
 
 #ifdef ENABLE_DENOISER
-                m_clw_denoiser->Clear();
+                m_denoiser->Clear();
 #endif
 
 #ifdef ENABLE_ML_DENOISER
-                m_denoiser->Clear(m_cfgs[i]);
+                m_post_effect->Clear(m_cfgs[i]);
 #endif // ENABLE_ML_DENOISER
             }
             else
@@ -308,7 +303,7 @@ namespace Baikal
         if (!settings.interop)
         {
 #if defined(ENABLE_DENOISER)
-            m_clw_denoiser->GetProcessedData(&m_outputs[m_primary].fdata[0]);
+            m_denoiser->GetProcessedData(&m_outputs[m_primary].fdata[0]);
 #elif defined(ENABLE_ML_DENOISER)
 
 #else
@@ -331,31 +326,31 @@ namespace Baikal
         }
         else
         {
-            std::vector<cl_mem> objects;
-            objects.push_back(m_cl_interop_image);
-            m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
+//            std::vector<cl_mem> objects;
+//            objects.push_back(m_cl_interop_image);
+//            m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
+//
+//            auto copykernel = static_cast<Baikal::MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetCopyKernel();
 
-            auto copykernel = static_cast<Baikal::MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetCopyKernel();
-
-#if defined(ENABLE_DENOISER) || defined(ENABLE_ML_DENOISER)
-            auto output = m_outputs[m_primary].output_denoised.get();
+#ifdef ENABLE_DENOISER
+            //auto output = m_outputs[m_primary].output_denoised.get();
 #else
             auto output = m_outputs[m_primary].output.get();
 #endif
 
-            int argc = 0;
+//            int argc = 0;
 
-            copykernel.SetArg(argc++, static_cast<Baikal::ClwOutput*>(output)->data());
-            copykernel.SetArg(argc++, output->width());
-            copykernel.SetArg(argc++, output->height());
-            copykernel.SetArg(argc++, 2.2f);
-            copykernel.SetArg(argc++, m_cl_interop_image);
-
-            int globalsize = output->width() * output->height();
-            m_cfgs[m_primary].context.Launch1D(0, ((globalsize + 63) / 64) * 64, 64, copykernel);
-
-            m_cfgs[m_primary].context.ReleaseGLObjects(0, objects);
-            m_cfgs[m_primary].context.Finish(0);
+//            copykernel.SetArg(argc++, static_cast<Baikal::ClwOutput*>(output)->data());
+//            copykernel.SetArg(argc++, output->width());
+//            copykernel.SetArg(argc++, output->height());
+//            copykernel.SetArg(argc++, 2.2f);
+//            copykernel.SetArg(argc++, m_cl_interop_image);
+//
+//            int globalsize = output->width() * output->height();
+//            m_cfgs[m_primary].context.Launch1D(0, ((globalsize + 63) / 64) * 64, 64, copykernel);
+//
+//            m_cfgs[m_primary].context.ReleaseGLObjects(0, objects);
+//            m_cfgs[m_primary].context.Finish(0);
         }
 
 
@@ -374,12 +369,7 @@ namespace Baikal
     void AppClRender::Render(int sample_cnt)
     {
 #ifdef ENABLE_DENOISER
-        WaveletDenoiser* wavelet_denoiser = dynamic_cast<WaveletDenoiser*>(m_outputs[m_primary].denoiser.get());
-
-        if (wavelet_denoiser != nullptr)
-        {
-            wavelet_denoiser->Update(static_cast<PerspectiveCamera*>(m_camera.get()));
-        }
+        m_denoiser->SetCamera(m_camera);
 #endif
         auto& scene = m_cfgs[m_primary].controller->GetCachedScene(m_scene);
         m_cfgs[m_primary].renderer->Render(scene);
@@ -398,7 +388,7 @@ namespace Baikal
         }
 
 #ifdef ENABLE_DENOISER
-        if (m_clw_denoiser->GetType() == RenderFactory<ClwScene>::PostEffectType::kBilateralDenoiser)
+        if (m_denoiser->GetType() == RenderFactory<ClwScene>::PostEffectType::kBilateralDenoiser)
         {
             auto radius = 10U - RadeonRays::clamp((sample_cnt / 16), 1U, 9U);
             auto position_sensitivity = 5.f + 10.f * (radius / 10.f);
@@ -406,18 +396,18 @@ namespace Baikal
             auto color_sensitivity = (radius / 10.f) * 2.f;
             auto albedo_sensitivity = 0.5f + (radius / 10.f) * 0.5f;
 
-            m_clw_denoiser->SetParameter("radius", static_cast<float>(radius));
-            m_clw_denoiser->SetParameter("color_sensitivity", color_sensitivity);
-            m_clw_denoiser->SetParameter("normal_sensitivity", normal_sensitivity);
-            m_clw_denoiser->SetParameter("position_sensitivity", position_sensitivity);
-            m_clw_denoiser->SetParameter("albedo_sensitivity", albedo_sensitivity);
+            m_denoiser->SetParameter("radius", static_cast<float>(radius));
+            m_denoiser->SetParameter("color_sensitivity", color_sensitivity);
+            m_denoiser->SetParameter("normal_sensitivity", normal_sensitivity);
+            m_denoiser->SetParameter("position_sensitivity", position_sensitivity);
+            m_denoiser->SetParameter("albedo_sensitivity", albedo_sensitivity);
         }
 
-        m_clw_denoiser->Process();
+        m_denoiser->Process();
 #endif
 
 #ifdef ENABLE_ML_DENOISER
-        m_denoiser->Process(m_outputs[m_primary].output_denoised.get());
+        m_post_effect->Process(m_outputs[m_primary].output_denoised.get());
 #endif
     }
 
@@ -667,12 +657,12 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
     void AppClRender::SetDenoiserFloatParam(const std::string& name, const float4& value)
     {
-        m_clw_denoiser->SetParameter(name, value);
+        m_denoiser->SetParameter(name, value);
     }
 
     float4 AppClRender::GetDenoiserFloatParam(const std::string& name)
     {
-        return m_clw_denoiser->GetParameter(name);
+        return m_denoiser->GetParameter(name);
     }
 
     void AppClRender::RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const

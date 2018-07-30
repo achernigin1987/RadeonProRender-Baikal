@@ -42,11 +42,16 @@ namespace Baikal
         using float3 =  RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        std::unique_ptr<Inference> CreateDenoiserInference(const MLDenoiserParams& params)
+        std::unique_ptr<Inference> CreateDenoiserInference(
+                MLDenoiserInputs inputs,
+                float gpu_memory_fraction,
+                std::string const& visible_devices,
+                std::size_t width,
+                std::size_t height)
         {
             std::string model_path;
             std::size_t input_channels;
-            switch (params.inputs)
+            switch (inputs)
             {
             case MLDenoiserInputs::kColorDepthNormalGloss7:
                 model_path = "models/color_depth_normal_gloss_7.pb";
@@ -60,15 +65,16 @@ namespace Baikal
             }
 
             return std::make_unique<InferenceImpl>(model_path,
-                                                   params.gpu_memory_fraction,
-                                                   params.visible_devices,
-                                                   params.width,
-                                                   params.height,
+                                                   gpu_memory_fraction,
+                                                   visible_devices,
+                                                   width,
+                                                   height,
                                                    input_channels);
         }
 
-        MLDenoiser::MLDenoiser(CLWContext context, const MLDenoiserParams& params)
-                   : m_inference(CreateDenoiserInference(params))
+        MLDenoiser::MLDenoiser(CLWContext context, std::size_t width, std::size_t height)
+                   : m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
+                   , m_inference(CreateDenoiserInference(m_inputs, 0.1f, "", width, height))
                    , m_context(context)
         {
             m_primitives = std::make_unique<CLWParallelPrimitives>(context);
@@ -83,7 +89,7 @@ namespace Baikal
             m_host_cache = std::make_unique<std::uint8_t[]>(elems_count);
 
             // compute memory layout
-            switch (params.inputs)
+            switch (m_inputs)
             {
             case MLDenoiserInputs::kColorDepthNormalGloss7:
                 m_layout.emplace_back(OutputType::kColor, 3);
