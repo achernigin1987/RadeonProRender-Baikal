@@ -33,6 +33,20 @@ THE SOFTWARE.
 #include <fstream>
 #include <sstream>
 
+namespace
+{
+    void SaveImage(char const* name, float const* buffer, std::size_t size, int& index)
+    {
+        if (index < 10)
+        {
+            std::ostringstream path;
+            path << "/storage/denoise/tmp/baikal/" << name << "_" << index << ".bin";
+            std::ofstream out(path.str(), std::ios_base::binary);
+            out.write(reinterpret_cast<char const*>(buffer), size * sizeof(float)),
+            ++index;
+        }
+    }
+}
 
 namespace Baikal
 {
@@ -41,37 +55,49 @@ namespace Baikal
         using float3 =  RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        std::unique_ptr<Inference> CreateMLDenoiser(MLDenoiserInputs inputs,
-                                                    float gpu_memory_fraction,
-                                                    std::string const& visible_devices,
-                                                    std::size_t width,
-                                                    std::size_t height)
+        namespace
         {
-            std::string model_path;
-            std::size_t input_channels;
-            switch (inputs)
+            std::unique_ptr<Inference> CreateInference(MLDenoiserInputs inputs,
+                                                       float gpu_memory_fraction,
+                                                       std::string const& visible_devices,
+                                                       std::size_t width,
+                                                       std::size_t height)
             {
-            case MLDenoiserInputs::kColorDepthNormalGloss7:
-                model_path = "models/color_depth_normal_gloss_7.pb";
-                input_channels = 7;
-                break;
+                std::string model_path;
+                std::size_t input_channels;
+                switch (inputs)
+                {
+                case MLDenoiserInputs::kColorDepthNormalGloss7:
+                    model_path = "models/color_depth_normal_gloss_7.pb";
+                    input_channels = 7;
+                    break;
 
-            case MLDenoiserInputs::kColorAlbedoNormal8:
-                model_path = "models/color_albedo_normal_8.pb";
-                input_channels = 8;
-                break;
+                case MLDenoiserInputs::kColorAlbedoNormal8:
+                    model_path = "models/color_albedo_normal_8.pb";
+                    input_channels = 8;
+                    break;
+                }
+
+                return std::make_unique<InferenceImpl>(model_path,
+                                                       gpu_memory_fraction,
+                                                       visible_devices,
+                                                       width,
+                                                       height,
+                                                       input_channels);
             }
-
-            return std::make_unique<InferenceImpl>(model_path,
-                                                   gpu_memory_fraction,
-                                                   visible_devices,
-                                                   width,
-                                                   height,
-                                                   input_channels);
         }
 
-        MLDenoiser::MLDenoiser(const CLWContext& context, Inference::Ptr inference, MLDenoiserInputs inputs)
-                   : m_inference(std::move(inference))
+        MLDenoiser::MLDenoiser(const CLWContext& context,
+                               MLDenoiserInputs inputs,
+                               float gpu_memory_fraction,
+                               std::string const& visible_devices,
+                               std::size_t width,
+                               std::size_t height)
+        : m_inference(CreateInference(inputs,
+                                      gpu_memory_fraction,
+                                      visible_devices,
+                                      width,
+                                      height))
         {
             m_context = std::make_unique<CLWContext>(context);
             m_primitives = std::make_unique<CLWParallelPrimitives>(context);
@@ -121,18 +147,8 @@ namespace Baikal
                                             normalized_buf),
                                         (Type*)m_host_cache.get(),
                                         input_buf.GetElementCount()).Wait();
-            {
-                static int frame = 0;
-                std::ostringstream name;
-                name << "/storage/denoise/tmp/baikal/depth_" << frame << ".bin";
-                std::ofstream out(name.str(), std::ios_base::binary);
-                out.write(reinterpret_cast<char*>(m_host_cache.get()),
-                          input_buf.GetElementCount() * sizeof(float3));
-                ++frame;
-            }
-
             auto dest = host_mem;
-            auto source = reinterpret_cast<float3*>(m_host_cache.get());
+            auto source = HostCache<float3>();
             for (auto i = 0u; i < input_buf.GetElementCount(); ++i)
             {
                 *dest++ = source->x;
@@ -148,6 +164,8 @@ namespace Baikal
             auto tensor = m_inference->GetInputTensor();
             auto host_mem = tensor.data();
 
+            unsigned sample_count = 0;
+
             for (const auto& input_desc : m_layout)
             {
                 auto type = input_desc.first;
@@ -162,16 +180,17 @@ namespace Baikal
                 {
                     m_context->ReadBuffer<float3>(0,
                                                   device_mem,
-                                                  reinterpret_cast<float3*>(m_host_cache.get()),
+                                                  HostCache<float3>(),
                                                   device_mem.GetElementCount()).Wait();
 
                     auto dest = host_mem;
-                    auto source = reinterpret_cast<float3*>(m_host_cache.get());
+                    auto source = HostCache<float3>();
+                    sample_count = static_cast<unsigned int>(source->w);
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        *dest++ = source->x;
-                        *dest++ = source->y;
-                        *dest++ = source->z;
+                        *dest++ = source->x / source->w;
+                        *dest++ = source->y / source->w;
+                        *dest++ = source->z / source->w;
                         dest += shape.channels - 3;
                         ++source;
                     }
@@ -182,36 +201,22 @@ namespace Baikal
                     ProcessOutput<cl_float3, float3>(device_mem,
                                                      host_mem,
                                                      shape.channels);
-//                        m_context->ReadBuffer<float3>(0,
-//                                                      device_mem,
-//                                                      reinterpret_cast<float3*>(m_host_cache.get()),
-//                                                      device_mem.GetElementCount()).Wait();
-
-//                        // copy only the first channel
-//                        auto dest = host_mem;
-//                        auto source = reinterpret_cast<float3*>(m_host_cache.get());
-//                        for (auto i = 0u; i < shape.width * shape.height; ++i)
-//                        {
-//                            *dest++ = source->x;
-//                            dest += shape.channels - 1;
-//                            ++source;
-//                        }
                     break;
                 }
                 case OutputType::kViewShadingNormal:
                 {
                     m_context->ReadBuffer<float3>(0,
                                                   device_mem,
-                                                  reinterpret_cast<float3*>(m_host_cache.get()),
+                                                  HostCache<float3>(),
                                                   device_mem.GetElementCount()).Wait();
 
                     // copy only the first two channels
                     auto dest = host_mem;
-                    auto source = reinterpret_cast<float3*>(m_host_cache.get());
+                    auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        *dest++ = source->x;
-                        *dest++ = source->y;
+                        *dest++ = source->x / source->w;
+                        *dest++ = source->y / source->w;
                         dest += shape.channels - 2;
                         ++source;
                     }
@@ -222,16 +227,36 @@ namespace Baikal
                 {
                     m_context->ReadBuffer<float3>(0,
                                                   device_mem,
-                                                  reinterpret_cast<float3*>(m_host_cache.get()),
+                                                  HostCache<float3>(),
                                                   device_mem.GetElementCount()).Wait();
 
                     // copy only the first channel
                     auto dest = host_mem;
-                    auto source = reinterpret_cast<float3*>(m_host_cache.get());
+                    auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        *dest++ = source->x;
+                        *dest++ = source->x / source->w;
                         dest += shape.channels - 1;
+                        ++source;
+                    }
+                    break;
+                }
+                case OutputType::kAlbedo:
+                {
+                    m_context->ReadBuffer<float3>(0,
+                                                  device_mem,
+                                                  HostCache<float3>(),
+                                                  device_mem.GetElementCount()).Wait();
+
+                    // copy only the first channel
+                    auto dest = host_mem;
+                    auto source = HostCache<float3>();
+                    for (auto i = 0u; i < shape.width * shape.height; ++i)
+                    {
+                        *dest++ = source->x / source->w;
+                        *dest++ = source->y / source->w;
+                        *dest++ = source->z / source->w;
+                        dest += shape.channels - 3;
                         ++source;
                     }
                     break;
@@ -242,24 +267,16 @@ namespace Baikal
                 host_mem += input_desc.second;
             }
 
-            {
-                static int frame = 0;
-                std::ostringstream name;
-                name << "/storage/denoise/tmp/baikal/input_" << frame << ".bin";
-                std::ofstream out(name.str(), std::ios_base::binary);
-                out.write(reinterpret_cast<char*>(tensor.data()),
-                          tensor.size() * sizeof(float));
-                ++frame;
-            }
+            static int input_index = 0;
+            SaveImage("input", tensor.data(), tensor.size(), input_index);
 
-            static int frames_to_start = 8;
-            if (frames_to_start == 0)
+            if (sample_count >= 8)
             {
                 m_inference->PushInput(std::move(tensor));
             }
             else
             {
-                frames_to_start--;
+                m_last_image = {};
             }
 
             auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
@@ -273,17 +290,10 @@ namespace Baikal
 
             if (!inference_res.empty())
             {
-                {
-                    static int frame = 0;
-                    std::ostringstream name;
-                    name << "/storage/denoise/tmp/baikal/output_" << frame << ".bin";
-                    std::ofstream out(name.str(), std::ios_base::binary);
-                    out.write(reinterpret_cast<char*>(inference_res.data()),
-                              inference_res.size() * sizeof(Tensor::ValueType));
-                    ++frame;
-                }
+                static int output_index = 0;
+                SaveImage("output", inference_res.data(), inference_res.size(), output_index);
 
-                auto dest = reinterpret_cast<float3*>(m_host_cache.get());
+                auto dest = HostCache<float3>();
                 auto source = inference_res.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
@@ -296,14 +306,14 @@ namespace Baikal
 
                 m_context->WriteBuffer<float3>(0,
                     clw_inference_output->data(),
-                    reinterpret_cast<float3*>(m_host_cache.get()),
+                    HostCache<float3>(),
                     inference_res.size() / 3).Wait();
 
                 m_last_image = std::move(inference_res);
             }
             else if (!m_last_image.empty())
             {
-                auto dest = reinterpret_cast<float3*>(m_host_cache.get());
+                auto dest = HostCache<float3>();
                 auto source = m_last_image.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
@@ -316,13 +326,13 @@ namespace Baikal
 
                 m_context->WriteBuffer<float3>(0,
                                                clw_inference_output->data(),
-                                               reinterpret_cast<float3*>(m_host_cache.get()),
+                                               HostCache<float3>(),
                                                inference_res.size() / 3).Wait();
             }
             else
             {
                 m_context->CopyBuffer<float3>(0,
-                                      static_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data(),
+                                      dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data(),
                                       clw_inference_output->data(),
                                       0,
                                       0,

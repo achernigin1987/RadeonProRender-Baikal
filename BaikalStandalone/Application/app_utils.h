@@ -36,6 +36,8 @@ namespace Baikal
     {
         AppSettings();
 
+        bool help;
+
         //model load settings
         std::string path;
         std::string modelname;
@@ -103,10 +105,9 @@ namespace Baikal
 
         AppCliParser(int argc, char * argv[]);
         AppSettings Parse();
+        static void ShowHelp();
 
     private:
-
-        void ShowHelp();
 
         CmdParser m_cmd_parser;
     };

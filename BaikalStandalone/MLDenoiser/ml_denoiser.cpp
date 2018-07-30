@@ -28,12 +28,11 @@ using namespace Baikal::PostEffects;
 
 MLDenoiseProvider::MLDenoiseProvider(const Config& config, size_t width, size_t height)
            : m_denoiser(config.context,
-                        Baikal::PostEffects::CreateMLDenoiser(MLDenoiserInputs::kColorAlbedoNormal8,
-                                                              .1f,
-                                                              std::string(),
-                                                              width,
-                                                              height),
-                        MLDenoiserInputs::kColorAlbedoNormal8)
+                        MLDenoiserInputs::kColorDepthNormalGloss7,
+                        .5f,
+                        std::string(),
+                        width,
+                        height)
 {
     auto add_input = [this, &config, width, height](Renderer::OutputType type)
     {
