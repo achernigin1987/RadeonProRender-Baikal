@@ -134,7 +134,7 @@ namespace Baikal
         Renderer::OutputType m_output_type;
 
 #ifdef ENABLE_DENOISER
-        std::unique_ptr<PostEffectController> m_denoiser;
+        std::unique_ptr<PostEffectController> m_post_effect;
 #endif
     };
 }

@@ -46,8 +46,12 @@ namespace Baikal
 
     void PostEffectController::GetProcessedData(RadeonRays::float3* data) const
     {
-        auto processed_output = m_outputs.back().get();
-        processed_output->GetData(data);
+        GetProcessedOutput()->GetData(data);
+    }
+
+    Output* PostEffectController::GetProcessedOutput() const
+    {
+        return m_outputs.back().get();
     }
 
     void PostEffectController::CreateRendererOutputs()
@@ -96,8 +100,7 @@ namespace Baikal
 
     void PostEffectController::Process() const
     {
-        auto processed_output = m_outputs.back().get();
-        m_post_effect->Apply(m_input_set, *processed_output);
+        m_post_effect->Apply(m_input_set, *GetProcessedOutput());
     }
 
 //    void PostEffectController::RestoreDenoiserOutput(Renderer::OutputType type) const

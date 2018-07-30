@@ -255,7 +255,7 @@ namespace Baikal
 
             if (!clw_inference_output)
             {
-                throw std::runtime_error("Denoise::Apply(...): can not cast output");
+                throw std::runtime_error("MLDenoiser::Apply(...): can not cast output");
             }
 
             auto inference_res = m_inference->PopOutput();

@@ -13,6 +13,7 @@ namespace Baikal
 {
     class PostEffectController {
     public:
+
         PostEffectController(
                 Config* config,
                 RenderFactory<ClwScene>::PostEffectType type,
@@ -31,6 +32,7 @@ namespace Baikal
 
         void GetProcessedData(RadeonRays::float3* data) const;
 
+        Output* GetProcessedOutput() const;
 
         void Clear() const;
 
