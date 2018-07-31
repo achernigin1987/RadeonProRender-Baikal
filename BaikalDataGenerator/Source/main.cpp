@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     }
     catch (std::exception& ex)
     {
-        std::cout << ex.what();
+        std::cout << ex.what() << std::endl;
         return -1;
     }
 }
