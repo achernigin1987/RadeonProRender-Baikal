@@ -51,6 +51,11 @@ namespace Baikal
     {
         InitCl(settings, m_tex);
         LoadScene(settings);
+
+#ifdef ENABLE_ML_DENOISER
+        m_denoiser = std::make_unique<MLDenoiseProvider>(m_cfgs[m_primary], m_width, m_height);
+#endif // ENABLE_ML_DENOISER
+
     }
 
     void AppClRender::InitCl(AppSettings& settings, GLuint tex)
@@ -59,7 +64,7 @@ namespace Baikal
         //create cl context
         try
         {
-            ConfigManager::CreateConfigs(
+            CreateConfigs(
                 settings.mode,
                 settings.interop,
                 m_cfgs,
@@ -70,7 +75,7 @@ namespace Baikal
         catch (CLWException &)
         {
             force_disable_itnerop = true;
-            ConfigManager::CreateConfigs(settings.mode, false, m_cfgs, settings.num_bounces, settings.platform_index, settings.device_index);
+            CreateConfigs(settings.mode, false, m_cfgs, settings.num_bounces, settings.platform_index, settings.device_index);
         }
 
         m_width = (std::uint32_t)settings.width;
@@ -90,7 +95,7 @@ namespace Baikal
 
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-            if (m_cfgs[i].type == ConfigManager::kPrimary)
+            if (m_cfgs[i].type == DeviceType::kPrimary)
             {
                 m_primary = static_cast<int>(i);
 
@@ -139,7 +144,7 @@ namespace Baikal
             m_outputs[i].fdata.resize(settings.width * settings.height);
             m_outputs[i].udata.resize(settings.width * settings.height * 4);
 
-            if (m_cfgs[i].type == ConfigManager::kPrimary)
+            if (m_cfgs[i].type == DeviceType::kPrimary)
             {
                 m_outputs[i].copybuffer = m_cfgs[i].context.CreateBuffer<RadeonRays::float3>(m_width * m_height, CL_MEM_READ_WRITE);
             }
@@ -260,6 +265,9 @@ namespace Baikal
                 ClearDenoiserOutputs(i);
 #endif
 
+#ifdef ENABLE_ML_DENOISER
+                m_denoiser->Clear(m_cfgs[i]);
+#endif // ENABLE_ML_DENOISER
             }
             else
                 m_ctrl[i].clear.store(true);
@@ -272,7 +280,7 @@ namespace Baikal
         //{
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-            if (m_cfgs[i].type == ConfigManager::kPrimary)
+            if (m_cfgs[i].type == DeviceType::kPrimary)
                 continue;
 
             int desired = 1;
@@ -299,7 +307,7 @@ namespace Baikal
 
         if (!settings.interop)
         {
-#ifdef ENABLE_DENOISER
+#if defined(ENABLE_DENOISER) ||  defined(ENABLE_ML_DENOISER)
             m_outputs[m_primary].output_denoised->GetData(&m_outputs[m_primary].fdata[0]);
 #else
             m_outputs[m_primary].output->GetData(&m_outputs[m_primary].fdata[0]);
@@ -327,7 +335,7 @@ namespace Baikal
 
             auto copykernel = static_cast<Baikal::MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetCopyKernel();
 
-#ifdef ENABLE_DENOISER
+#if defined(ENABLE_DENOISER) ||  defined(ENABLE_ML_DENOISER)
             auto output = m_outputs[m_primary].output_denoised.get();
 #else
             auto output = m_outputs[m_primary].output.get();
@@ -414,6 +422,10 @@ namespace Baikal
         }
 
         m_outputs[m_primary].denoiser->Apply(input_set, *m_outputs[m_primary].output_denoised);
+#endif
+
+#ifdef ENABLE_ML_DENOISER
+        m_denoiser->Process(m_outputs[m_primary].output_denoised.get());
 #endif
     }
 
