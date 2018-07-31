@@ -48,14 +48,6 @@ namespace Baikal
             kColorAlbedoNormal8,
         };
 
-        struct MLDenoiserParams {
-            MLDenoiserInputs inputs;
-            float gpu_memory_fraction;
-            std::string const& visible_devices;
-            std::size_t width;
-            std::size_t height;
-        };
-
         class MLDenoiser : public PostEffect
         {
         public:

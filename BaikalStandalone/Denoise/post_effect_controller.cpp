@@ -44,49 +44,49 @@ namespace Baikal
         }
     }
 
-    void PostEffectController::GetProcessedData(RadeonRays::float3* data) const
-    {
-        GetProcessedOutput()->GetData(data);
-    }
-
     Output* PostEffectController::GetProcessedOutput() const
     {
-        return m_outputs.back().get();
+        return m_processed_output.get();
     }
 
     void PostEffectController::CreateRendererOutputs()
     {
-        // create input set
+        // create input set for post-effect
         switch (m_type)
         {
             case RenderFactory<ClwScene>::PostEffectType::kBilateralDenoiser:
+                AddOutputToInputSet(Renderer::OutputType::kColor);
+                AddOutputToInputSet(Renderer::OutputType::kWorldShadingNormal);
+                AddOutputToInputSet(Renderer::OutputType::kWorldPosition);
+                AddOutputToInputSet(Renderer::OutputType::kAlbedo);
+                break;
             case RenderFactory<ClwScene>::PostEffectType::kWaveletDenoiser:
-
-                AddRendererOutput(Renderer::OutputType::kColor, true);
-                AddRendererOutput(Renderer::OutputType::kWorldShadingNormal, true);
-                AddRendererOutput(Renderer::OutputType::kWorldPosition, true);
-                AddRendererOutput(Renderer::OutputType::kAlbedo, true);
-                AddRendererOutput(Renderer::OutputType::kMeshID, true);
+                AddOutputToInputSet(Renderer::OutputType::kColor);
+                AddOutputToInputSet(Renderer::OutputType::kWorldShadingNormal);
+                AddOutputToInputSet(Renderer::OutputType::kWorldPosition);
+                AddOutputToInputSet(Renderer::OutputType::kAlbedo);
+                AddOutputToInputSet(Renderer::OutputType::kMeshID);
                 break;
             case RenderFactory<ClwScene>::PostEffectType::kMLDenoiser:
-                AddRendererOutput(Renderer::OutputType::kColor, true);
-                AddRendererOutput(Renderer::OutputType::kAlbedo, true);
-                AddRendererOutput(Renderer::OutputType::kViewShadingNormal, true);
+                AddOutputToInputSet(Renderer::OutputType::kColor);
+                AddOutputToInputSet(Renderer::OutputType::kAlbedo);
+                AddOutputToInputSet(Renderer::OutputType::kViewShadingNormal);
                 break;
         }
-        // create denoised output
-        AddRendererOutput(Renderer::OutputType::kColor, false);
+
+        // create output for post-effect result
+        m_processed_output = m_config->factory->CreateOutput(
+                static_cast<std::uint32_t>(m_width),
+                static_cast<std::uint32_t>(m_height));
+        m_config->renderer->SetOutput(Renderer::OutputType::kColor, m_processed_output.get());
     }
 
-    void PostEffectController::AddRendererOutput(Renderer::OutputType type, bool add_to_input)
+    void PostEffectController::AddOutputToInputSet(Renderer::OutputType type)
     {
         auto output = m_config->factory->CreateOutput(static_cast<std::uint32_t>(m_width),
                                                       static_cast<std::uint32_t>(m_height));
         m_config->renderer->SetOutput(type, output.get());
-        if (add_to_input)
-        {
-            m_input_set[type] = output.get();
-        }
+        m_input_set[type] = output.get();
         m_outputs.push_back(std::move(output));
     }
 
@@ -96,11 +96,12 @@ namespace Baikal
         {
             m_config->renderer->Clear(float3(0, 0, 0), *output);
         }
+        m_config->renderer->Clear(float3(0, 0, 0), *m_processed_output);
     }
 
     void PostEffectController::Process() const
     {
-        m_post_effect->Apply(m_input_set, *GetProcessedOutput());
+        m_post_effect->Apply(m_input_set, *m_processed_output);
     }
 
 //    void PostEffectController::RestoreDenoiserOutput(Renderer::OutputType type) const

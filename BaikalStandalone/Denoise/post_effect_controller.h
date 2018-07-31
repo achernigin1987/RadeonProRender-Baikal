@@ -30,8 +30,6 @@ namespace Baikal
 
         void Process() const;
 
-        void GetProcessedData(RadeonRays::float3* data) const;
-
         Output* GetProcessedOutput() const;
 
         void Clear() const;
@@ -43,13 +41,13 @@ namespace Baikal
 
         void CreateRendererOutputs();
 
-        void AddRendererOutput(Renderer::OutputType type, bool add_to_input);
+        void AddOutputToInputSet(Renderer::OutputType type);
 
         Config* m_config;
         RenderFactory<ClwScene>::PostEffectType m_type;
 
         std::vector<OutputPtr> m_outputs;
-
+        OutputPtr m_processed_output;
         size_t m_width;
         size_t m_height;
 

@@ -54,7 +54,7 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
         m_post_effect = std::make_unique<PostEffectController>(
                 &(m_cfgs[m_primary]),
-                RenderFactory<Baikal::ClwScene>::PostEffectType::kWaveletDenoiser, m_width, m_height);
+                RenderFactory<Baikal::ClwScene>::PostEffectType::kMLDenoiser, m_width, m_height);
 #endif
 
         LoadScene(settings);
@@ -299,7 +299,7 @@ namespace Baikal
         if (!settings.interop)
         {
 #ifdef ENABLE_DENOISER
-            m_post_effect->GetProcessedData(&m_outputs[m_primary].fdata[0]);
+            m_post_effect->GetProcessedOutput()->GetData(&m_outputs[m_primary].fdata[0]);
 #else
             m_outputs[m_primary].output->GetData(&m_outputs[m_primary].fdata[0]);
 #endif
