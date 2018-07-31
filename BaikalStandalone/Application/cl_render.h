@@ -103,10 +103,12 @@ namespace Baikal
         void LoadScene(AppSettings& settings);
         void RenderThread(ControlData& cd);
 
-        Output* AddRendererOutput(size_t device_idx, Renderer::OutputType type);
         Output* GetRendererOutput(size_t device_idx, Renderer::OutputType type);
+        void AddRendererOutput(size_t device_idx, Renderer::OutputType type);
         void GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const;
         void AddPostEffect(size_t device_idx, RenderFactory<Baikal::ClwScene>::PostEffectType type);
+
+        void ApplyGammaCorrection(size_t device_idx);
 
         Baikal::Scene1::Ptr m_scene;
         Baikal::Camera::Ptr m_camera;
@@ -122,7 +124,7 @@ namespace Baikal
         std::vector<OutputData> m_outputs;
         std::unique_ptr<ControlData[]> m_ctrl;
         std::vector<std::thread> m_renderthreads;
-        int m_primary = -1;
+        size_t m_primary;
         std::uint32_t m_width, m_height;
 
         //if interop

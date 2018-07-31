@@ -35,15 +35,18 @@ THE SOFTWARE.
 #include "Renderers/monte_carlo_renderer.h"
 #include "Renderers/adaptive_renderer.h"
 
-#include <fstream>
-#include <sstream>
-#include <thread>
-#include <chrono>
-
 #ifdef ENABLE_DENOISER
 #include "PostEffects/wavelet_denoiser.h"
 #endif
 #include "Utils/clw_class.h"
+
+#include <fstream>
+#include <sstream>
+#include <thread>
+#include <chrono>
+#include <cmath>
+
+
 
 namespace Baikal
 {
@@ -53,8 +56,7 @@ namespace Baikal
         InitCl(settings, m_tex);
 
 #ifdef ENABLE_DENOISER
-        AddPostEffect(static_cast<size_t>(m_primary),
-                RenderFactory<Baikal::ClwScene>::PostEffectType::kWaveletDenoiser);
+        AddPostEffect(m_primary, RenderFactory<ClwScene>::PostEffectType::kWaveletDenoiser);
 #endif
 
         LoadScene(settings);
@@ -62,7 +64,7 @@ namespace Baikal
 
     void AppClRender::InitCl(AppSettings& settings, GLuint tex)
     {
-        bool force_disable_itnerop = false;
+        bool force_disable_interop = false;
         //create cl context
         try
         {
@@ -76,7 +78,7 @@ namespace Baikal
         }
         catch (CLWException &)
         {
-            force_disable_itnerop = true;
+            force_disable_interop = true;
             CreateConfigs(settings.mode, false, m_cfgs, settings.num_bounces, settings.platform_index, settings.device_index);
         }
 
@@ -99,7 +101,7 @@ namespace Baikal
         {
             if (m_cfgs[i].type == DeviceType::kPrimary)
             {
-                m_primary = static_cast<int>(i);
+                m_primary = i;
 
                 if (m_cfgs[i].caninterop)
                 {
@@ -114,7 +116,7 @@ namespace Baikal
             m_ctrl[i].idx = static_cast<int>(i);
         }
 
-        if (force_disable_itnerop)
+        if (force_disable_interop)
         {
             std::cout << "OpenGL interop is not supported, disabled, -interop flag is ignored\n";
         }
@@ -152,26 +154,18 @@ namespace Baikal
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_dummy_output_data.tmp_output);
     }
 
-    Output* AppClRender::AddRendererOutput(size_t device_idx, Renderer::OutputType type)
+    void AppClRender::AddRendererOutput(size_t device_idx, Renderer::OutputType type)
     {
-        Output* raw_output = nullptr;
         auto it = m_renderer_outputs[device_idx].find(type);
         if (it == m_renderer_outputs[device_idx].end())
         {
             const auto& config = m_cfgs.at(device_idx);
             auto output = config.factory->CreateOutput(m_width, m_height);
-            raw_output = output.get();
-            config.renderer->SetOutput(type, raw_output);
+            config.renderer->SetOutput(type, output.get());
             config.renderer->Clear(RadeonRays::float3(0, 0, 0), *output);
 
             m_renderer_outputs[device_idx].emplace(type, std::move(output));
         }
-        else
-        {
-            raw_output = it->second.get();
-        }
-
-        return raw_output;
     }
 
     Output* AppClRender::GetRendererOutput(size_t device_idx, Renderer::OutputType type)
@@ -190,7 +184,8 @@ namespace Baikal
 
         for (const auto& required_input : m_post_effect->GetInputTypes())
         {
-            m_input_set[required_input] = AddRendererOutput(device_idx, required_input);
+            AddRendererOutput(device_idx, required_input);
+            m_input_set[required_input] = GetRendererOutput(device_idx, required_input);
         }
     }
 
@@ -291,7 +286,7 @@ namespace Baikal
     {
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-            if (i == static_cast<std::size_t>(m_primary))
+            if (i == m_primary)
             {
                 m_cfgs[i].controller->CompileScene(m_scene);
                 m_cfgs[i].renderer->Clear(
@@ -326,7 +321,7 @@ namespace Baikal
                             settings.width * settings.height);
                 }
 
-                auto acckernel = static_cast<Baikal::MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetAccumulateKernel();
+                auto acckernel = static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetAccumulateKernel();
 
                 int argc = 0;
                 acckernel.SetArg(argc++, m_outputs[m_primary].copybuffer);
@@ -348,17 +343,9 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
             m_post_effect->GetProcessedOutput()->GetData(&m_outputs[m_primary].fdata[0]);
 #else
-            m_renderer_outputs[m_primary].output->GetData(&m_renderer_outputs[m_primary].fdata[0]);
+            GetOutputData(m_primary, Renderer::OutputType::kColor, &m_renderer_outputs[m_primary].fdata[0]);
 #endif
-
-            float gamma = 2.2f;
-            for (int i = 0; i < (int)m_outputs[m_primary].fdata.size(); ++i)
-            {
-                m_outputs[m_primary].udata[4 * i] = (unsigned char)clamp(clamp(pow(m_outputs[m_primary].fdata[i].x / m_outputs[m_primary].fdata[i].w, 1.f / gamma), 0.f, 1.f) * 255, 0, 255);
-                m_outputs[m_primary].udata[4 * i + 1] = (unsigned char)clamp(clamp(pow(m_outputs[m_primary].fdata[i].y / m_outputs[m_primary].fdata[i].w, 1.f / gamma), 0.f, 1.f) * 255, 0, 255);
-                m_outputs[m_primary].udata[4 * i + 2] = (unsigned char)clamp(clamp(pow(m_outputs[m_primary].fdata[i].z / m_outputs[m_primary].fdata[i].w, 1.f / gamma), 0.f, 1.f) * 255, 0, 255);
-                m_outputs[m_primary].udata[4 * i + 3] = 1;
-            }
+            ApplyGammaCorrection(m_primary);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_tex);
@@ -371,15 +358,15 @@ namespace Baikal
             objects.push_back(m_cl_interop_image);
             m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
 
-            auto copykernel = static_cast<Baikal::MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetCopyKernel();
+            auto copykernel = static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetCopyKernel();
 
 #ifdef ENABLE_DENOISER
             auto output = m_post_effect->GetProcessedOutput();
 #else
-            auto output = m_renderer_outputs[m_primary].output.get();
+            auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
 #endif
 
-            int argc = 0;
+            unsigned int argc = 0;
 
             copykernel.SetArg(argc++, static_cast<Baikal::ClwOutput*>(output)->data());
             copykernel.SetArg(argc++, output->width());
@@ -398,7 +385,7 @@ namespace Baikal
         if (settings.benchmark)
         {
             auto& scene = m_cfgs[m_primary].controller->CompileScene(m_scene);
-            static_cast<Baikal::MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->Benchmark(scene, settings.stats);
+            static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->Benchmark(scene, settings.stats);
 
             settings.benchmark = false;
             settings.rt_benchmarked = true;
@@ -456,7 +443,7 @@ namespace Baikal
         std::vector<RadeonRays::float3> output_data;
         if (settings.interop)
         {
-            auto output = GetRendererOutput(static_cast<size_t>(m_primary), Renderer::OutputType::kColor);
+            auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
             auto buffer = static_cast<Baikal::ClwOutput*>(output)->data();
             output_data.resize(buffer.GetElementCount());
             m_cfgs[m_primary].context.ReadBuffer(
@@ -524,7 +511,7 @@ namespace Baikal
     {
         auto renderer = m_cfgs[cd.idx].renderer.get();
         auto controller = m_cfgs[cd.idx].controller.get();
-        auto output = GetRendererOutput(static_cast<size_t>(m_primary), Renderer::OutputType::kColor);
+        auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
 
         auto updatetime = std::chrono::high_resolution_clock::now();
 
@@ -562,7 +549,7 @@ namespace Baikal
     {
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-            if (i != static_cast<std::size_t>(m_primary))
+            if (i != m_primary)
             {
                 m_renderthreads.push_back(std::thread(&AppClRender::RenderThread, this, std::ref(m_ctrl[i])));
                 m_renderthreads.back().detach();
@@ -576,10 +563,10 @@ namespace Baikal
     {
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-            if (i == static_cast<std::size_t>(m_primary))
-                continue;
-
-            m_ctrl[i].stop.store(true);
+            if (i != m_primary)
+            {
+                m_ctrl[i].stop.store(true);
+            }
         }
     }
 
@@ -601,14 +588,7 @@ namespace Baikal
         settings.time_benchmark_time = delta / 1000.f;
 
         GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-        float gamma = 2.2f;
-        for (int i = 0; i < (int)m_outputs[m_primary].fdata.size(); ++i)
-        {
-            m_outputs[m_primary].udata[4 * i] = (unsigned char)clamp(clamp(pow(m_outputs[m_primary].fdata[i].x / m_outputs[m_primary].fdata[i].w, 1.f / gamma), 0.f, 1.f) * 255, 0, 255);
-            m_outputs[m_primary].udata[4 * i + 1] = (unsigned char)clamp(clamp(pow(m_outputs[m_primary].fdata[i].y / m_outputs[m_primary].fdata[i].w, 1.f / gamma), 0.f, 1.f) * 255, 0, 255);
-            m_outputs[m_primary].udata[4 * i + 2] = (unsigned char)clamp(clamp(pow(m_outputs[m_primary].fdata[i].z / m_outputs[m_primary].fdata[i].w, 1.f / gamma), 0.f, 1.f) * 255, 0, 255);
-            m_outputs[m_primary].udata[4 * i + 3] = 1;
-        }
+        ApplyGammaCorrection(m_primary);
 
         auto& fdata = m_outputs[m_primary].fdata;
         std::vector<RadeonRays::float3> data(fdata.size());
@@ -628,6 +608,25 @@ namespace Baikal
 
         auto& scene = m_cfgs[m_primary].controller->GetCachedScene(m_scene);
         static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->Benchmark(scene, settings.stats);
+    }
+
+    void AppClRender::ApplyGammaCorrection(size_t device_idx)
+    {
+        auto adjust_gamma = [](float val)
+        {
+            return (unsigned char)clamp(std::pow(val , 1.f / 2.2f) * 255, 0, 255);
+        };
+
+        for (int i = 0; i < (int)m_outputs[device_idx].fdata.size(); ++i)
+        {
+            auto &fdata = m_outputs[device_idx].fdata[i];
+            auto &udata = m_outputs[device_idx].udata;
+
+            udata[4 * i] = adjust_gamma(fdata.x / fdata.w);
+            udata[4 * i + 1] = adjust_gamma(fdata.y / fdata.w);
+            udata[4 * i + 2] = adjust_gamma(fdata.z / fdata.w);
+            udata[4 * i + 3] = 1;
+        }
     }
 
     void AppClRender::SetNumBounces(int num_bounces)
