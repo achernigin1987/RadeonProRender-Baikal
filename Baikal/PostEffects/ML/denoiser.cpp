@@ -37,7 +37,7 @@ namespace
 {
     void SaveImage(char const* name, float const* buffer, std::size_t size, int& index)
     {
-        if (index < 10)
+        if (index < 200)
         {
             std::ostringstream path;
             path << "/storage/denoise/tmp/baikal/" << name << "_" << index << ".bin";
@@ -215,8 +215,16 @@ namespace Baikal
                     auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        *dest++ = source->x / source->w;
-                        *dest++ = source->y / source->w;
+                        if (source->w)
+                        {
+                            *dest++ = source->x / source->w;
+                            *dest++ = source->y / source->w;
+                        }
+                        else
+                        {
+                            *dest++ = 0;
+                            *dest++ = 0;
+                        }
                         dest += shape.channels - 2;
                         ++source;
                     }
@@ -235,7 +243,14 @@ namespace Baikal
                     auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        *dest++ = source->x / source->w;
+                        if (source->w)
+                        {
+                            *dest++ = source->x / source->w;
+                        }
+                        else
+                        {
+                            *dest++ = 0;
+                        }
                         dest += shape.channels - 1;
                         ++source;
                     }
@@ -253,9 +268,18 @@ namespace Baikal
                     auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        *dest++ = source->x / source->w;
-                        *dest++ = source->y / source->w;
-                        *dest++ = source->z / source->w;
+                        if (source->w)
+                        {
+                            *dest++ = source->x / source->w;
+                            *dest++ = source->y / source->w;
+                            *dest++ = source->z / source->w;
+                        }
+                        else
+                        {
+                            *dest++ = 0;
+                            *dest++ = 0;
+                            *dest++ = 0;
+                        }
                         dest += shape.channels - 3;
                         ++source;
                     }
@@ -272,10 +296,12 @@ namespace Baikal
 
             if (sample_count >= 8)
             {
+                tensor.tag = ++m_last_seq_num;
                 m_inference->PushInput(std::move(tensor));
             }
-            else
+            else //if (sample_count < 8)
             {
+                m_start_seq_num = m_last_seq_num + 1;
                 m_last_image = {};
             }
 
@@ -288,9 +314,9 @@ namespace Baikal
 
             auto inference_res = m_inference->PopOutput();
 
-            if (!inference_res.empty())
+            if (!inference_res.empty() && inference_res.tag >= m_start_seq_num)
             {
-                static int output_index = 0;
+                int output_index = inference_res.tag - 1;
                 SaveImage("output", inference_res.data(), inference_res.size(), output_index);
 
                 auto dest = HostCache<float3>();

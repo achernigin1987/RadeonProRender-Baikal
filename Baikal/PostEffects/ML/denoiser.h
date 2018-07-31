@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 class CLWContext;
 class CLWParallelPrimitives;
@@ -82,6 +83,8 @@ namespace Baikal
             // CPU cache
             std::unique_ptr<std::uint8_t[]> m_host_cache;
             Tensor m_last_image;
+            std::uint32_t m_start_seq_num = 0;
+            std::uint32_t m_last_seq_num = 0;
         };
     }
 }
