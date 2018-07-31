@@ -25,6 +25,7 @@ THE SOFTWARE.
 #include "Output/output.h"
 
 #include <map>
+#include <set>
 #include <string>
 #include <stdexcept>
 #include <cassert>
@@ -48,9 +49,14 @@ namespace Baikal
         // Data type to pass all necessary content into the post effect. 
         using InputSet = std::map<Renderer::OutputType, Output*>;
 
+        // Specification of the input set types
+        using InputTypes = std::set<Renderer::OutputType>;
+
         // Default constructor & destructor
         PostEffect() = default;
         virtual ~PostEffect() = default;
+
+        virtual InputTypes GetInputTypes() const = 0;
 
         // Apply post effect and use output for the result
         virtual void Apply(InputSet const& input_set, Output& output) = 0;

@@ -54,6 +54,8 @@ namespace Baikal
 
             MLDenoiser(CLWContext context, std::size_t width, std::size_t height);
 
+            InputTypes GetInputTypes() const override;
+
             void Apply(InputSet const& input_set, Output& output) override;
 
         private:

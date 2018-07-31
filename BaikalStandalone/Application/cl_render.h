@@ -46,19 +46,7 @@ namespace Baikal
     {
         struct OutputData
         {
-            std::unique_ptr<Baikal::Output> output;
-
-#ifdef ENABLE_DENOISER
-//            std::unique_ptr<Baikal::Output> output_position;
-//            std::unique_ptr<Baikal::Output> output_normal;
-//            std::unique_ptr<Baikal::Output> output_albedo;
-//            std::unique_ptr<Baikal::Output> output_mesh_id;
-//            std::unique_ptr<Baikal::PostEffect> denoiser;
-#endif
-
-#if defined(ENABLE_DENOISER) ||  defined(ENABLE_ML_DENOISER)
-//            std::unique_ptr<Baikal::Output> output_denoised;
-#endif
+            std::unique_ptr<Baikal::Output> tmp_output;
             std::vector<float3> fdata;
             std::vector<unsigned char> udata;
             CLWBuffer<float3> copybuffer;
@@ -102,15 +90,23 @@ namespace Baikal
         Baikal::Shape::Ptr GetShapeById(int shape_id);
 
 #ifdef ENABLE_DENOISER
+        RenderFactory<ClwScene>::PostEffectType GetDenoiserType() const;
         void SetDenoiserFloatParam(const std::string& name, const float4& value);
         float4 GetDenoiserFloatParam(const std::string& name);
         void RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const;
 #endif
 
     private:
+        using RendererOutputs = std::map<Renderer::OutputType, std::unique_ptr<Output>>;
+
         void InitCl(AppSettings& settings, GLuint tex);
         void LoadScene(AppSettings& settings);
         void RenderThread(ControlData& cd);
+
+        Output* AddRendererOutput(size_t device_idx, Renderer::OutputType type);
+        Output* GetRendererOutput(size_t device_idx, Renderer::OutputType type);
+        void GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const;
+        void AddPostEffect(size_t device_idx, RenderFactory<Baikal::ClwScene>::PostEffectType type);
 
         Baikal::Scene1::Ptr m_scene;
         Baikal::Camera::Ptr m_camera;
@@ -121,6 +117,8 @@ namespace Baikal
         OutputData m_dummy_output_data;
         RadeonRays::float2 m_shape_id_pos;
         std::vector<Config> m_cfgs;
+        std::vector<RendererOutputs> m_renderer_outputs;
+
         std::vector<OutputData> m_outputs;
         std::unique_ptr<ControlData[]> m_ctrl;
         std::vector<std::thread> m_renderthreads;
@@ -135,6 +133,7 @@ namespace Baikal
 
 #ifdef ENABLE_DENOISER
         std::unique_ptr<PostEffectController> m_post_effect;
+        PostEffect::InputSet m_input_set;
 #endif
     };
 }

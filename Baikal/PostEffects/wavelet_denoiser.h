@@ -58,6 +58,19 @@ namespace Baikal
         // Constructor
         WaveletDenoiser(CLWContext context, const CLProgramManager *program_manager);
         virtual ~WaveletDenoiser();
+
+        InputTypes GetInputTypes() const override
+        {
+            return std::set<Renderer::OutputType>(
+                    {
+                            Renderer::OutputType::kColor,
+                            Renderer::OutputType::kWorldShadingNormal,
+                            Renderer::OutputType::kWorldPosition,
+                            Renderer::OutputType::kAlbedo,
+                            Renderer::OutputType::kMeshID
+                    });
+        }
+
         // Apply filter
         void Apply(InputSet const& input_set, Output& output) override;
         void Update(PerspectiveCamera* camera);

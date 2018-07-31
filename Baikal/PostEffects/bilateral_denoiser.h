@@ -52,6 +52,17 @@ namespace Baikal
         // Apply filter
         void Apply(InputSet const& input_set, Output& output) override;
 
+        InputTypes GetInputTypes() const override
+        {
+            return std::set<Renderer::OutputType>(
+                    {
+                        Renderer::OutputType::kColor,
+                        Renderer::OutputType::kWorldShadingNormal,
+                        Renderer::OutputType::kWorldPosition,
+                        Renderer::OutputType::kAlbedo
+                    });
+        }
+
     private: 
         // Find required output
         ClwOutput* FindOutput(InputSet const& input_set, Renderer::OutputType type);
@@ -63,7 +74,7 @@ namespace Baikal
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers)
 #else
-        : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/Denoise.cl")
+        : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl")
 #endif
     {
         // Add necessary params

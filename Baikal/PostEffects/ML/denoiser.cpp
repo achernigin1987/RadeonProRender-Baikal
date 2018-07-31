@@ -106,6 +106,30 @@ namespace Baikal
             }
         }
 
+        PostEffect::InputTypes MLDenoiser::GetInputTypes() const
+        {
+            switch (m_inputs) {
+                case MLDenoiserInputs::kColorDepthNormalGloss7:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kDepth,
+                                    Renderer::OutputType::kViewShadingNormal,
+                                    Renderer::OutputType::kGloss,
+                            });
+
+                case MLDenoiserInputs::kColorAlbedoNormal8:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kAlbedo,
+                                    Renderer::OutputType::kViewShadingNormal,
+                            });
+                default:
+                    throw std::runtime_error("Model is not supported");
+            }
+        }
+
         template <class ClType, class Type>
         void MLDenoiser::ProcessOutput(const CLWBuffer<float3>& input,
                                        Tensor::ValueType* host_mem,

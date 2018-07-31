@@ -22,37 +22,30 @@ namespace Baikal
 
         RenderFactory<ClwScene>::PostEffectType GetType() const;
 
+        PostEffect::InputTypes GetInputTypes() const;
+
         RadeonRays::float4 GetParameter(const std::string& name);
 
         void SetParameter(std::string const& name, RadeonRays::float4 const& value);
 
         void SetCamera(Camera::Ptr camera);
 
-        void Process() const;
+        void Process(PostEffect::InputSet const& input_set) const;
 
         Output* GetProcessedOutput() const;
 
         void Clear() const;
 
-        //void RestoreDenoiserOutput(Renderer::OutputType type) const;
-
-    protected:
+    private:
         using OutputPtr = std::unique_ptr<Baikal::Output>;
-
-        void CreateRendererOutputs();
-
-        void AddOutputToInputSet(Renderer::OutputType type);
 
         Config* m_config;
         RenderFactory<ClwScene>::PostEffectType m_type;
 
-        std::vector<OutputPtr> m_outputs;
+        std::vector<OutputPtr> m_renderer_outputs;
         OutputPtr m_processed_output;
-        size_t m_width;
-        size_t m_height;
+        Renderer::OutputType m_output_type;
 
         std::unique_ptr<PostEffect> m_post_effect;
-    private:
-        PostEffect::InputSet m_input_set;
     };
 }
