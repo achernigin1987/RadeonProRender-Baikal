@@ -30,23 +30,23 @@ THE SOFTWARE.
 
 #include <CLWBuffer.h>
 
+// E.g. #define ML_DENOISER_IMAGES_DIR "/images/dir"
+#ifdef ML_DENOISER_IMAGES_DIR
 #include <fstream>
 #include <sstream>
 
 namespace
 {
-    void SaveImage(char const* name, float const* buffer, std::size_t size, int& index)
+    void SaveImage(char const* name, float const* buffer, std::size_t size, unsigned index)
     {
-        if (index < 200)
-        {
-            std::ostringstream path;
-            path << "/storage/denoise/tmp/baikal/" << name << "_" << index << ".bin";
-            std::ofstream out(path.str(), std::ios_base::binary);
-            out.write(reinterpret_cast<char const*>(buffer), size * sizeof(float)),
-            ++index;
-        }
+        std::ostringstream path;
+        path << ML_DENOISER_IMAGES_DIR << "/" << name << "_" << index << ".bin";
+        std::ofstream out(path.str(), std::ios_base::binary);
+        out.write(reinterpret_cast<char const*>(buffer), size * sizeof(float));
+        std::cerr << "Written: " << path.str() << "\n";
     }
 }
+#endif
 
 namespace Baikal
 {
@@ -186,12 +186,13 @@ namespace Baikal
                     auto dest = host_mem;
                     auto source = HostCache<float3>();
                     sample_count = static_cast<unsigned int>(source->w);
+                    (void) sample_count;
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        *dest++ = source->x / source->w;
-                        *dest++ = source->y / source->w;
-                        *dest++ = source->z / source->w;
-                        dest += shape.channels - 3;
+                        dest[0] = source->x / source->w;
+                        dest[1] = source->y / source->w;
+                        dest[2] = source->z / source->w;
+                        dest += shape.channels;
                         ++source;
                     }
                     break;
@@ -217,15 +218,15 @@ namespace Baikal
                     {
                         if (source->w)
                         {
-                            *dest++ = source->x / source->w;
-                            *dest++ = source->y / source->w;
+                            dest[0] = source->x / source->w;
+                            dest[1] = source->y / source->w;
                         }
                         else
                         {
-                            *dest++ = 0;
-                            *dest++ = 0;
+                            dest[0] = 0;
+                            dest[1] = 0;
                         }
-                        dest += shape.channels - 2;
+                        dest += shape.channels;
                         ++source;
                     }
 
@@ -245,13 +246,13 @@ namespace Baikal
                     {
                         if (source->w)
                         {
-                            *dest++ = source->x / source->w;
+                            dest[0] = source->x / source->w;
                         }
                         else
                         {
-                            *dest++ = 0;
+                            dest[0] = 0;
                         }
-                        dest += shape.channels - 1;
+                        dest += shape.channels;
                         ++source;
                     }
                     break;
@@ -270,17 +271,17 @@ namespace Baikal
                     {
                         if (source->w)
                         {
-                            *dest++ = source->x / source->w;
-                            *dest++ = source->y / source->w;
-                            *dest++ = source->z / source->w;
+                            dest[0] = source->x / source->w;
+                            dest[1] = source->y / source->w;
+                            dest[2] = source->z / source->w;
                         }
                         else
                         {
-                            *dest++ = 0;
-                            *dest++ = 0;
-                            *dest++ = 0;
+                            dest[0] = 0;
+                            dest[1] = 0;
+                            dest[2] = 0;
                         }
-                        dest += shape.channels - 3;
+                        dest += shape.channels;
                         ++source;
                     }
                     break;
@@ -291,15 +292,16 @@ namespace Baikal
                 host_mem += input_desc.second;
             }
 
-            static int input_index = 0;
-            SaveImage("input", tensor.data(), tensor.size(), input_index);
-
+#ifdef ML_DENOISER_IMAGES_DIR
+            static unsigned input_index = 0;
+            SaveImage("input", tensor.data(), tensor.size(), input_index++);
+#endif
             if (sample_count >= 8)
             {
                 tensor.tag = ++m_last_seq_num;
                 m_inference->PushInput(std::move(tensor));
             }
-            else //if (sample_count < 8)
+            else
             {
                 m_start_seq_num = m_last_seq_num + 1;
                 m_last_image = {};
@@ -316,9 +318,9 @@ namespace Baikal
 
             if (!inference_res.empty() && inference_res.tag >= m_start_seq_num)
             {
-                int output_index = inference_res.tag - 1;
-                SaveImage("output", inference_res.data(), inference_res.size(), output_index);
-
+#ifdef ML_DENOISER_IMAGES_DIR
+                SaveImage("output", inference_res.data(), inference_res.size(), inference_res.tag);
+#endif
                 auto dest = HostCache<float3>();
                 auto source = inference_res.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)

@@ -28,9 +28,9 @@ using namespace Baikal::PostEffects;
 
 MLDenoiseProvider::MLDenoiseProvider(const Config& config, size_t width, size_t height)
            : m_denoiser(config.context,
-                        MLDenoiserInputs::kColorAlbedoNormal8,
-                        .1f,
-                        "1",
+                        MLDenoiserInputs::kColorDepthNormalGloss7,
+                        .15f,
+                        "",
                         width,
                         height)
 {
