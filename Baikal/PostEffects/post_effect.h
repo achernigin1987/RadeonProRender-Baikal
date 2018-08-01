@@ -22,7 +22,6 @@ THE SOFTWARE.
 #pragma once
 
 #include "Renderers/renderer.h"
-#include "SceneGraph/camera.h"
 #include "Output/output.h"
 
 #include <map>
@@ -34,6 +33,8 @@ THE SOFTWARE.
 
 namespace Baikal
 {
+    class Camera;
+
     /**
     \brief Interface for post-processing effects.
 
@@ -48,14 +49,7 @@ namespace Baikal
     class PostEffect
     {
     public:
-        enum class Type
-        {
-            kBilateralDenoiser,
-            kWaveletDenoiser,
-            kMLDenoiser
-        };
-
-        // Data type to pass all necessary content into the post effect. 
+        // Data type to pass all necessary content into the post effect.
         using InputSet = std::map<Renderer::OutputType, Output*>;
 
         // Specification of the input set types

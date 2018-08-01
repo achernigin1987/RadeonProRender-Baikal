@@ -4,6 +4,7 @@
 #include "Renderers/monte_carlo_renderer.h"
 #include "Renderers/adaptive_renderer.h"
 #include "Estimators/path_tracing_estimator.h"
+#include "Controllers/scene_controller.h"
 
 #include "PostEffects/bilateral_denoiser.h"
 #include "PostEffects/wavelet_denoiser.h"
@@ -55,15 +56,15 @@ namespace Baikal
     }
 
     std::unique_ptr<PostEffect> ClwRenderFactory::CreatePostEffect(
-            PostEffect::Type type, std::size_t width, std::size_t height) const
+            PostEffectType type, std::size_t width, std::size_t height) const
     {
         switch (type)
         {
-            case PostEffect::Type::kBilateralDenoiser:
+            case PostEffectType::kBilateralDenoiser:
                 return std::make_unique<BilateralDenoiser>(m_context, &m_program_manager);
-            case PostEffect::Type::kWaveletDenoiser:
+            case PostEffectType::kWaveletDenoiser:
                 return std::make_unique<WaveletDenoiser>(m_context, &m_program_manager);
-            case PostEffect::Type::kMLDenoiser:
+            case PostEffectType::kMLDenoiser:
                 return std::make_unique<PostEffects::MLDenoiser>(m_context, width, height);
             default:
                 throw std::runtime_error("PostEffect is not supported");

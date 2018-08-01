@@ -23,6 +23,7 @@ THE SOFTWARE.
 
 #include "PostEffects/clw_post_effect.h"
 #include "PostEffects/AreaMap33.h"
+#include "SceneGraph/camera.h"
 
 #include "math/matrix.h"
 #include "math/mathutils.h"

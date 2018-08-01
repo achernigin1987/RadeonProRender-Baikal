@@ -20,7 +20,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 #pragma once
+
 #include "PostEffects/clw_post_effect.h"
+#include "SceneGraph/camera.h"
+
 #include "math/mathutils.h"
 
 #ifdef BAIKAL_EMBED_KERNELS

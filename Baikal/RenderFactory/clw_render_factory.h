@@ -55,7 +55,7 @@ namespace Baikal
             CreateOutput(std::uint32_t w, std::uint32_t h) const override;
         // Create post effect of specified type
         std::unique_ptr<PostEffect> 
-            CreatePostEffect(PostEffect::Type type, std::size_t width, std::size_t height) const override;
+            CreatePostEffect(PostEffectType type, std::size_t width, std::size_t height) const override;
 
         std::unique_ptr<SceneController<ClwScene>>
             CreateSceneController() const override;

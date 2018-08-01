@@ -21,10 +21,6 @@
  ********************************************************************/
 #pragma once
 
-#include "Controllers/scene_controller.h"
-#include "PostEffects/post_effect.h"
-#include "CLW.h"
-
 #include <memory>
 
 
@@ -33,6 +29,16 @@ namespace Baikal
     class Renderer;
     class Output;
     class PostEffect;
+
+    template <class T>
+    class SceneController;
+
+    enum class PostEffectType
+    {
+        kBilateralDenoiser,
+        kWaveletDenoiser,
+        kMLDenoiser
+    };
 
     /**
         \brief RenderFactory class is in charge of render entities creation.
@@ -61,7 +67,7 @@ namespace Baikal
 
         virtual 
         std::unique_ptr<PostEffect> CreatePostEffect(
-                PostEffect::Type type, std::size_t width, std::size_t height) const = 0;
+                PostEffectType type, std::size_t width, std::size_t height) const = 0;
 
         virtual
         std::unique_ptr<SceneController<Scene>> CreateSceneController() const = 0;

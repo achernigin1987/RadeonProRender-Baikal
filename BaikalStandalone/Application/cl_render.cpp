@@ -53,7 +53,7 @@ namespace Baikal
         InitCl(settings, m_tex);
 
 #ifdef ENABLE_DENOISER
-        AddPostEffect(m_primary, PostEffect::Type::kWaveletDenoiser);
+        AddPostEffect(m_primary, PostEffectType::kWaveletDenoiser);
 #endif
 
         LoadScene(settings);
@@ -176,7 +176,7 @@ namespace Baikal
     }
 
 #ifdef ENABLE_DENOISER
-    void AppClRender::AddPostEffect(size_t device_idx, PostEffect::Type type)
+    void AppClRender::AddPostEffect(size_t device_idx, PostEffectType type)
     {
         m_post_effect_type = type;
 
@@ -193,7 +193,7 @@ namespace Baikal
         m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
     }
 
-    PostEffect::Type AppClRender::GetPostEffectType() const
+    PostEffectType AppClRender::GetPostEffectType() const
     {
         return m_post_effect_type;
     }
