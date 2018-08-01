@@ -73,6 +73,10 @@ namespace Baikal
             {
                 Tensor input_tensor;
                 m_input_queue.wait_and_pop(input_tensor);
+                if (m_input_queue.size() > 0)
+                {
+                    continue;
+                }
 
                 Tensor output_tensor = AllocTensor(m_output_channels);
                 m_model->infer(
@@ -82,6 +86,7 @@ namespace Baikal
                     m_input_channels,
                     output_tensor.data());
 
+                output_tensor.tag = input_tensor.tag;
                 m_output_queue.push(std::move(output_tensor));
             }
         }

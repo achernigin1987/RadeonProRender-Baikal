@@ -39,6 +39,8 @@ namespace Baikal
     {
         AppSettings s;
 
+        s.help = m_cmd_parser.OptionExists("-h");
+
         s.path = m_cmd_parser.GetOption("-p", s.path);
 
         s.modelname = m_cmd_parser.GetOption("-f", s.modelname);
@@ -151,7 +153,8 @@ namespace Baikal
     }
 
     AppSettings::AppSettings()
-        : path("../Resources/CornellBox")
+        : help(false)
+        , path("../Resources/CornellBox")
         , modelname("orig.objm")
         , envmapname("../Resources/Textures/studio015.hdr")
         //render

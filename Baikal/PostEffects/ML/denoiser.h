@@ -29,7 +29,7 @@ THE SOFTWARE.
 #include <cstddef>
 #include <memory>
 #include <string>
-
+#include <vector>
 
 class CLWContext;
 class CLWParallelPrimitives;
@@ -57,8 +57,6 @@ namespace Baikal
 
             void Apply(InputSet const& input_set, Output& output) override;
 
-            void Update(Camera* camera, unsigned int samples) override;
-
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
@@ -66,6 +64,12 @@ namespace Baikal
             void ProcessOutput(const CLWBuffer<RadeonRays::float3>& input,
                                Tensor::ValueType* host_mem,
                                std::size_t channels);
+
+            template <class T>
+            T* HostCache() const
+            {
+                return reinterpret_cast<T*>(m_host_cache.get());
+            }
 
             MLDenoiserInputs m_inputs;
             Inference::Ptr m_inference;
@@ -76,6 +80,9 @@ namespace Baikal
             std::unique_ptr<CLWBuffer<char>> m_device_cache;
             // CPU cache
             std::unique_ptr<std::uint8_t[]> m_host_cache;
+            Tensor m_last_image;
+            std::uint32_t m_start_seq_num = 0;
+            std::uint32_t m_last_seq_num = 0;
         };
     }
 }

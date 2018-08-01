@@ -615,7 +615,7 @@ namespace Baikal
         return false;
     }
 
-    Application::Application(int argc, char * argv[])
+    Application::Application(int argc, char* argv[])
         : m_window(nullptr, glfwDestroyWindow) // Add custom deleter to shared_ptr
         , m_num_triangles(0)
         , m_num_instances(0)
@@ -623,6 +623,12 @@ namespace Baikal
         // Command line parsing
         AppCliParser cli(argc, argv);
         m_settings = cli.Parse();
+
+        if (m_settings.help)
+        {
+            AppCliParser::ShowHelp();
+            std::exit(0);
+        }
 
         if (!m_settings.cmd_line_mode)
         {
