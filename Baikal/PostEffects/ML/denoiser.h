@@ -22,9 +22,9 @@ THE SOFTWARE.
 
 #pragma once
 
-#include "PostEffects/post_effect.h"
 #include "PostEffects/ML/inference.h"
-#include "tensor.h"
+#include "PostEffects/ML/tensor.h"
+#include "PostEffects/post_effect.h"
 
 #include <cstddef>
 #include <memory>
@@ -51,15 +51,13 @@ namespace Baikal
         {
         public:
 
-            MLDenoiser(const CLWContext& context,
-                       MLDenoiserInputs inputs,
-                       float gpu_memory_fraction,
-                       std::string const& visible_devices,
-                       std::size_t width,
-                       std::size_t height);
+            MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height);
+
+            InputTypes GetInputTypes() const override;
 
             void Apply(InputSet const& input_set, Output& output) override;
 
+            void Update(Camera* camera, unsigned int samples) override;
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
@@ -74,6 +72,7 @@ namespace Baikal
                 return reinterpret_cast<T*>(m_host_cache.get());
             }
 
+            MLDenoiserInputs m_inputs;
             Inference::Ptr m_inference;
             MemoryLayout m_layout;
             std::unique_ptr<CLWContext> m_context;

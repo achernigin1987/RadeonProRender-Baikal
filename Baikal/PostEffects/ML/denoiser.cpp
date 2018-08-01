@@ -57,25 +57,24 @@ namespace Baikal
 
         namespace
         {
-            std::unique_ptr<Inference> CreateInference(MLDenoiserInputs inputs,
-                                                       float gpu_memory_fraction,
-                                                       std::string const& visible_devices,
-                                                       std::size_t width,
-                                                       std::size_t height)
-            {
+            std::unique_ptr<Inference> CreateDenoiserInference(
+                    MLDenoiserInputs inputs,
+                    float gpu_memory_fraction,
+                    std::string const &visible_devices,
+                    std::size_t width,
+                    std::size_t height) {
                 std::string model_path;
                 std::size_t input_channels;
-                switch (inputs)
-                {
-                case MLDenoiserInputs::kColorDepthNormalGloss7:
-                    model_path = "models/color_depth_normal_gloss_7.pb";
-                    input_channels = 7;
-                    break;
+                switch (inputs) {
+                    case MLDenoiserInputs::kColorDepthNormalGloss7:
+                        model_path = "models/color_depth_normal_gloss_7.pb";
+                        input_channels = 7;
+                        break;
 
-                case MLDenoiserInputs::kColorAlbedoNormal8:
-                    model_path = "models/color_albedo_normal_8.pb";
-                    input_channels = 8;
-                    break;
+                    case MLDenoiserInputs::kColorAlbedoNormal8:
+                        model_path = "models/color_albedo_normal_8.pb";
+                        input_channels = 8;
+                        break;
                 }
 
                 return std::make_unique<InferenceImpl>(model_path,
@@ -87,17 +86,9 @@ namespace Baikal
             }
         }
 
-        MLDenoiser::MLDenoiser(const CLWContext& context,
-                               MLDenoiserInputs inputs,
-                               float gpu_memory_fraction,
-                               std::string const& visible_devices,
-                               std::size_t width,
-                               std::size_t height)
-        : m_inference(CreateInference(inputs,
-                                      gpu_memory_fraction,
-                                      visible_devices,
-                                      width,
-                                      height))
+        MLDenoiser::MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height)
+                   : m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
+                   , m_inference(CreateDenoiserInference(m_inputs, 0.1f, "", width, height))
         {
             m_context = std::make_unique<CLWContext>(context);
             m_primitives = std::make_unique<CLWParallelPrimitives>(context);
@@ -112,7 +103,7 @@ namespace Baikal
             m_host_cache = std::make_unique<std::uint8_t[]>(elems_count);
 
             // compute memory layout
-            switch (inputs)
+            switch (m_inputs)
             {
             case MLDenoiserInputs::kColorDepthNormalGloss7:
                 m_layout.emplace_back(OutputType::kColor, 3);
@@ -126,6 +117,30 @@ namespace Baikal
                 m_layout.emplace_back(OutputType::kAlbedo, 3);
                 m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                 break;
+            }
+        }
+
+        PostEffect::InputTypes MLDenoiser::GetInputTypes() const
+        {
+            switch (m_inputs) {
+                case MLDenoiserInputs::kColorDepthNormalGloss7:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kDepth,
+                                    Renderer::OutputType::kViewShadingNormal,
+                                    Renderer::OutputType::kGloss,
+                            });
+
+                case MLDenoiserInputs::kColorAlbedoNormal8:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kAlbedo,
+                                    Renderer::OutputType::kViewShadingNormal,
+                            });
+                default:
+                    throw std::runtime_error("Model is not supported");
             }
         }
 
@@ -366,6 +381,11 @@ namespace Baikal
                                       0,
                                       shape.width * shape.height).Wait();
             }
+        }
+
+        void MLDenoiser::Update(Camera* camera, unsigned int samples)
+        {
+
         }
     }
 }

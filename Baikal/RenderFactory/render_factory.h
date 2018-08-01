@@ -23,15 +23,23 @@
 
 #include <memory>
 
-#include "CLW.h"
-#include "Controllers/scene_controller.h"
 
 namespace Baikal
 {
     class Renderer;
     class Output;
     class PostEffect;
-    
+
+    template <class T>
+    class SceneController;
+
+    enum class PostEffectType
+    {
+        kBilateralDenoiser,
+        kWaveletDenoiser,
+        kMLDenoiser
+    };
+
     /**
         \brief RenderFactory class is in charge of render entities creation.
      
@@ -47,12 +55,6 @@ namespace Baikal
         {
             kUnidirectionalPathTracer
         };
-        
-        enum class PostEffectType
-        {
-            kBilateralDenoiser,
-            kWaveletDenoiser
-        };
 
         RenderFactory() = default;
         virtual ~RenderFactory() = default;
@@ -64,7 +66,8 @@ namespace Baikal
         std::unique_ptr<Output> CreateOutput(std::uint32_t w, std::uint32_t h) const = 0;
 
         virtual 
-        std::unique_ptr<PostEffect> CreatePostEffect(PostEffectType type) const = 0;
+        std::unique_ptr<PostEffect> CreatePostEffect(
+                PostEffectType type, std::size_t width, std::size_t height) const = 0;
 
         virtual
         std::unique_ptr<SceneController<Scene>> CreateSceneController() const = 0;
@@ -72,6 +75,4 @@ namespace Baikal
         RenderFactory(RenderFactory<Scene> const&) = delete;
         RenderFactory const& operator = (RenderFactory<Scene> const&) = delete;
     };
-    
-    
 }
