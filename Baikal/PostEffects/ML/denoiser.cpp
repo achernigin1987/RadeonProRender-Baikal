@@ -19,17 +19,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
-
-
 #include "PostEffects/ML/denoiser.h"
 #include "PostEffects/ML/inference_impl.h"
-
-#include "CLWContext.h"
-#include "CLWParallelPrimitives.h"
-
 #include "Output/clwoutput.h"
 
-#include <CLWBuffer.h>
+#include "CLWBuffer.h"
+#include "CLWContext.h"
+#include "CLWParallelPrimitives.h"
 
 #include <fstream>
 #include <sstream>
@@ -42,41 +38,42 @@ namespace Baikal
         using float3 =  RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        std::unique_ptr<Inference> CreateDenoiserInference(
-                MLDenoiserInputs inputs,
-                float gpu_memory_fraction,
-                std::string const& visible_devices,
-                std::size_t width,
-                std::size_t height)
+        namespace
         {
-            std::string model_path;
-            std::size_t input_channels;
-            switch (inputs)
-            {
-            case MLDenoiserInputs::kColorDepthNormalGloss7:
-                model_path = "models/color_depth_normal_gloss_7.pb";
-                input_channels = 7;
-                break;
+            std::unique_ptr<Inference> CreateDenoiserInference(
+                    MLDenoiserInputs inputs,
+                    float gpu_memory_fraction,
+                    std::string const &visible_devices,
+                    std::size_t width,
+                    std::size_t height) {
+                std::string model_path;
+                std::size_t input_channels;
+                switch (inputs) {
+                    case MLDenoiserInputs::kColorDepthNormalGloss7:
+                        model_path = "models/color_depth_normal_gloss_7.pb";
+                        input_channels = 7;
+                        break;
 
-            case MLDenoiserInputs::kColorAlbedoNormal8:
-                model_path = "models/color_albedo_normal_8.pb";
-                input_channels = 8;
-                break;
+                    case MLDenoiserInputs::kColorAlbedoNormal8:
+                        model_path = "models/color_albedo_normal_8.pb";
+                        input_channels = 8;
+                        break;
+                }
+
+                return std::make_unique<InferenceImpl>(model_path,
+                                                       gpu_memory_fraction,
+                                                       visible_devices,
+                                                       width,
+                                                       height,
+                                                       input_channels);
             }
-
-            return std::make_unique<InferenceImpl>(model_path,
-                                                   gpu_memory_fraction,
-                                                   visible_devices,
-                                                   width,
-                                                   height,
-                                                   input_channels);
         }
 
-        MLDenoiser::MLDenoiser(CLWContext context, std::size_t width, std::size_t height)
+        MLDenoiser::MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height)
                    : m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
                    , m_inference(CreateDenoiserInference(m_inputs, 0.1f, "", width, height))
-                   , m_context(context)
         {
+            m_context = std::make_unique<CLWContext>(context);
             m_primitives = std::make_unique<CLWParallelPrimitives>(context);
 
             auto shape = m_inference->GetInputShape();
@@ -84,7 +81,7 @@ namespace Baikal
             size_t elems_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
 
             m_device_cache = std::make_unique<CLWBuffer<char>>(
-                CLWBuffer<char>::Create(m_context, CL_MEM_READ_WRITE, elems_count));
+                CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, elems_count));
 
             m_host_cache = std::make_unique<std::uint8_t[]>(elems_count);
 
@@ -143,7 +140,7 @@ namespace Baikal
                                     normalized_buf,
                                     (int)input_buf.GetElementCount()).Wait();
 
-            m_context.ReadBuffer<Type>(0,
+            m_context->ReadBuffer<Type>(0,
                                         CLWBuffer<Type>::CreateFromClBuffer(
                                             normalized_buf),
                                         (Type*)m_host_cache.get(),
@@ -187,7 +184,7 @@ namespace Baikal
                 {
                 case OutputType::kColor:
                 {
-                    m_context.ReadBuffer<float3>(0,
+                    m_context->ReadBuffer<float3>(0,
                                                   device_mem,
                                                   reinterpret_cast<float3*>(m_host_cache.get()),
                                                   device_mem.GetElementCount()).Wait();
@@ -213,7 +210,7 @@ namespace Baikal
                 }
                 case OutputType::kViewShadingNormal:
                 {
-                    m_context.ReadBuffer<float3>(0,
+                    m_context->ReadBuffer<float3>(0,
                                                   device_mem,
                                                   reinterpret_cast<float3*>(m_host_cache.get()),
                                                   device_mem.GetElementCount()).Wait();
@@ -233,7 +230,7 @@ namespace Baikal
                 }
                 case OutputType::kGloss:
                 {
-                    m_context.ReadBuffer<float3>(0,
+                    m_context->ReadBuffer<float3>(0,
                                                   device_mem,
                                                   reinterpret_cast<float3*>(m_host_cache.get()),
                                                   device_mem.GetElementCount()).Wait();
@@ -307,20 +304,25 @@ namespace Baikal
                     ++dest;
                 }
 
-                m_context.WriteBuffer<float3>(0,
+                m_context->WriteBuffer<float3>(0,
                     clw_inference_output->data(),
                     reinterpret_cast<float3*>(m_host_cache.get()),
                     inference_res.size() / 3).Wait();
             }
             else
             {
-                m_context.CopyBuffer<float3>(0,
+                m_context->CopyBuffer<float3>(0,
                                       static_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data(),
                                       clw_inference_output->data(),
                                       0,
                                       0,
                                       shape.width * shape.height).Wait();
             }
+        }
+
+        void MLDenoiser::Update(Camera* camera, unsigned int samples)
+        {
+
         }
     }
 }

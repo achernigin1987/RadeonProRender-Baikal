@@ -32,7 +32,6 @@ set(POSTEFFECT_SOURCES
     PostEffects/AreaMap33.h
     ${ML_DENOISER_SOURCES})
 
-
 set(RENDERERS_SOURCES
     Renderers/adaptive_renderer.cpp
     Renderers/adaptive_renderer.h

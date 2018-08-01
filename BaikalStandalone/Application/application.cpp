@@ -954,7 +954,7 @@ namespace Baikal
             }
 
 #ifdef ENABLE_DENOISER
-            if (m_cl->GetDenoiserType() != RenderFactory<ClwScene>::PostEffectType::kMLDenoiser) {
+            if (m_cl->GetPostEffectType() != PostEffect::Type::kMLDenoiser) {
                 ImGui::Separator();
 
                 static float sigmaPosition = m_cl->GetDenoiserFloatParam("position_sensitivity").x;

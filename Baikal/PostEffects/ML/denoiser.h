@@ -26,13 +26,12 @@ THE SOFTWARE.
 #include "PostEffects/post_effect.h"
 #include "tensor.h"
 
-#include "CLW.h"
-
 #include <cstddef>
 #include <memory>
 #include <string>
 
 
+class CLWContext;
 class CLWParallelPrimitives;
 
 template <class T>
@@ -52,11 +51,13 @@ namespace Baikal
         {
         public:
 
-            MLDenoiser(CLWContext context, std::size_t width, std::size_t height);
+            MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height);
 
             InputTypes GetInputTypes() const override;
 
             void Apply(InputSet const& input_set, Output& output) override;
+
+            void Update(Camera* camera, unsigned int samples) override;
 
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
@@ -69,7 +70,7 @@ namespace Baikal
             MLDenoiserInputs m_inputs;
             Inference::Ptr m_inference;
             MemoryLayout m_layout;
-            CLWContext m_context;
+            std::unique_ptr<CLWContext> m_context;
             std::unique_ptr<CLWParallelPrimitives> m_primitives;
             // GPU cache
             std::unique_ptr<CLWBuffer<char>> m_device_cache;

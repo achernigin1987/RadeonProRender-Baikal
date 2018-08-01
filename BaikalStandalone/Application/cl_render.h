@@ -36,7 +36,7 @@
 #include "SceneGraph/camera.h"
 
 #ifdef ENABLE_DENOISER
-#include "Denoise/post_effect_controller.h"
+#include "PostEffects/post_effect.h"
 #endif
 
 
@@ -90,7 +90,7 @@ namespace Baikal
         Baikal::Shape::Ptr GetShapeById(int shape_id);
 
 #ifdef ENABLE_DENOISER
-        RenderFactory<ClwScene>::PostEffectType GetDenoiserType() const;
+        PostEffect::Type GetPostEffectType() const;
         void SetDenoiserFloatParam(const std::string& name, const float4& value);
         float4 GetDenoiserFloatParam(const std::string& name);
         void RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const;
@@ -106,7 +106,7 @@ namespace Baikal
         Output* GetRendererOutput(size_t device_idx, Renderer::OutputType type);
         void AddRendererOutput(size_t device_idx, Renderer::OutputType type);
         void GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const;
-        void AddPostEffect(size_t device_idx, RenderFactory<Baikal::ClwScene>::PostEffectType type);
+        void AddPostEffect(size_t device_idx, PostEffect::Type type);
 
         void ApplyGammaCorrection(size_t device_idx);
 
@@ -134,8 +134,10 @@ namespace Baikal
         Renderer::OutputType m_output_type;
 
 #ifdef ENABLE_DENOISER
-        std::unique_ptr<PostEffectController> m_post_effect;
-        PostEffect::InputSet m_input_set;
+        std::unique_ptr<PostEffect> m_post_effect;
+        PostEffect::Type m_post_effect_type;
+        PostEffect::InputSet m_post_effect_inputs;
+        std::unique_ptr<Output> m_post_effect_output;
 #endif
     };
 }

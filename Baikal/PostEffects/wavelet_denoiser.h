@@ -20,14 +20,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 #pragma once
-#include "clw_post_effect.h"
 
-#include <SceneGraph/camera.h>
-#include <math/matrix.h>
-#include <math/mathutils.h>
-#include "AreaMap33.h"
+#include "PostEffects/clw_post_effect.h"
+#include "PostEffects/AreaMap33.h"
+
+#include "math/matrix.h"
+#include "math/mathutils.h"
 
 #include <limits>
+#include <cmath>
 
 #ifdef BAIKAL_EMBED_KERNELS
 #include "embed_kernels.h"
@@ -73,7 +74,8 @@ namespace Baikal
 
         // Apply filter
         void Apply(InputSet const& input_set, Output& output) override;
-        void Update(PerspectiveCamera* camera);
+
+        void Update(Camera* camera, unsigned int samples) override;
 
     private:
         // Find required output
@@ -537,26 +539,28 @@ namespace Baikal
         }
     }
 
-    inline void WaveletDenoiser::Update(PerspectiveCamera* camera)
+    inline void WaveletDenoiser::Update(Camera* camera, unsigned int samples)
     {
         m_prev_view_proj = m_view_proj;
 
-        const float focal_length = camera->GetFocalLength();
-        const RadeonRays::float2 sensor_size = camera->GetSensorSize();
+        auto pCamera = dynamic_cast<PerspectiveCamera*>(camera);
 
-        RadeonRays::float2 z_range = camera->GetDepthRange();
+        const float focal_length = pCamera->GetFocalLength();
+        const RadeonRays::float2 sensor_size = pCamera->GetSensorSize();
+
+        RadeonRays::float2 z_range = pCamera->GetDepthRange();
 
         // Nan-avoidance in perspective matrix
         z_range.x = std::max(z_range.x, std::numeric_limits<float>::epsilon());
 
-        const float fovy = atan(sensor_size.y / (2.0f * focal_length));
+        const float fovy = std::atan(sensor_size.y / (2.0f * focal_length));
 
-        const RadeonRays::float3 up = camera->GetUpVector();
-        const RadeonRays::float3 right = -camera->GetRightVector();
-        const RadeonRays::float3 forward = camera->GetForwardVector();
-        const RadeonRays::float3 pos = camera->GetPosition();
+        const RadeonRays::float3 up = pCamera->GetUpVector();
+        const RadeonRays::float3 right = -pCamera->GetRightVector();
+        const RadeonRays::float3 forward = pCamera->GetForwardVector();
+        const RadeonRays::float3 pos = pCamera->GetPosition();
 
-        const RadeonRays::matrix proj = RadeonRays::perspective_proj_fovy_rh_gl(fovy, camera->GetAspectRatio(), z_range.x, z_range.y);
+        const RadeonRays::matrix proj = RadeonRays::perspective_proj_fovy_rh_gl(fovy, pCamera->GetAspectRatio(), z_range.x, z_range.y);
         const RadeonRays::float3 ip = RadeonRays::float3(-dot(right, pos), -dot(up, pos), -dot(forward, pos));
 
         const RadeonRays::matrix view = RadeonRays::matrix(right.x, right.y, right.z, ip.x,

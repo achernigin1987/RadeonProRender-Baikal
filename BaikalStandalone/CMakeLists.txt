@@ -40,10 +40,6 @@ set(KERNEL_SOURCES
     Kernels/GLSL/simple.fsh
     Kernels/GLSL/simple.vsh)
 
-set(DENOISER_SOURCES
-        Denoise/post_effect_controller.h
-        Denoise/post_effect_controller.cpp)
-
 set(SOURCES
     ${APPLICATION_SOURCES}
     ${IMGUI_SORUCES}
@@ -55,11 +51,6 @@ source_group("Application" FILES ${APPLICATION_SOURCES})
 source_group("ImGUI" FILES ${IMGUI_SORUCES})
 source_group("Utils" FILES ${UTILS_SOURCES})
 source_group("Kernels\\GLSL" FILES ${KERNEL_SOURCES})
-
-if (BAIKAL_ENABLE_DENOISER)
-    list(APPEND SOURCES ${DENOISER_SOURCES})
-    source_group("Denoise" FILES ${DENOISER_SOURCES})
-endif(BAIKAL_ENABLE_DENOISER)
 
 add_executable(BaikalStandalone ${SOURCES})
 target_compile_features(BaikalStandalone PRIVATE cxx_std_14)

@@ -56,7 +56,7 @@ namespace Baikal
         InitCl(settings, m_tex);
 
 #ifdef ENABLE_DENOISER
-        AddPostEffect(m_primary, RenderFactory<ClwScene>::PostEffectType::kWaveletDenoiser);
+        AddPostEffect(m_primary, PostEffect::Type::kWaveletDenoiser);
 #endif
 
         LoadScene(settings);
@@ -178,16 +178,39 @@ namespace Baikal
         m_renderer_outputs.at(device_idx).at(type)->GetData(data);
     }
 
-    void AppClRender::AddPostEffect(size_t device_idx, RenderFactory<Baikal::ClwScene>::PostEffectType type)
+#ifdef ENABLE_DENOISER
+    void AppClRender::AddPostEffect(size_t device_idx, PostEffect::Type type)
     {
-        m_post_effect = std::make_unique<PostEffectController>(&(m_cfgs[m_primary]), type, m_width, m_height);
+        m_post_effect_type = type;
 
-        for (const auto& required_input : m_post_effect->GetInputTypes())
+        m_post_effect = m_cfgs[device_idx].factory->CreatePostEffect(type, m_width, m_height);
+
+        // create or get inputs for post-effect
+        for (auto required_input : m_post_effect->GetInputTypes())
         {
             AddRendererOutput(device_idx, required_input);
-            m_input_set[required_input] = GetRendererOutput(device_idx, required_input);
+            m_post_effect_inputs[required_input] = GetRendererOutput(device_idx, required_input);
         }
+
+        // create buffer for post-effect output
+        m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
     }
+
+    PostEffect::Type AppClRender::GetPostEffectType() const
+    {
+        return m_post_effect_type;
+    }
+
+    void AppClRender::SetDenoiserFloatParam(const std::string& name, const float4& value)
+    {
+        m_post_effect->SetParameter(name, value);
+    }
+
+    float4 AppClRender::GetDenoiserFloatParam(const std::string& name)
+    {
+        return m_post_effect->GetParameter(name);
+    }
+#endif
 
     void AppClRender::LoadScene(AppSettings& settings)
     {
@@ -289,12 +312,10 @@ namespace Baikal
             if (i == m_primary)
             {
                 m_cfgs[i].controller->CompileScene(m_scene);
-                m_cfgs[i].renderer->Clear(
-                        float3(0, 0, 0),
-                        *GetRendererOutput(i, Renderer::OutputType::kColor));
+                m_cfgs[i].renderer->Clear(float3(), *GetRendererOutput(i, Renderer::OutputType::kColor));
 
 #ifdef ENABLE_DENOISER
-                m_post_effect->Clear();
+                m_post_effect_output->Clear(float3());
 #endif
             }
             else
@@ -341,7 +362,7 @@ namespace Baikal
         if (!settings.interop)
         {
 #ifdef ENABLE_DENOISER
-            m_post_effect->GetProcessedOutput()->GetData(&m_outputs[m_primary].fdata[0]);
+            m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
 #else
             GetOutputData(m_primary, Renderer::OutputType::kColor, &m_renderer_outputs[m_primary].fdata[0]);
 #endif
@@ -361,7 +382,7 @@ namespace Baikal
             auto copykernel = static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetCopyKernel();
 
 #ifdef ENABLE_DENOISER
-            auto output = m_post_effect->GetProcessedOutput();
+            auto output = m_post_effect_output.get();
 #else
             auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
 #endif
@@ -394,10 +415,10 @@ namespace Baikal
         //ClwClass::Update();
     }
 
-    void AppClRender::Render(int sample_cnt)
+    void AppClRender::Render(int samples)
     {
 #ifdef ENABLE_DENOISER
-        m_post_effect->SetCamera(m_camera);
+        m_post_effect->Update(m_camera.get(), static_cast<unsigned>(samples));
 #endif
         auto& scene = m_cfgs[m_primary].controller->GetCachedScene(m_scene);
         m_cfgs[m_primary].renderer->Render(scene);
@@ -416,22 +437,7 @@ namespace Baikal
         }
 
 #ifdef ENABLE_DENOISER
-        if (m_post_effect->GetType() == RenderFactory<ClwScene>::PostEffectType::kBilateralDenoiser)
-        {
-            auto radius = 10U - RadeonRays::clamp((sample_cnt / 16), 1U, 9U);
-            auto position_sensitivity = 5.f + 10.f * (radius / 10.f);
-            auto normal_sensitivity = 0.1f + (radius / 10.f) * 0.15f;
-            auto color_sensitivity = (radius / 10.f) * 2.f;
-            auto albedo_sensitivity = 0.5f + (radius / 10.f) * 0.5f;
-
-            m_post_effect->SetParameter("radius", static_cast<float>(radius));
-            m_post_effect->SetParameter("color_sensitivity", color_sensitivity);
-            m_post_effect->SetParameter("normal_sensitivity", normal_sensitivity);
-            m_post_effect->SetParameter("position_sensitivity", position_sensitivity);
-            m_post_effect->SetParameter("albedo_sensitivity", albedo_sensitivity);
-        }
-
-        m_post_effect->Process(m_input_set);
+        m_post_effect->Apply(m_post_effect_inputs, *m_post_effect_output);
 #endif
     }
 
@@ -695,19 +701,7 @@ namespace Baikal
     }
 
 #ifdef ENABLE_DENOISER
-    RenderFactory<ClwScene>::PostEffectType AppClRender::GetDenoiserType() const{
-        return m_post_effect->GetType();
-    }
 
-    void AppClRender::SetDenoiserFloatParam(const std::string& name, const float4& value)
-    {
-        m_post_effect->SetParameter(name, value);
-    }
-
-    float4 AppClRender::GetDenoiserFloatParam(const std::string& name)
-    {
-        return m_post_effect->GetParameter(name);
-    }
 
     void AppClRender::RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const
     {

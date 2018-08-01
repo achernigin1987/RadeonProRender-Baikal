@@ -9,8 +9,8 @@
 #include "PostEffects/wavelet_denoiser.h"
 #include "PostEffects/ML/denoiser.h"
 
-
 #include <memory>
+
 
 namespace Baikal
 {
@@ -55,15 +55,15 @@ namespace Baikal
     }
 
     std::unique_ptr<PostEffect> ClwRenderFactory::CreatePostEffect(
-            PostEffectType type, std::size_t width, std::size_t height) const
+            PostEffect::Type type, std::size_t width, std::size_t height) const
     {
         switch (type)
         {
-            case PostEffectType::kBilateralDenoiser:
+            case PostEffect::Type::kBilateralDenoiser:
                 return std::make_unique<BilateralDenoiser>(m_context, &m_program_manager);
-            case PostEffectType::kWaveletDenoiser:
+            case PostEffect::Type::kWaveletDenoiser:
                 return std::make_unique<WaveletDenoiser>(m_context, &m_program_manager);
-            case PostEffectType::kMLDenoiser:
+            case PostEffect::Type::kMLDenoiser:
                 return std::make_unique<PostEffects::MLDenoiser>(m_context, width, height);
             default:
                 throw std::runtime_error("PostEffect is not supported");

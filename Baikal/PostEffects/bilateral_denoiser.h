@@ -21,6 +21,7 @@ THE SOFTWARE.
 ********************************************************************/
 #pragma once
 #include "clw_post_effect.h"
+#include "math/mathutils.h"
 
 #ifdef BAIKAL_EMBED_KERNELS
 #include "embed_kernels.h"
@@ -51,6 +52,8 @@ namespace Baikal
         BilateralDenoiser(CLWContext context, const CLProgramManager *program_manager);
         // Apply filter
         void Apply(InputSet const& input_set, Output& output) override;
+
+        void Update(Camera* camera, unsigned int samples) override;
 
         InputTypes GetInputTypes() const override
         {
@@ -137,4 +140,14 @@ namespace Baikal
         }
     }
 
+    void BilateralDenoiser::Update(Camera* camera, unsigned int samples)
+    {
+        auto radius = 10U - RadeonRays::clamp((samples / 16), 1U, 9U);
+
+        SetParameter("radius", static_cast<float>(radius));
+        SetParameter("color_sensitivity", (radius / 10.f) * 2.f);
+        SetParameter("normal_sensitivity", 0.1f + (radius / 10.f) * 0.15f);
+        SetParameter("position_sensitivity", 5.f + 10.f * (radius / 10.f));
+        SetParameter("albedo_sensitivity", 0.5f + (radius / 10.f) * 0.5f);
+    }
 }

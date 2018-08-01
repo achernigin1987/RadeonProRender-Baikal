@@ -21,10 +21,11 @@
  ********************************************************************/
 #pragma once
 
-#include <memory>
-
-#include "CLW.h"
 #include "Controllers/scene_controller.h"
+#include "PostEffects/post_effect.h"
+#include "CLW.h"
+
+#include <memory>
 
 
 namespace Baikal
@@ -49,13 +50,6 @@ namespace Baikal
             kUnidirectionalPathTracer
         };
 
-        enum class PostEffectType
-        {
-            kBilateralDenoiser,
-            kWaveletDenoiser,
-            kMLDenoiser
-        };
-
         RenderFactory() = default;
         virtual ~RenderFactory() = default;
 
@@ -67,7 +61,7 @@ namespace Baikal
 
         virtual 
         std::unique_ptr<PostEffect> CreatePostEffect(
-                PostEffectType type, std::size_t width, std::size_t height) const = 0;
+                PostEffect::Type type, std::size_t width, std::size_t height) const = 0;
 
         virtual
         std::unique_ptr<SceneController<Scene>> CreateSceneController() const = 0;
@@ -75,6 +69,4 @@ namespace Baikal
         RenderFactory(RenderFactory<Scene> const&) = delete;
         RenderFactory const& operator = (RenderFactory<Scene> const&) = delete;
     };
-    
-    
 }
