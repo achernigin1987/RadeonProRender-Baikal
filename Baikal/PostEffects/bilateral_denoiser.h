@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 #pragma once
-#include "clw_post_effect.h"
+#include "PostEffects/clw_post_effect.h"
 #include "math/mathutils.h"
 
 #ifdef BAIKAL_EMBED_KERNELS

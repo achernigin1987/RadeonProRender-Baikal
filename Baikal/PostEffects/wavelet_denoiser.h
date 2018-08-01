@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "embed_kernels.h"
 #endif
 
+
 namespace Baikal
 {
     /**

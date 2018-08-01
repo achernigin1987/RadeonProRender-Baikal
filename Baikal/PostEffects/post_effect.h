@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include <stdexcept>
 #include <cassert>
 
+
 namespace Baikal
 {
     /**

@@ -22,11 +22,6 @@
  ********************************************************************/
 #pragma once
 
-#include <thread>
-#include <atomic>
-#include <mutex>
-#include <future>
-
 #include "RenderFactory/render_factory.h"
 #include "Renderers/monte_carlo_renderer.h"
 #include "Output/clwoutput.h"
@@ -38,6 +33,11 @@
 #ifdef ENABLE_DENOISER
 #include "PostEffects/post_effect.h"
 #endif
+
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <future>
 
 
 namespace Baikal

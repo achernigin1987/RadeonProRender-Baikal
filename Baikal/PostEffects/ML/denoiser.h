@@ -23,8 +23,8 @@ THE SOFTWARE.
 #pragma once
 
 #include "PostEffects/ML/inference.h"
+#include "PostEffects/ML/tensor.h"
 #include "PostEffects/post_effect.h"
-#include "tensor.h"
 
 #include <cstddef>
 #include <memory>
