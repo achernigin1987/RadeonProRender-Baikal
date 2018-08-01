@@ -81,6 +81,8 @@ namespace Baikal
                 return m_shape;
             }
 
+            std::uint32_t tag = 0;
+
         private:
             Data m_data;
             Shape m_shape;

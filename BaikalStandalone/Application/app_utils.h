@@ -36,6 +36,8 @@ namespace Baikal
     {
         AppSettings();
 
+        bool help;
+
         //model load settings
         std::string path;
         std::string modelname;
@@ -48,7 +50,7 @@ namespace Baikal
         int num_samples;
         bool interop;
         float cspeed;
-        ConfigManager::Mode mode;
+        Mode mode;
 
         //ao
         float ao_radius;
@@ -103,10 +105,9 @@ namespace Baikal
 
         AppCliParser(int argc, char * argv[]);
         AppSettings Parse();
+        static void ShowHelp();
 
     private:
-
-        void ShowHelp();
 
         CmdParser m_cmd_parser;
     };

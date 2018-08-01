@@ -615,7 +615,7 @@ namespace Baikal
         return false;
     }
 
-    Application::Application(int argc, char * argv[])
+    Application::Application(int argc, char* argv[])
         : m_window(nullptr, glfwDestroyWindow) // Add custom deleter to shared_ptr
         , m_num_triangles(0)
         , m_num_instances(0)
@@ -623,6 +623,12 @@ namespace Baikal
         // Command line parsing
         AppCliParser cli(argc, argv);
         m_settings = cli.Parse();
+
+        if (m_settings.help)
+        {
+            AppCliParser::ShowHelp();
+            std::exit(0);
+        }
 
         if (!m_settings.cmd_line_mode)
         {
@@ -954,24 +960,25 @@ namespace Baikal
             }
 
 #ifdef ENABLE_DENOISER
-            ImGui::Separator();
+            if (m_cl->GetPostEffectType() != PostEffectType::kMLDenoiser) {
+                ImGui::Separator();
 
-            static float sigmaPosition = m_cl->GetDenoiserFloatParam("position_sensitivity").x;
-            static float sigmaNormal = m_cl->GetDenoiserFloatParam("normal_sensitivity").x;
-            static float sigmaColor = m_cl->GetDenoiserFloatParam("color_sensitivity").x;
+                static float sigmaPosition = m_cl->GetDenoiserFloatParam("position_sensitivity").x;
+                static float sigmaNormal = m_cl->GetDenoiserFloatParam("normal_sensitivity").x;
+                static float sigmaColor = m_cl->GetDenoiserFloatParam("color_sensitivity").x;
 
-            ImGui::Text("Denoiser settings");
-            ImGui::SliderFloat("Position sigma", &sigmaPosition, 0.f, 0.3f);
-            ImGui::SliderFloat("Normal sigma", &sigmaNormal, 0.f, 5.f);
-            ImGui::SliderFloat("Color sigma", &sigmaColor, 0.f, 5.f);       
+                ImGui::Text("Denoiser settings");
+                ImGui::SliderFloat("Position sigma", &sigmaPosition, 0.f, 0.3f);
+                ImGui::SliderFloat("Normal sigma", &sigmaNormal, 0.f, 5.f);
+                ImGui::SliderFloat("Color sigma", &sigmaColor, 0.f, 5.f);
 
-            if (m_cl->GetDenoiserFloatParam("position_sensitivity").x != sigmaPosition ||
-                m_cl->GetDenoiserFloatParam("normal_sensitivity").x != sigmaNormal ||
-                m_cl->GetDenoiserFloatParam("color_sensitivity").x != sigmaColor)
-            {
-                m_cl->SetDenoiserFloatParam("position_sensitivity", sigmaPosition);
-                m_cl->SetDenoiserFloatParam("normal_sensitivity", sigmaNormal);
-                m_cl->SetDenoiserFloatParam("color_sensitivity", sigmaColor);
+                if (m_cl->GetDenoiserFloatParam("position_sensitivity").x != sigmaPosition ||
+                    m_cl->GetDenoiserFloatParam("normal_sensitivity").x != sigmaNormal ||
+                    m_cl->GetDenoiserFloatParam("color_sensitivity").x != sigmaColor) {
+                    m_cl->SetDenoiserFloatParam("position_sensitivity", sigmaPosition);
+                    m_cl->SetDenoiserFloatParam("normal_sensitivity", sigmaNormal);
+                    m_cl->SetDenoiserFloatParam("color_sensitivity", sigmaColor);
+                }
             }
 #endif
             ImGui::End();

@@ -39,6 +39,8 @@ namespace Baikal
     {
         AppSettings s;
 
+        s.help = m_cmd_parser.OptionExists("-h");
+
         s.path = m_cmd_parser.GetOption("-p", s.path);
 
         s.modelname = m_cmd_parser.GetOption("-f", s.modelname);
@@ -111,15 +113,15 @@ namespace Baikal
             auto cfg = m_cmd_parser.GetOption("-config");
 
             if (cfg == "cpu")
-                s.mode = ConfigManager::Mode::kUseSingleCpu;
+                s.mode = Mode::kUseSingleCpu;
             else if (cfg == "gpu")
-                s.mode = ConfigManager::Mode::kUseSingleGpu;
+                s.mode = Mode::kUseSingleGpu;
             else if (cfg == "mcpu")
-                s.mode = ConfigManager::Mode::kUseCpus;
+                s.mode = Mode::kUseCpus;
             else if (cfg == "mgpu")
-                s.mode = ConfigManager::Mode::kUseGpus;
+                s.mode = Mode::kUseGpus;
             else if (cfg == "all")
-                s.mode = ConfigManager::Mode::kUseAll;
+                s.mode = Mode::kUseAll;
         }
 
         s.platform_index = m_cmd_parser.GetOption("-platform", s.platform_index);
@@ -151,7 +153,8 @@ namespace Baikal
     }
 
     AppSettings::AppSettings()
-        : path("../Resources/CornellBox")
+        : help(false)
+        , path("../Resources/CornellBox")
         , modelname("orig.objm")
         , envmapname("../Resources/Textures/studio015.hdr")
         //render
@@ -161,7 +164,7 @@ namespace Baikal
         , num_samples(-1)
         , interop(true)
         , cspeed(10.25f)
-        , mode(ConfigManager::Mode::kUseSingleGpu)
+        , mode(Mode::kUseSingleGpu)
         //ao
         , ao_radius(1.f)
         , num_ao_rays(1)

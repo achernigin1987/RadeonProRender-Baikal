@@ -51,7 +51,7 @@ source_group("Application" FILES ${APPLICATION_SOURCES})
 source_group("ImGUI" FILES ${IMGUI_SORUCES})
 source_group("Utils" FILES ${UTILS_SOURCES})
 source_group("Kernels\\GLSL" FILES ${KERNEL_SOURCES})
-    
+
 add_executable(BaikalStandalone ${SOURCES})
 target_compile_features(BaikalStandalone PRIVATE cxx_std_14)
 #Add project root since BaikalStandalone directly includes Baikal/* files

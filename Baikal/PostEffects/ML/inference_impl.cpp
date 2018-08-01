@@ -14,11 +14,12 @@ namespace Baikal
                                      std::size_t width,
                                      std::size_t height,
                                      std::size_t input_channels)
-            : m_model(model_path, gpu_memory_fraction, visible_devices)
-            , m_width(width)
-            , m_height(height)
-            , m_input_channels(input_channels)
-            , m_worker(&InferenceImpl::DoInference, this)
+        : m_model(model_path, gpu_memory_fraction, visible_devices)
+        , m_width(width)
+        , m_height(height)
+        , m_input_channels(input_channels)
+        , m_interrupted(false)
+        , m_worker(&InferenceImpl::DoInference, this)
         {
         }
 
@@ -68,26 +69,31 @@ namespace Baikal
 
         void InferenceImpl::DoInference()
         {
-            while (m_keep_running.test_and_set())
+            while (!m_interrupted)
             {
                 Tensor input_tensor;
                 m_input_queue.wait_and_pop(input_tensor);
+                if (m_input_queue.size() > 0)
+                {
+                    continue;
+                }
 
                 Tensor output_tensor = AllocTensor(m_output_channels);
                 m_model->infer(
                     input_tensor.data(),
                     m_width,
                     m_height,
-                    m_output_channels,
+                    m_input_channels,
                     output_tensor.data());
 
+                output_tensor.tag = input_tensor.tag;
                 m_output_queue.push(std::move(output_tensor));
             }
         }
 
         void InferenceImpl::Shutdown()
         {
-            m_keep_running.clear();
+            m_interrupted = true;
             m_worker.join();
         }
     }
