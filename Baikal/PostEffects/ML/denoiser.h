@@ -58,7 +58,9 @@ namespace Baikal
             void Apply(InputSet const& input_set, Output& output) override;
 
             void Update(Camera* camera, unsigned int samples) override;
+
         private:
+
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
             template <class ClType, class Type>

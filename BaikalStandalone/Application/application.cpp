@@ -415,24 +415,23 @@ namespace Baikal
             camroty = -delta.y;
 
 
+            const float kMovementSpeed = m_settings.cspeed;
+
             if (!g_is_middle_pressed)
             {
-
                 if (std::abs(camroty) > 0.001f)
                 {
-                    camera->Tilt(camroty);
+                    camera->Tilt(camroty * kMovementSpeed);
                     update = true;
                 }
 
                 if (std::abs(camrotx) > 0.001f)
                 {
-
-                    camera->Rotate(camrotx);
+                    camera->Rotate(camrotx * kMovementSpeed);
                     update = true;
                 }
             }
 
-            const float kMovementSpeed = m_settings.cspeed;
             if (std::abs(scroll_delta.y) > 0.001f)
             {
                 camera->Zoom(scroll_delta.y * kMovementSpeed);

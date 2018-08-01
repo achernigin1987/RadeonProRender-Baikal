@@ -137,15 +137,11 @@ namespace Baikal
 
             m_outputs[i].fdata.resize(settings.width * settings.height);
             m_outputs[i].udata.resize(settings.width * settings.height * 4);
-
-            if (m_cfgs[i].type == DeviceType::kPrimary)
-            {
-                m_outputs[i].copybuffer = m_cfgs[i].context.CreateBuffer<RadeonRays::float3>(m_width * m_height, CL_MEM_READ_WRITE);
-            }
         }
 
         m_shape_id_data.tmp_output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
         m_dummy_output_data.tmp_output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
+        m_copybuffer = m_cfgs[m_primary].context.CreateBuffer<RadeonRays::float3>(m_width * m_height, CL_MEM_READ_WRITE);
 
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.tmp_output);
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_dummy_output_data.tmp_output);
@@ -326,15 +322,12 @@ namespace Baikal
         //{
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-            if (m_cfgs[i].type == DeviceType::kPrimary)
-                continue;
-
             int desired = 1;
             if (std::atomic_compare_exchange_strong(&m_ctrl[i].newdata, &desired, 0))
             {
                 {
                     m_cfgs[m_primary].context.WriteBuffer(
-                            0, m_outputs[m_primary].copybuffer,
+                            0, m_copybuffer,
                             &m_outputs[i].fdata[0],
                             settings.width * settings.height);
                 }
@@ -342,7 +335,7 @@ namespace Baikal
                 auto acckernel = static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetAccumulateKernel();
 
                 int argc = 0;
-                acckernel.SetArg(argc++, m_outputs[m_primary].copybuffer);
+                acckernel.SetArg(argc++, m_copybuffer);
                 acckernel.SetArg(argc++, settings.width * settings.width);
                 acckernel.SetArg(argc++,
                         static_cast<Baikal::ClwOutput*>(GetRendererOutput(
@@ -361,7 +354,7 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
             m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
 #else
-            GetOutputData(m_primary, Renderer::OutputType::kColor, &m_renderer_outputs[m_primary].fdata[0]);
+            GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
 #endif
             ApplyGammaCorrection(m_primary);
 
@@ -514,7 +507,7 @@ namespace Baikal
     {
         auto renderer = m_cfgs[cd.idx].renderer.get();
         auto controller = m_cfgs[cd.idx].controller.get();
-        auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
+        auto output = GetRendererOutput(cd.idx, Renderer::OutputType::kColor);
 
         auto updatetime = std::chrono::high_resolution_clock::now();
 

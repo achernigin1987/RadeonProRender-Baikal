@@ -49,7 +49,6 @@ namespace Baikal
             std::unique_ptr<Baikal::Output> tmp_output;
             std::vector<float3> fdata;
             std::vector<unsigned char> udata;
-            CLWBuffer<float3> copybuffer;
         };
 
         struct ControlData
@@ -126,6 +125,7 @@ namespace Baikal
         std::vector<std::thread> m_renderthreads;
         size_t m_primary;
         std::uint32_t m_width, m_height;
+        CLWBuffer<float3> m_copybuffer;
 
         //if interop
         CLWImage2D m_cl_interop_image;
