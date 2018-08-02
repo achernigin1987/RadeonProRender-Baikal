@@ -19,6 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
+#include "OpenImageIO/imageio.h"
+
 #include "Application/cl_render.h"
 #include "Application/gl_render.h"
 
@@ -61,23 +63,14 @@ namespace Baikal
 
     void AppClRender::InitCl(AppSettings& settings, GLuint tex)
     {
-        bool force_disable_interop = false;
-        //create cl context
-        try
-        {
-            CreateConfigs(
-                settings.mode,
-                settings.interop,
-                m_cfgs,
-                settings.num_bounces,
-                settings.platform_index,
-                settings.device_index);
-        }
-        catch (CLWException &)
-        {
-            force_disable_interop = true;
-            CreateConfigs(settings.mode, false, m_cfgs, settings.num_bounces, settings.platform_index, settings.device_index);
-        }
+        // Create cl context
+        CreateConfigs(
+            settings.mode,
+            settings.interop,
+            m_cfgs,
+            settings.num_bounces,
+            settings.platform_index,
+            settings.device_index);
 
         m_width = (std::uint32_t)settings.width;
         m_height = (std::uint32_t)settings.height;
@@ -111,22 +104,16 @@ namespace Baikal
             m_ctrl[i].stop.store(0);
             m_ctrl[i].newdata.store(0);
             m_ctrl[i].idx = static_cast<int>(i);
+            m_ctrl[i].scene_state = 0;
         }
 
-        if (force_disable_interop)
+        if (settings.interop)
         {
-            std::cout << "OpenGL interop is not supported, disabled, -interop flag is ignored\n";
+            std::cout << "OpenGL interop mode enabled\n";
         }
         else
         {
-            if (settings.interop)
-            {
-                std::cout << "OpenGL interop mode enabled\n";
-            }
-            else
-            {
-                std::cout << "OpenGL interop mode disabled\n";
-            }
+            std::cout << "OpenGL interop mode disabled\n";
         }
 
         m_renderer_outputs.resize(m_cfgs.size());
@@ -134,41 +121,15 @@ namespace Baikal
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
             AddRendererOutput(i, Baikal::Renderer::OutputType::kColor);
+            m_outputs[i].dummy_output = m_cfgs[i].factory->CreateOutput(m_width, m_height); // TODO: mldenoiser, clear?
 
             m_outputs[i].fdata.resize(settings.width * settings.height);
             m_outputs[i].udata.resize(settings.width * settings.height * 4);
         }
 
-        m_shape_id_data.tmp_output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
-        m_dummy_output_data.tmp_output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
+        m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
+        m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
         m_copybuffer = m_cfgs[m_primary].context.CreateBuffer<RadeonRays::float3>(m_width * m_height, CL_MEM_READ_WRITE);
-
-        m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.tmp_output);
-        m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_dummy_output_data.tmp_output);
-    }
-
-    void AppClRender::AddRendererOutput(size_t device_idx, Renderer::OutputType type)
-    {
-        auto it = m_renderer_outputs[device_idx].find(type);
-        if (it == m_renderer_outputs[device_idx].end())
-        {
-            const auto& config = m_cfgs.at(device_idx);
-            auto output = config.factory->CreateOutput(m_width, m_height);
-            config.renderer->SetOutput(type, output.get());
-            config.renderer->Clear(RadeonRays::float3(0, 0, 0), *output);
-
-            m_renderer_outputs[device_idx].emplace(type, std::move(output));
-        }
-    }
-
-    Output* AppClRender::GetRendererOutput(size_t device_idx, Renderer::OutputType type)
-    {
-        return m_renderer_outputs.at(device_idx).at(type).get();
-    }
-
-    void AppClRender::GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const
-    {
-        m_renderer_outputs.at(device_idx).at(type)->GetData(data);
     }
 
 #ifdef ENABLE_DENOISER
@@ -187,6 +148,9 @@ namespace Baikal
 
         // create buffer for post-effect output
         m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
+
+        m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
+        m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
     }
 
     PostEffectType AppClRender::GetPostEffectType() const
@@ -304,33 +268,47 @@ namespace Baikal
         {
             if (i == m_primary)
             {
-                m_cfgs[i].controller->CompileScene(m_scene);
                 m_cfgs[i].renderer->Clear(float3(), *GetRendererOutput(i, Renderer::OutputType::kColor));
+                m_cfgs[i].controller->CompileScene(m_scene);
+                ++m_ctrl[i].scene_state;
 
 #ifdef ENABLE_DENOISER
                 m_post_effect_output->Clear(float3());
 #endif
+
             }
             else
                 m_ctrl[i].clear.store(true);
+        }
+
+        for (auto& output : m_renderer_outputs[m_primary])
+        {
+            output.second->Clear(float3());
         }
     }
 
     void AppClRender::Update(AppSettings& settings)
     {
-        //if (std::chrono::duration_cast<std::chrono::seconds>(time - updatetime).count() > 1)
-        //{
+        ++settings.samplecount;
+
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
+            if (m_cfgs[i].type == DeviceType::kPrimary) // TODO: mldenoiser
+                continue;
+
             int desired = 1;
             if (std::atomic_compare_exchange_strong(&m_ctrl[i].newdata, &desired, 0))
             {
+                if (m_ctrl[i].scene_state != m_ctrl[m_primary].scene_state)
                 {
-                    m_cfgs[m_primary].context.WriteBuffer(
-                            0, m_copybuffer,
-                            &m_outputs[i].fdata[0],
-                            settings.width * settings.height);
+                    // Skip update if worker has sent us non-actual data
+                    continue;
                 }
+
+                m_cfgs[m_primary].context.WriteBuffer(
+                        0, m_copybuffer,
+                        &m_outputs[i].fdata[0],
+                        settings.width * settings.height);
 
                 auto acckernel = static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetAccumulateKernel();
 
@@ -343,11 +321,9 @@ namespace Baikal
 
                 int globalsize = settings.width * settings.height;
                 m_cfgs[m_primary].context.Launch1D(0, ((globalsize + 63) / 64) * 64, 64, acckernel);
+                settings.samplecount += m_ctrl[i].new_samples_count;
             }
         }
-
-        //updatetime = time;
-        //}
 
         if (!settings.interop)
         {
@@ -377,7 +353,7 @@ namespace Baikal
             auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
 #endif
 
-            unsigned int argc = 0;
+            int argc = 0;
 
             copykernel.SetArg(argc++, static_cast<Baikal::ClwOutput*>(output)->data());
             copykernel.SetArg(argc++, output->width());
@@ -405,10 +381,10 @@ namespace Baikal
         //ClwClass::Update();
     }
 
-    void AppClRender::Render(int samples)
+    void AppClRender::Render(int sample_cnt)
     {
 #ifdef ENABLE_DENOISER
-        m_post_effect->Update(m_camera.get(), static_cast<unsigned>(samples));
+        m_post_effect->Update(m_camera.get(), static_cast<unsigned>(sample_cnt));
 #endif
         auto& scene = m_cfgs[m_primary].controller->GetCachedScene(m_scene);
         m_cfgs[m_primary].renderer->Render(scene);
@@ -419,7 +395,7 @@ namespace Baikal
             auto offset = (std::uint32_t)(m_width * (m_height - m_shape_id_pos.y) + m_shape_id_pos.x);
             // copy shape id elem from OpenCl
             float4 shape_id;
-            m_shape_id_data.tmp_output->GetData((float3*)&shape_id, offset, 1);
+            m_shape_id_data.output->GetData((float3*)&shape_id, offset, 1);
             m_promise.set_value(static_cast<int>(shape_id.x));
             // clear output to stop tracking shape id map in openCl
             m_cfgs[m_primary].renderer->SetOutput(Renderer::OutputType::kShapeId, nullptr);
@@ -507,24 +483,30 @@ namespace Baikal
     {
         auto renderer = m_cfgs[cd.idx].renderer.get();
         auto controller = m_cfgs[cd.idx].controller.get();
-        auto output = GetRendererOutput(cd.idx, Renderer::OutputType::kColor);
 
         auto updatetime = std::chrono::high_resolution_clock::now();
+
+        std::uint32_t scene_state = 0;
+        std::uint32_t new_samples_count = 0;
 
         while (!cd.stop.load())
         {
             int result = 1;
             bool update = false;
-
             if (std::atomic_compare_exchange_strong(&cd.clear, &result, 0))
             {
-                renderer->Clear(float3(0, 0, 0), *output);
+                for (auto& output : m_renderer_outputs[cd.idx])
+                {
+                    output.second->Clear(float3());
+                }
                 controller->CompileScene(m_scene);
+                scene_state = m_ctrl[m_primary].scene_state;
                 update = true;
             }
 
             auto& scene = controller->GetCachedScene(m_scene);
             renderer->Render(scene);
+            ++new_samples_count;
 
             auto now = std::chrono::high_resolution_clock::now();
 
@@ -534,6 +516,9 @@ namespace Baikal
             {
                 GetOutputData(cd.idx, Renderer::OutputType::kColor, &m_outputs[cd.idx].fdata[0]);
                 updatetime = now;
+                m_ctrl[cd.idx].scene_state = scene_state;
+                m_ctrl[cd.idx].new_samples_count = new_samples_count;
+                new_samples_count = 0;
                 cd.newdata.store(1);
             }
 
@@ -548,7 +533,6 @@ namespace Baikal
             if (i != m_primary)
             {
                 m_renderthreads.push_back(std::thread(&AppClRender::RenderThread, this, std::ref(m_ctrl[i])));
-                m_renderthreads.back().detach();
             }
         }
 
@@ -564,6 +548,12 @@ namespace Baikal
                 m_ctrl[i].stop.store(true);
             }
         }
+
+        for (std::size_t i = 0; i < m_renderthreads.size(); ++i)
+        {
+            m_renderthreads[i].join();
+        }
+
     }
 
     void AppClRender::RunBenchmark(AppSettings& settings)
@@ -644,7 +634,7 @@ namespace Baikal
 #endif
             if (type == Renderer::OutputType::kOpacity || type == Renderer::OutputType::kVisibility)
             {
-                m_cfgs[i].renderer->SetOutput(Renderer::OutputType::kColor, m_dummy_output_data.tmp_output.get());
+                m_cfgs[i].renderer->SetOutput(Renderer::OutputType::kColor, m_outputs[i].dummy_output.get());
             }
             else
             {
@@ -668,7 +658,7 @@ namespace Baikal
 
         // enable aov shape id output from OpenCl
         m_cfgs[m_primary].renderer->SetOutput(
-            Renderer::OutputType::kShapeId, m_shape_id_data.tmp_output.get());
+            Renderer::OutputType::kShapeId, m_shape_id_data.output.get());
         m_shape_id_pos = RadeonRays::float2((float)x, (float)y);
         // request shape id from render
         m_shape_id_requested = true;
@@ -688,6 +678,30 @@ namespace Baikal
                 return shape;
         }
         return nullptr;
+    }
+
+    void AppClRender::AddRendererOutput(size_t device_idx, Renderer::OutputType type)
+    {
+        auto it = m_renderer_outputs[device_idx].find(type);
+        if (it == m_renderer_outputs[device_idx].end())
+        {
+            const auto& config = m_cfgs.at(device_idx);
+            auto output = config.factory->CreateOutput(m_width, m_height);
+            config.renderer->SetOutput(type, output.get());
+            config.renderer->Clear(RadeonRays::float3(0, 0, 0), *output);
+
+            m_renderer_outputs[device_idx].emplace(type, std::move(output));
+        }
+    }
+
+    Output* AppClRender::GetRendererOutput(size_t device_idx, Renderer::OutputType type)
+    {
+        return m_renderer_outputs.at(device_idx).at(type).get();
+    }
+
+    void AppClRender::GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const
+    {
+        m_renderer_outputs.at(device_idx).at(type)->GetData(data);
     }
 
 #ifdef ENABLE_DENOISER

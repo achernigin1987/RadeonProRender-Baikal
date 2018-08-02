@@ -2,7 +2,8 @@ set(CONTROLLERS_SOURCES
     Controllers/clw_scene_controller.cpp
     Controllers/clw_scene_controller.h
     Controllers/scene_controller.h
-    Controllers/scene_controller.inl)
+    Controllers/scene_controller.inl
+    Controllers/scene_controller.cpp)
 
 set(ESTIMATORS_SOURCES 
     Estimators/estimator.h
@@ -129,7 +130,8 @@ set(KERNELS_SOURCES
     Kernels/CL/volumetrics.cl
     Kernels/CL/wavelet_denoise.cl
     Kernels/CL/path_tracing_estimator_uberv2.cl
-    Kernels/CL/fill_aovs_uberv2.cl)
+    Kernels/CL/fill_aovs_uberv2.cl
+    )
 
 set(SOURCES
     ${CONTROLLERS_SOURCES}
@@ -143,8 +145,9 @@ set(SOURCES
     ${SCENEGRAPH_COLLECTOR_SOURCES}
     ${SCENEGRAPH_IO_SOURCES}
     ${XML_SOURCES}
-    ${KERNELS_SOURCES})
-
+    ${KERNELS_SOURCES}
+    )
+    
 source_group("Controllers" FILES ${CONTROLLERS_SOURCES})
 source_group("Estimators" FILES ${ESTIMATORS_SOURCES})
 source_group("Output" FILES ${OUTPUT_SOURCES})

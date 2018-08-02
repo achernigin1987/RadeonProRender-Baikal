@@ -95,6 +95,7 @@ void CreateConfigs(
 
             Config cfg;
             cfg.caninterop = false;
+            bool create_without_interop = true;
 
             if (platforms[i].GetDevice(d).HasGlInterop() && !hasprimary && interop)
             {
@@ -129,12 +130,29 @@ void CreateConfigs(
                     (cl_context_properties)kCGLShareGroup, 0
                 };
 #endif
-                cfg.context = CLWContext::Create(platforms[i].GetDevice(d), props);
-                cfg.type = DeviceType::kPrimary;
-                cfg.caninterop = true;
-                hasprimary = true;
+                try
+                {
+                    cfg.context = CLWContext::Create(platforms[i].GetDevice(d), props);
+                    cfg.type = DeviceType::kPrimary;
+                    cfg.caninterop = true;
+                    hasprimary = true;
+                    create_without_interop = false;
+                }
+                catch (CLWException& ex)
+                {
+                    // CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR (code -1000) means that
+                    // CL and GL interop not on the same device.
+                    // If we've got another error, throw it up, else simply
+                    // continue execution and get to next 'if' block
+                    if (ex.errcode_ != -1000)
+                    {
+                        throw;
+                    }
+
+                }
             }
-            else
+
+            if (create_without_interop)
             {
                 cfg.context = CLWContext::Create(platforms[i].GetDevice(d));
                 cfg.type = DeviceType::kSecondary;
