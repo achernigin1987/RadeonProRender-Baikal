@@ -148,10 +148,8 @@ namespace Baikal
 
         // create buffer for post-effect output
         m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
-    }
 
         m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
-        m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_outputs[m_primary].output);
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
     }
 
@@ -281,6 +279,11 @@ namespace Baikal
             }
             else
                 m_ctrl[i].clear.store(true);
+        }
+
+        for (auto& output : m_renderer_outputs[m_primary])
+        {
+            output.second->Clear(float3());
         }
     }
 
@@ -480,7 +483,6 @@ namespace Baikal
     {
         auto renderer = m_cfgs[cd.idx].renderer.get();
         auto controller = m_cfgs[cd.idx].controller.get();
-        auto output = GetRendererOutput(cd.idx, Renderer::OutputType::kColor);
 
         auto updatetime = std::chrono::high_resolution_clock::now();
 
@@ -493,7 +495,10 @@ namespace Baikal
             bool update = false;
             if (std::atomic_compare_exchange_strong(&cd.clear, &result, 0))
             {
-                renderer->Clear(float3(0, 0, 0), *output);
+                for (auto& output : m_renderer_outputs[cd.idx])
+                {
+                    output.second->Clear(float3());
+                }
                 controller->CompileScene(m_scene);
                 scene_state = m_ctrl[m_primary].scene_state;
                 update = true;
