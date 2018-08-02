@@ -95,12 +95,12 @@ namespace Baikal
 
             auto shape = m_inference->GetInputShape();
 
-            size_t elems_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
+            size_t bytes_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
 
             m_device_cache = std::make_unique<CLWBuffer<char>>(
-                CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, elems_count));
+                CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, bytes_count));
 
-            m_host_cache = std::make_unique<std::uint8_t[]>(elems_count);
+            m_host_cache.resize(bytes_count);
 
             // compute memory layout
             switch (m_inputs)
@@ -158,9 +158,8 @@ namespace Baikal
                                     (int)input_buf.GetElementCount()).Wait();
 
             m_context->ReadBuffer<Type>(0,
-                                        CLWBuffer<Type>::CreateFromClBuffer(
-                                            normalized_buf),
-                                        (Type*)m_host_cache.get(),
+                                        CLWBuffer<Type>::CreateFromClBuffer(normalized_buf),
+                                        (Type*)m_host_cache.data(),
                                         input_buf.GetElementCount()).Wait();
             auto dest = host_mem;
             auto source = HostCache<float3>();

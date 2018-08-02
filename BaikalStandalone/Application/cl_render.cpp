@@ -53,7 +53,7 @@ namespace Baikal
         InitCl(settings, m_tex);
 
 #ifdef ENABLE_DENOISER
-        AddPostEffect(m_primary, PostEffectType::kWaveletDenoiser);
+        AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
 #endif
 
         LoadScene(settings);
