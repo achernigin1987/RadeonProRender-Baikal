@@ -4,7 +4,6 @@
 
 #include <cstddef>
 #include <string>
-#include <atomic>
 #include <thread>
 
 namespace Baikal
@@ -45,7 +44,6 @@ namespace Baikal
 
             const std::size_t m_output_channels = 3;
 
-            std::atomic<bool> m_interrupted;
             std::thread m_worker;
         };
     }

@@ -18,7 +18,6 @@ namespace Baikal
         , m_width(width)
         , m_height(height)
         , m_input_channels(input_channels)
-        , m_interrupted(false)
         , m_worker(&InferenceImpl::DoInference, this)
         {
         }
@@ -69,10 +68,15 @@ namespace Baikal
 
         void InferenceImpl::DoInference()
         {
-            while (!m_interrupted)
+            for (;;)
             {
                 Tensor input_tensor;
                 m_input_queue.wait_and_pop(input_tensor);
+                if (input_tensor.empty())
+                {
+                    break;
+                }
+
                 if (m_input_queue.size() > 0)
                 {
                     continue;
@@ -93,7 +97,7 @@ namespace Baikal
 
         void InferenceImpl::Shutdown()
         {
-            m_interrupted = true;
+            m_input_queue.push(Tensor());
             m_worker.join();
         }
     }
