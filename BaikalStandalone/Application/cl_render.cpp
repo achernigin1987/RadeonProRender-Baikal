@@ -147,30 +147,6 @@ namespace Baikal
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_dummy_output_data.tmp_output);
     }
 
-    void AppClRender::AddRendererOutput(size_t device_idx, Renderer::OutputType type)
-    {
-        auto it = m_renderer_outputs[device_idx].find(type);
-        if (it == m_renderer_outputs[device_idx].end())
-        {
-            const auto& config = m_cfgs.at(device_idx);
-            auto output = config.factory->CreateOutput(m_width, m_height);
-            config.renderer->SetOutput(type, output.get());
-            config.renderer->Clear(RadeonRays::float3(0, 0, 0), *output);
-
-            m_renderer_outputs[device_idx].emplace(type, std::move(output));
-        }
-    }
-
-    Output* AppClRender::GetRendererOutput(size_t device_idx, Renderer::OutputType type)
-    {
-        return m_renderer_outputs.at(device_idx).at(type).get();
-    }
-
-    void AppClRender::GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const
-    {
-        m_renderer_outputs.at(device_idx).at(type)->GetData(data);
-    }
-
 #ifdef ENABLE_DENOISER
     void AppClRender::AddPostEffect(size_t device_idx, PostEffectType type)
     {
@@ -688,6 +664,30 @@ namespace Baikal
                 return shape;
         }
         return nullptr;
+    }
+
+    void AppClRender::AddRendererOutput(size_t device_idx, Renderer::OutputType type)
+    {
+        auto it = m_renderer_outputs[device_idx].find(type);
+        if (it == m_renderer_outputs[device_idx].end())
+        {
+            const auto& config = m_cfgs.at(device_idx);
+            auto output = config.factory->CreateOutput(m_width, m_height);
+            config.renderer->SetOutput(type, output.get());
+            config.renderer->Clear(RadeonRays::float3(0, 0, 0), *output);
+
+            m_renderer_outputs[device_idx].emplace(type, std::move(output));
+        }
+    }
+
+    Output* AppClRender::GetRendererOutput(size_t device_idx, Renderer::OutputType type)
+    {
+        return m_renderer_outputs.at(device_idx).at(type).get();
+    }
+
+    void AppClRender::GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const
+    {
+        m_renderer_outputs.at(device_idx).at(type)->GetData(data);
     }
 
 #ifdef ENABLE_DENOISER
