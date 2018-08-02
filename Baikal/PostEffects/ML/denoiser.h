@@ -58,9 +58,7 @@ namespace Baikal
             void Apply(InputSet const& input_set, Output& output) override;
 
             void Update(Camera* camera, unsigned int samples) override;
-
         private:
-
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
             template <class ClType, class Type>
@@ -69,9 +67,9 @@ namespace Baikal
                                std::size_t channels);
 
             template <class T>
-            T* HostCache() const
+            T* HostCache()
             {
-                return reinterpret_cast<T*>(m_host_cache.get());
+                return reinterpret_cast<T*>(m_host_cache.data());
             }
 
             MLDenoiserInputs m_inputs;
@@ -82,7 +80,7 @@ namespace Baikal
             // GPU cache
             std::unique_ptr<CLWBuffer<char>> m_device_cache;
             // CPU cache
-            std::unique_ptr<std::uint8_t[]> m_host_cache;
+            std::vector<std::uint8_t> m_host_cache;
             Tensor m_last_image;
             std::uint32_t m_start_seq_num = 0;
             std::uint32_t m_last_seq_num = 0;
