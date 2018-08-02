@@ -21,6 +21,7 @@ THE SOFTWARE.
 ********************************************************************/
 
 #include "CLW.h"
+#include "Controllers/scene_controller.h"
 #include "Renderers/renderer.h"
 #include "RenderFactory/clw_render_factory.h"
 #include "SceneGraph/camera.h"
