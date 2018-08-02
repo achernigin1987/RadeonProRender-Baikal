@@ -532,11 +532,11 @@ namespace Baikal
         {
             if (i != m_primary)
             {
-                m_renderthreads.push_back(std::thread(&AppClRender::RenderThread, this, std::ref(m_ctrl[i])));
+                m_renderthreads.emplace_back(&AppClRender::RenderThread, this, std::ref(m_ctrl[i]));
             }
         }
 
-        std::cout << m_cfgs.size() << " OpenCL submission threads started\n";
+        std::cout << m_renderthreads.size() << " OpenCL submission threads started\n";
     }
 
     void AppClRender::StopRenderThreads()
