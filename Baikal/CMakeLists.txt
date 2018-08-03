@@ -23,7 +23,8 @@ set(ML_DENOISER_SOURCES
     PostEffects/ML/denoiser.cpp
     PostEffects/ML/inference.h
     PostEffects/ML/inference_impl.h
-    PostEffects/ML/inference_impl.cpp)
+    PostEffects/ML/inference_impl.cpp
+    Utils/dump.h)
 
 set(POSTEFFECT_SOURCES
     PostEffects/clw_post_effect.h
@@ -145,8 +146,7 @@ set(SOURCES
     ${SCENEGRAPH_COLLECTOR_SOURCES}
     ${SCENEGRAPH_IO_SOURCES}
     ${XML_SOURCES}
-    ${KERNELS_SOURCES}
-    )
+    ${KERNELS_SOURCES})
     
 source_group("Controllers" FILES ${CONTROLLERS_SOURCES})
 source_group("Estimators" FILES ${ESTIMATORS_SOURCES})

@@ -46,16 +46,16 @@ THE SOFTWARE.
 #include <chrono>
 #include <cmath>
 
-
 namespace Baikal
 {
     AppClRender::AppClRender(AppSettings& settings, GLuint tex)
-    : m_tex(tex), m_output_type(Renderer::OutputType::kColor)
+    : m_tex(tex), m_output_type(Renderer::OutputType::kColor), m_frame_count(0)
     {
         InitCl(settings, m_tex);
 
 #ifdef ENABLE_DENOISER
         AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
+        m_dumper = std::make_unique<RendererOutputDumper>("images", m_width, m_height);
 #endif
 
         LoadScene(settings);
@@ -290,17 +290,23 @@ namespace Baikal
     void AppClRender::Update(AppSettings& settings)
     {
         ++settings.samplecount;
+        ++m_frame_count;
 
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
+
             if (m_cfgs[i].type == DeviceType::kPrimary) // TODO: mldenoiser
+            {
+                DumpAllOutputs(i);
                 continue;
+            }
 
             int desired = 1;
             if (std::atomic_compare_exchange_strong(&m_ctrl[i].newdata, &desired, 0))
             {
                 if (m_ctrl[i].scene_state != m_ctrl[m_primary].scene_state)
                 {
+                    std::cout << "Frame " << m_frame_count << ": device " << i << " skipped update";
                     // Skip update if worker has sent us non-actual data
                     continue;
                 }
@@ -309,6 +315,8 @@ namespace Baikal
                         0, m_copybuffer,
                         &m_outputs[i].fdata[0],
                         settings.width * settings.height);
+
+                DumpAllOutputs(i);
 
                 auto acckernel = static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetAccumulateKernel();
 
@@ -705,8 +713,6 @@ namespace Baikal
     }
 
 #ifdef ENABLE_DENOISER
-
-
     void AppClRender::RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const
     {
 //        switch (type)
@@ -728,6 +734,17 @@ namespace Baikal
 //            m_cfgs[cfg_index].renderer->SetOutput(type, nullptr);
 //            break;
 //        }
+    }
+
+    void AppClRender::DumpAllOutputs(size_t device_idx) const
+    {
+        if (m_frame_count % m_dump_period == 0)
+        {
+            for (auto& output : m_renderer_outputs[device_idx])
+            {
+                m_dumper->DumpRendererOutput(device_idx, output.first, output.second.get(), m_frame_count);
+            }
+        }
     }
 #endif
 } // Baikal
