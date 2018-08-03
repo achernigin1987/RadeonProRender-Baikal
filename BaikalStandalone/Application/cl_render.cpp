@@ -294,10 +294,9 @@ namespace Baikal
 
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-
+            DumpAllOutputs(i);
             if (m_cfgs[i].type == DeviceType::kPrimary) // TODO: mldenoiser
             {
-                DumpAllOutputs(i);
                 continue;
             }
 
@@ -315,8 +314,6 @@ namespace Baikal
                         0, m_copybuffer,
                         &m_outputs[i].fdata[0],
                         settings.width * settings.height);
-
-                DumpAllOutputs(i);
 
                 auto acckernel = static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetAccumulateKernel();
 
