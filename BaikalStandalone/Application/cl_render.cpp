@@ -290,7 +290,6 @@ namespace Baikal
     void AppClRender::Update(AppSettings& settings)
     {
         ++settings.samplecount;
-        ++m_frame_count;
 
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
@@ -383,6 +382,7 @@ namespace Baikal
             settings.rt_benchmarked = true;
         }
 
+        ++m_frame_count;
         //ClwClass::Update();
     }
 
