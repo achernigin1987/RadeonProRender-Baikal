@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Renderers/renderer.h"
-#include "Output/output.h"
+#include "Output/clwoutput.h"
+#include "RadeonRays/CLW/CLWContext.h"
 
 #include <iostream>
 #include <fstream>
@@ -11,24 +12,44 @@
 
 namespace Baikal
 {
-    class RendererOutputDumper
+    class RendererOutputAccessor
     {
     public:
-        RendererOutputDumper(std::string output_dir, size_t width, size_t height)
+        RendererOutputAccessor(std::string output_dir, size_t width, size_t height)
                 : m_output_dir(std::move(output_dir)), m_width(width), m_height(height)
         {
             m_image_data.resize(m_width * m_height);
             m_image_rgb.resize(m_width * m_height);
         };
 
-        void DumpRendererOutput(
+        void SaveImageFromRendererOutput(
                 size_t device_idx,
                 Renderer::OutputType output_type,
-                Output* output, size_t index)
+                Output *output, size_t index)
         {
             GetOutputData(output);
             NormalizeImage();
             SaveImage(device_idx, GetOutputName(output_type), index);
+        }
+
+        void LoadImageToRendererOutput(
+                const CLWContext& context,
+                Output* output,
+                const std::string& image_path)
+        {
+            std::ifstream ifs(image_path, std::ios::binary | std::ios::ate);
+            std::ifstream::pos_type pos = ifs.tellg();
+
+            std::vector<char> result(pos);
+            ifs.seekg(0, std::ios::beg);
+            ifs.read(result.data(), pos);
+
+            auto clw_output = dynamic_cast<ClwOutput*>(output);
+
+            context.WriteBuffer<RadeonRays::float3>(0,
+                                           clw_output->data(),
+                                           reinterpret_cast<RadeonRays::float3*>(result.data()),
+                                           result.size() / 4 / sizeof(float)).Wait();
         }
 
     private:

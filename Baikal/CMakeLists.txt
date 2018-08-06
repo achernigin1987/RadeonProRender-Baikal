@@ -24,7 +24,7 @@ set(ML_DENOISER_SOURCES
     PostEffects/ML/inference.h
     PostEffects/ML/inference_impl.h
     PostEffects/ML/inference_impl.cpp
-    Utils/dump.h)
+    Utils/output_accessor.h)
 
 set(POSTEFFECT_SOURCES
     PostEffects/clw_post_effect.h

@@ -61,11 +61,6 @@ namespace Baikal
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
-            template <class ClType, class Type>
-            void ProcessOutput(const CLWBuffer<RadeonRays::float3>& input,
-                               Tensor::ValueType* host_mem,
-                               std::size_t channels);
-
             template <class T>
             T* HostCache()
             {
@@ -79,9 +74,10 @@ namespace Baikal
             std::unique_ptr<CLWParallelPrimitives> m_primitives;
             // GPU cache
             std::unique_ptr<CLWBuffer<char>> m_device_cache;
+            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_depth_cache;
             // CPU cache
             std::vector<std::uint8_t> m_host_cache;
-            Tensor m_last_image;
+            Tensor m_last_denoised_image;
             std::uint32_t m_start_seq_num = 0;
             std::uint32_t m_last_seq_num = 0;
         };

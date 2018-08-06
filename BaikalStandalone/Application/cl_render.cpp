@@ -55,7 +55,7 @@ namespace Baikal
 
 #ifdef ENABLE_DENOISER
         AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
-        m_dumper = std::make_unique<RendererOutputDumper>("images", m_width, m_height);
+        m_dumper = std::make_unique<RendererOutputAccessor>("images", m_width, m_height);
 #endif
 
         LoadScene(settings);
@@ -293,7 +293,7 @@ namespace Baikal
 
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-            DumpAllOutputs(i);
+            //DumpAllOutputs(i);
             if (m_cfgs[i].type == DeviceType::kPrimary) // TODO: mldenoiser
             {
                 continue;
@@ -333,10 +333,12 @@ namespace Baikal
         {
 #ifdef ENABLE_DENOISER
             m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
+            float gamma = 1.f;
 #else
             GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
+            float gamma = 1.f / 2.2f;
 #endif
-            ApplyGammaCorrection(m_primary);
+            ApplyGammaCorrection(m_primary, gamma);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_tex);
@@ -353,8 +355,10 @@ namespace Baikal
 
 #ifdef ENABLE_DENOISER
             auto output = m_post_effect_output.get();
+            float gamma = 1.f;
 #else
             auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
+            float gamma = 1.f / 2.2f;
 #endif
 
             int argc = 0;
@@ -362,7 +366,7 @@ namespace Baikal
             copykernel.SetArg(argc++, static_cast<Baikal::ClwOutput*>(output)->data());
             copykernel.SetArg(argc++, output->width());
             copykernel.SetArg(argc++, output->height());
-            copykernel.SetArg(argc++, 2.2f);
+            copykernel.SetArg(argc++, gamma);
             copykernel.SetArg(argc++, m_cl_interop_image);
 
             int globalsize = output->width() * output->height();
@@ -408,6 +412,23 @@ namespace Baikal
         }
 
 #ifdef ENABLE_DENOISER
+//        std::string basic_path = "/media/achernigin/Storage/denoise/cam_31_aov_";
+//        m_dumper->LoadImageToRendererOutput(
+//                m_cfgs[m_primary].context,
+//                GetRendererOutput(m_primary, Renderer::OutputType::kColor),
+//                basic_path + "color_f8.bin");
+//        m_dumper->LoadImageToRendererOutput(
+//                m_cfgs[m_primary].context,
+//                GetRendererOutput(m_primary, Renderer::OutputType::kDepth),
+//                basic_path + "view_shading_depth_f8.bin");
+//        m_dumper->LoadImageToRendererOutput(
+//                m_cfgs[m_primary].context,
+//                GetRendererOutput(m_primary, Renderer::OutputType::kViewShadingNormal),
+//                basic_path + "view_shading_normal_f8.bin");
+//        m_dumper->LoadImageToRendererOutput(
+//                m_cfgs[m_primary].context,q
+//                GetRendererOutput(m_primary, Renderer::OutputType::kGloss),
+//                basic_path + "gloss_f8.bin");
         m_post_effect->Apply(m_post_effect_inputs, *m_post_effect_output);
 #endif
     }
@@ -579,7 +600,7 @@ namespace Baikal
         settings.time_benchmark_time = delta / 1000.f;
 
         GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-        ApplyGammaCorrection(m_primary);
+        ApplyGammaCorrection(m_primary, 1.f / 2.2f);
 
         auto& fdata = m_outputs[m_primary].fdata;
         std::vector<RadeonRays::float3> data(fdata.size());
@@ -601,11 +622,11 @@ namespace Baikal
         static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->Benchmark(scene, settings.stats);
     }
 
-    void AppClRender::ApplyGammaCorrection(size_t device_idx)
+    void AppClRender::ApplyGammaCorrection(size_t device_idx, float gamma)
     {
-        auto adjust_gamma = [](float val)
+        auto adjust_gamma = [gamma](float val)
         {
-            return (unsigned char)clamp(std::pow(val , 1.f / 2.2f) * 255, 0, 255);
+            return (unsigned char)clamp(std::pow(val , gamma) * 255, 0, 255);
         };
 
         for (int i = 0; i < (int)m_outputs[device_idx].fdata.size(); ++i)
@@ -739,7 +760,7 @@ namespace Baikal
         {
             for (auto& output : m_renderer_outputs[device_idx])
             {
-                m_dumper->DumpRendererOutput(device_idx, output.first, output.second.get(), m_frame_count);
+                m_dumper->SaveImageFromRendererOutput(device_idx, output.first, output.second.get(), m_frame_count);
             }
         }
     }

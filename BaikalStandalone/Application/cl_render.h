@@ -32,7 +32,7 @@
 
 #ifdef ENABLE_DENOISER
 #include "PostEffects/post_effect.h"
-#include "Utils/dump.h"
+#include "Utils/output_accessor.h"
 #endif
 
 #include <thread>
@@ -112,7 +112,7 @@ namespace Baikal
         void GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const;
         void AddPostEffect(size_t device_idx, PostEffectType type);
 
-        void ApplyGammaCorrection(size_t device_idx);
+        void ApplyGammaCorrection(size_t device_idx, float gamma);
 
         Baikal::Scene1::Ptr m_scene;
         Baikal::Camera::Ptr m_camera;
@@ -144,7 +144,7 @@ namespace Baikal
         std::unique_ptr<Output> m_post_effect_output;
         size_t m_frame_count;
 
-        std::unique_ptr<RendererOutputDumper> m_dumper;
+        std::unique_ptr<RendererOutputAccessor> m_dumper;
         const std::size_t m_dump_period = 20;
 #endif
     };
