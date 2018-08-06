@@ -39,7 +39,7 @@ namespace Baikal
     {
         AppSettings s;
 
-        s.help = m_cmd_parser.OptionExists("-h");
+        s.help = m_cmd_parser.OptionExists("-help");
 
         s.path = m_cmd_parser.GetOption("-p", s.path);
 
@@ -49,8 +49,8 @@ namespace Baikal
 
         s.width = m_cmd_parser.GetOption("-w", s.width);
 
-        //s.height = m_cmd_parser.GetOption("-h", s.height);
-        s.height = 600;
+        s.height = m_cmd_parser.GetOption("-h", s.height);
+
         if (m_cmd_parser.OptionExists("-ao"))
         {
             s.ao_radius = m_cmd_parser.GetOption<float>("-ao");

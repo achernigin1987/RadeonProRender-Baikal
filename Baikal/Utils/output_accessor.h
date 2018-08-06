@@ -32,11 +32,11 @@ namespace Baikal
             SaveImage(device_idx, GetOutputName(output_type), index);
         }
 
-        void LoadImageToRendererOutput(
-                const CLWContext& context,
-                Output* output,
-                const std::string& image_path)
+        void LoadImageToRendererOutput(const CLWContext &context,
+                                       Output *output,
+                                       const std::string &image_path)
         {
+            using float3 = RadeonRays::float3;
             std::ifstream ifs(image_path, std::ios::binary | std::ios::ate);
             std::ifstream::pos_type pos = ifs.tellg();
 
@@ -44,12 +44,12 @@ namespace Baikal
             ifs.seekg(0, std::ios::beg);
             ifs.read(result.data(), pos);
 
-            auto clw_output = dynamic_cast<ClwOutput*>(output);
+            auto clw_output = dynamic_cast<ClwOutput *>(output);
 
-            context.WriteBuffer<RadeonRays::float3>(0,
-                                           clw_output->data(),
-                                           reinterpret_cast<RadeonRays::float3*>(result.data()),
-                                           result.size() / 4 / sizeof(float)).Wait();
+            context.WriteBuffer<float3>(0,
+                                        clw_output->data(),
+                                        reinterpret_cast<RadeonRays::float3 *>(result.data()),
+                                        sizeof(RadeonRays::float3)).Wait();
         }
 
     private:
@@ -60,7 +60,8 @@ namespace Baikal
             float b;
         };
 
-        void GetOutputData(Output* output) {
+        void GetOutputData(Output *output)
+        {
             output->GetData(&m_image_data[0]);
         }
 
@@ -114,21 +115,30 @@ namespace Baikal
         void NormalizeImage()
         {
             std::transform(m_image_data.cbegin(), m_image_data.cend(), m_image_rgb.begin(),
-                           [](RadeonRays::float3 const& v)
+                           [](RadeonRays::float3 const &v)
                            {
-                               float invw = 1.f / v.w;
-                               return RGB({v.x * invw, v.y *invw, v.z * invw});
+                               if (v.w == 0)
+                               {
+                                   return RGB({0, 0, 0});
+                               }
+                               else
+                               {
+                                   float invw = 1.f / v.w;
+                                   return RGB({v.x * invw, v.y * invw, v.z * invw});
+                               }
                            });
         }
 
-        void SaveImage(size_t device_idx, const std::string& output_name, size_t index) {
+        void SaveImage(size_t device_idx, const std::string &output_name, size_t index)
+        {
             std::ostringstream path;
             path << m_output_dir
                  << "/device_" << device_idx
                  << "_frame_" << index
                  << "_" << output_name << ".bin";
             std::ofstream out(path.str(), std::ios_base::binary);
-            out.write(reinterpret_cast<char const*>(m_image_rgb.data()), m_width * m_height * sizeof(RGB));
+            out.write(reinterpret_cast<char const *>(m_image_rgb.data()),
+                      m_width * m_height * sizeof(RGB));
             std::cerr << "Written: " << path.str() << "\n";
         }
 

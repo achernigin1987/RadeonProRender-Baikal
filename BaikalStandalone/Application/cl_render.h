@@ -143,9 +143,6 @@ namespace Baikal
         PostEffect::InputSet m_post_effect_inputs;
         std::unique_ptr<Output> m_post_effect_output;
         size_t m_frame_count;
-
-        std::unique_ptr<RendererOutputAccessor> m_dumper;
-        const std::size_t m_dump_period = 20;
 #endif
     };
 }

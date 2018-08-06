@@ -326,7 +326,7 @@ namespace Baikal
             static unsigned input_index = 0;
             SaveImage("input", tensor.data(), tensor.size(), input_index++);
 #endif
-            if (sample_count >= 2)
+            if (sample_count >= 8)
             {
                 tensor.tag = ++m_last_seq_num;
                 m_inference->PushInput(std::move(tensor));
