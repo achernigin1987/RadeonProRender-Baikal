@@ -28,7 +28,8 @@ THE SOFTWARE.
 #include "CLWParallelPrimitives.h"
 #include "Output/clwoutput.h"
 
-#include <CLWBuffer.h>
+#include "CLWBuffer.h"
+#include "math/mathutils.h"
 
 // E.g. #define ML_DENOISER_IMAGES_DIR "/images/dir"
 #ifdef ML_DENOISER_IMAGES_DIR
@@ -99,6 +100,8 @@ namespace Baikal
 
             m_device_cache = std::make_unique<CLWBuffer<char>>(
                 CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, bytes_count));
+            m_device_depth_cache = std::make_unique<CLWBuffer<RadeonRays::float3>>(
+                    CLWBuffer<RadeonRays::float3>::Create(*m_context, CL_MEM_READ_WRITE, shape.width * shape.height));
 
             m_host_cache.resize(bytes_count);
 
@@ -113,7 +116,7 @@ namespace Baikal
                 break;
 
             case MLDenoiserInputs::kColorAlbedoNormal8:
-                m_layout.emplace_back(OutputType::kColor, 3);
+                m_layout.emplace_back(OutputType::kColor, 3 );
                 m_layout.emplace_back(OutputType::kAlbedo, 3);
                 m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                 break;
@@ -141,33 +144,6 @@ namespace Baikal
                             });
                 default:
                     throw std::runtime_error("Model is not supported");
-            }
-        }
-
-        template <class ClType, class Type>
-        void MLDenoiser::ProcessOutput(const CLWBuffer<float3>& input,
-                                       Tensor::ValueType* host_mem,
-                                       std::size_t channels)
-        {
-            auto input_buf = CLWBuffer<ClType>::CreateFromClBuffer(input);
-            auto normalized_buf = CLWBuffer<ClType>::CreateFromClBuffer(*m_device_cache);
-
-            m_primitives->Normalize(0,
-                                    input_buf,
-                                    normalized_buf,
-                                    (int)input_buf.GetElementCount()).Wait();
-
-            m_context->ReadBuffer<Type>(0,
-                                        CLWBuffer<Type>::CreateFromClBuffer(normalized_buf),
-                                        (Type*)m_host_cache.data(),
-                                        input_buf.GetElementCount()).Wait();
-            auto dest = host_mem;
-            auto source = HostCache<float3>();
-            for (auto i = 0u; i < input_buf.GetElementCount(); ++i)
-            {
-                *dest++ = source->x;
-                dest += channels - 1;
-                ++source;
             }
         }
 
@@ -203,9 +179,9 @@ namespace Baikal
                     (void) sample_count;
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        dest[0] = source->x / source->w;
-                        dest[1] = source->y / source->w;
-                        dest[2] = source->z / source->w;
+                        dest[0] = std::pow(source->x / source->w, 1.f / 2.2f);
+                        dest[1] = std::pow(source->y / source->w, 1.f / 2.2f);
+                        dest[2] = std::pow(source->z / source->w, 1.f / 2.2f);
                         dest += shape.channels;
                         ++source;
                     }
@@ -213,9 +189,49 @@ namespace Baikal
                 }
                 case OutputType::kDepth:
                 {
-                    ProcessOutput<cl_float3, float3>(device_mem,
-                                                     host_mem,
-                                                     shape.channels);
+                    m_context->ReadBuffer<float3>(0,
+                                                  device_mem,
+                                                  HostCache<float3>(),
+                                                  device_mem.GetElementCount()).Wait();
+
+                    // copy only the first channel
+                    auto source = HostCache<float3>();
+                    for (auto i = 0u; i < shape.width * shape.height; ++i)
+                    {
+                        if (std::isnan(source->x) || std::isnan(source->y) || std::isnan(source->z) || std::isnan(source->w))
+                        {
+                            source->x = 0;
+                            source->y = 0;
+                            source->z = 0;
+                        }
+                        ++source;
+                    }
+
+                    m_context->WriteBuffer<RadeonRays::float3>(0,
+                                                               *m_device_depth_cache,
+                                                               reinterpret_cast<RadeonRays::float3*>(m_host_cache.data()),
+                                                               device_mem.GetElementCount()).Wait();
+
+                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_cache);
+
+                    m_primitives->Normalize(0,
+                                            CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_depth_cache),
+                                            normalized_buf,
+                                            (int)device_mem.GetElementCount()).Wait();
+
+                    m_context->ReadBuffer<RadeonRays::float3>(0,
+                                                CLWBuffer<RadeonRays::float3>::CreateFromClBuffer(normalized_buf),
+                                                (RadeonRays::float3*)m_host_cache.data(),
+                                                device_mem.GetElementCount()).Wait();
+                    auto t = device_mem.GetElementCount();
+                    auto dest = host_mem;
+                    source = HostCache<float3>();
+                    for (auto i = 0u; i < t; ++i)
+                    {
+                        *dest = source->x;
+                        dest += shape.channels;
+                        ++source;
+                    }
                     break;
                 }
                 case OutputType::kViewShadingNormal:
@@ -232,8 +248,8 @@ namespace Baikal
                     {
                         if (source->w)
                         {
-                            dest[0] = source->x / source->w;
-                            dest[1] = source->y / source->w;
+                            dest[0] = RadeonRays::clamp(source->x / source->w, 0.f, 1.f);
+                            dest[1] = RadeonRays::clamp(source->y / source->w, 0.f, 1.f);
                         }
                         else
                         {
@@ -258,7 +274,7 @@ namespace Baikal
                     auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        if (source->w)
+                        if (source->w && !std::isnan(source->x))
                         {
                             dest[0] = source->x / source->w;
                         }
@@ -318,7 +334,7 @@ namespace Baikal
             else
             {
                 m_start_seq_num = m_last_seq_num + 1;
-                m_last_image = {};
+                m_last_denoised_image = {};
             }
 
             auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
@@ -351,12 +367,12 @@ namespace Baikal
                     HostCache<float3>(),
                     inference_res.size() / 3).Wait();
 
-                m_last_image = std::move(inference_res);
+                m_last_denoised_image = std::move(inference_res);
             }
-            else if (!m_last_image.empty())
+            else if (!m_last_denoised_image.empty())
             {
                 auto dest = HostCache<float3>();
-                auto source = m_last_image.data();
+                auto source = m_last_denoised_image.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
                     dest->x = *source++;
@@ -365,7 +381,6 @@ namespace Baikal
                     dest->w = 1;
                     ++dest;
                 }
-
                 m_context->WriteBuffer<float3>(0,
                                                clw_inference_output->data(),
                                                HostCache<float3>(),

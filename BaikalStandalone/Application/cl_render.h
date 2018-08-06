@@ -22,11 +22,6 @@
  ********************************************************************/
 #pragma once
 
-#include <thread>
-#include <atomic>
-#include <mutex>
-#include <future>
-
 #include "RenderFactory/render_factory.h"
 #include "Renderers/monte_carlo_renderer.h"
 #include "Output/clwoutput.h"
@@ -37,7 +32,13 @@
 
 #ifdef ENABLE_DENOISER
 #include "PostEffects/post_effect.h"
+#include "Utils/output_accessor.h"
 #endif
+
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <future>
 
 
 namespace Baikal
@@ -97,6 +98,7 @@ namespace Baikal
         void SetDenoiserFloatParam(const std::string& name, const float4& value);
         float4 GetDenoiserFloatParam(const std::string& name);
         void RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const;
+        void DumpAllOutputs(size_t device_idx) const;
 #endif
     private:
         using RendererOutputs = std::map<Renderer::OutputType, std::unique_ptr<Output>>;
@@ -110,7 +112,7 @@ namespace Baikal
         void GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const;
         void AddPostEffect(size_t device_idx, PostEffectType type);
 
-        void ApplyGammaCorrection(size_t device_idx);
+        void ApplyGammaCorrection(size_t device_idx, float gamma);
 
         Baikal::Scene1::Ptr m_scene;
         Baikal::Camera::Ptr m_camera;
@@ -140,6 +142,7 @@ namespace Baikal
         PostEffectType m_post_effect_type;
         PostEffect::InputSet m_post_effect_inputs;
         std::unique_ptr<Output> m_post_effect_output;
+        size_t m_frame_count;
 #endif
     };
 }

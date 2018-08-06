@@ -39,7 +39,7 @@ namespace Baikal
     {
         AppSettings s;
 
-        s.help = m_cmd_parser.OptionExists("-h");
+        s.help = m_cmd_parser.OptionExists("-help");
 
         s.path = m_cmd_parser.GetOption("-p", s.path);
 
