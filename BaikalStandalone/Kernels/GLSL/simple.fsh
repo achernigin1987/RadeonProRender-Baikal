@@ -30,5 +30,5 @@ out vec4 OutputColor;
 
 void main()
 {
-    OutputColor = texture(g_Texture, Texcoord);
+    OutputColor = pow(texture(g_Texture, Texcoord), vec4(1.0 / 2.2));
 }

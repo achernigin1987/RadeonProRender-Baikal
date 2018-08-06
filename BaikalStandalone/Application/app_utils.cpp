@@ -200,7 +200,7 @@ namespace Baikal
         //unused
         , num_shadow_rays(1)
         , samplecount(0)
-        , envmapmul(1.f)
+        , envmapmul(2.f)
         , platform_index(-1)
         , device_index(-1)
     {

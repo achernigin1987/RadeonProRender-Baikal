@@ -355,9 +355,10 @@ namespace Baikal
                 auto source = inference_res.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
-                    dest->x = *source++;
-                    dest->y = *source++;
-                    dest->z = *source++;
+		    auto constexpr gamma = 2.2f;
+                    dest->x = std::pow(*source++, gamma);
+                    dest->y = std::pow(*source++, gamma);
+                    dest->z = std::pow(*source++, gamma);
                     dest->w = 1;
                     ++dest;
                 }
@@ -375,9 +376,10 @@ namespace Baikal
                 auto source = m_last_denoised_image.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
-                    dest->x = *source++;
-                    dest->y = *source++;
-                    dest->z = *source++;
+		    auto constexpr gamma = 2.2f;
+                    dest->x = std::pow(*source++, gamma);
+                    dest->y = std::pow(*source++, gamma);
+                    dest->z = std::pow(*source++, gamma);
                     dest->w = 1;
                     ++dest;
                 }
