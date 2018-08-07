@@ -198,12 +198,6 @@ namespace Baikal
                     auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        if (std::isnan(source->x) || std::isnan(source->y) || std::isnan(source->z) || std::isnan(source->w))
-                        {
-                            source->x = 0;
-                            source->y = 0;
-                            source->z = 0;
-                        }
                         ++source;
                     }
 
@@ -274,7 +268,7 @@ namespace Baikal
                     auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        if (source->w && !std::isnan(source->x))
+                        if (source->w)
                         {
                             dest[0] = source->x / source->w;
                         }
