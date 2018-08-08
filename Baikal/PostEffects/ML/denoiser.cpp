@@ -194,13 +194,6 @@ namespace Baikal
                                                   HostCache<float3>(),
                                                   device_mem.GetElementCount()).Wait();
 
-                    // copy only the first channel
-                    auto source = HostCache<float3>();
-                    for (auto i = 0u; i < shape.width * shape.height; ++i)
-                    {
-                        ++source;
-                    }
-
                     m_context->WriteBuffer<RadeonRays::float3>(0,
                                                                *m_device_depth_cache,
                                                                reinterpret_cast<RadeonRays::float3*>(m_host_cache.data()),
@@ -219,7 +212,7 @@ namespace Baikal
                                                 device_mem.GetElementCount()).Wait();
                     auto t = device_mem.GetElementCount();
                     auto dest = host_mem;
-                    source = HostCache<float3>();
+                    auto source = HostCache<float3>();
                     for (auto i = 0u; i < t; ++i)
                     {
                         *dest = source->x;
