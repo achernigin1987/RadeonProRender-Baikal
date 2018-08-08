@@ -49,6 +49,41 @@ namespace Baikal
     class PostEffect
     {
     public:
+
+        enum class ParamType
+        {
+            kFloatVal = 0,
+            kFloat4Val,
+            kStringVal
+        };
+
+        struct ParamValue
+        {
+            float float_value;
+            RadeonRays::float4 float4_value;
+            std::string str_value;
+        };
+
+        class Param
+        {
+            friend class PostEffect;
+
+        public:
+            ParamType GetType() const;
+
+            float GetFloatVal() const;
+            RadeonRays::float4 GetFloat4Val() const;
+            std::string GetStringVal() const;
+
+        private:
+            Param(float value);
+            Param(RadeonRays::float4 const& value);
+            Param(std::string const& value);
+
+            ParamType m_type;
+            ParamValue m_value;
+        };
+
         // Data type to pass all necessary content into the post effect.
         using InputSet = std::map<Renderer::OutputType, Output*>;
 
@@ -67,48 +102,27 @@ namespace Baikal
         virtual void Update(Camera* camera, unsigned int samples) = 0;
 
         // Set scalar parameter
-        void SetParameter(std::string const& name, RadeonRays::float4 const& value);
+        void SetParameter(std::string const& name, float value);
+        // Set scalar parameter
+        void SetParameter(std::string const& name, const RadeonRays::float4& value);
+        // Set string parameter
+        void SetParameter(std::string const& name, const std::string& value);
 
-        // Get scalar parameter
-        RadeonRays::float4 GetParameter(std::string const& name) const;
+        Param GetParameter(std::string const& name);
 
     protected:
         // Adds scalar parameter into the parameter map
-        void RegisterParameter(std::string const& name, RadeonRays::float4 const& initial_value);
+        void RegisterParameter(std::string const& name, float init_value);
+        void RegisterParameter(std::string const& name, RadeonRays::float4 const& init_value);
+        // Adds string parameter into the parameter map
+        void RegisterParameter(std::string const& name, std::string const& init_value);
 
     private:
+
+        void SetParameter(std::string const& name, const Param& value);
+
+        void RegisterParameter(std::string const& name, Param const& init_value);
         // Parameter map
-        std::map<std::string, RadeonRays::float4> m_parameters;
+        std::map<std::string, Param> m_parameters;
     };
-
-    inline void PostEffect::SetParameter(std::string const& name, RadeonRays::float4 const& value)
-    {
-        auto iter = m_parameters.find(name);
-
-        if (iter == m_parameters.cend())
-        {
-            throw std::runtime_error("PostEffect: no such parameter " + name);
-        }
-
-        iter->second = value;
-    }
-
-    inline RadeonRays::float4 PostEffect::GetParameter(std::string const& name) const
-    {
-        auto iter = m_parameters.find(name);
-
-        if (iter == m_parameters.cend())
-        {
-            throw std::runtime_error("PostEffect: no such parameter " + name);
-        }
-
-        return iter->second;
-    }
-
-    inline void PostEffect::RegisterParameter(std::string const& name, RadeonRays::float4 const& initial_value)
-    {
-        assert(m_parameters.find(name) == m_parameters.cend());
-
-        m_parameters.emplace(name, initial_value);
-    }
 }

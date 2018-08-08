@@ -29,6 +29,7 @@ set(ML_DENOISER_SOURCES
 set(POSTEFFECT_SOURCES
     PostEffects/clw_post_effect.h
     PostEffects/post_effect.h
+    PostEffects/post_effect.cpp
     PostEffects/bilateral_denoiser.h
     PostEffects/wavelet_denoiser.h
     PostEffects/AreaMap33.h

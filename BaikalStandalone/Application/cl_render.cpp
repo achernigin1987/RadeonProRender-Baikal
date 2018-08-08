@@ -174,7 +174,7 @@ namespace Baikal
 
     float4 AppClRender::GetDenoiserFloatParam(const std::string& name)
     {
-        return m_post_effect->GetParameter(name);
+        return m_post_effect->GetParameter(name).GetFloat4Val();
     }
 #endif
 

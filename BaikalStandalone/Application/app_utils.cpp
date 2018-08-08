@@ -92,6 +92,21 @@ namespace Baikal
 
         s.image_file_format = m_cmd_parser.GetOption("-iff", s.image_file_format);
 
+        s.gpu_mem_frac = m_cmd_parser.GetOption("-gmf", s.gpu_mem_frac);
+
+        if (s.gpu_mem_frac < 0)
+        {
+            std::cout << "WARNING: '-gmf' option value clamped to zero" << std::endl;
+            s.gpu_mem_frac = .0f;
+        }
+        else if (s.gpu_mem_frac > 1)
+        {
+            std::cout << "WARNING: '-gmf' option value clamped to one" << std::endl;
+            s.gpu_mem_frac = 1.f;
+        }
+
+        s.visible_devices = m_cmd_parser.GetOption("-vds", s.visible_devices);
+
         if (m_cmd_parser.OptionExists("-ct"))
         {
             auto camera_type = m_cmd_parser.GetOption("-ct");
