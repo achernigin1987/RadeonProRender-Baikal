@@ -148,7 +148,7 @@ namespace Baikal
     {
         m_post_effect_type = type;
 
-        m_post_effect = m_cfgs[device_idx].factory->CreatePostEffect(type, m_width, m_height);
+        m_post_effect = m_cfgs[device_idx].factory->CreatePostEffect(type);
 
         // create or get inputs for post-effect
         for (auto required_input : m_post_effect->GetInputTypes())

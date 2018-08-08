@@ -55,8 +55,7 @@ namespace Baikal
         return std::unique_ptr<Output>(new ClwOutput(m_context, w, h));
     }
 
-    std::unique_ptr<PostEffect> ClwRenderFactory::CreatePostEffect(
-            PostEffectType type, std::size_t width, std::size_t height) const
+    std::unique_ptr<PostEffect> ClwRenderFactory::CreatePostEffect(PostEffectType type) const
     {
         switch (type)
         {
@@ -65,7 +64,7 @@ namespace Baikal
             case PostEffectType::kWaveletDenoiser:
                 return std::make_unique<WaveletDenoiser>(m_context, &m_program_manager);
             case PostEffectType::kMLDenoiser:
-                return std::make_unique<PostEffects::MLDenoiser>(m_context, width, height);
+                return std::make_unique<PostEffects::MLDenoiser>(m_context);
             default:
                 throw std::runtime_error("PostEffect is not supported");
         }

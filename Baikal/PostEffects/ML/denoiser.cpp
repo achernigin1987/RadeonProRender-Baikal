@@ -87,13 +87,11 @@ namespace Baikal
             }
         }
 
-        MLDenoiser::MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height)
+        MLDenoiser::MLDenoiser(const CLWContext& context)
                    : m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
         {
             RegisterParameter("gpu_mem_frac", .1f);
             RegisterParameter("visible_devices", std::string());
-            RegisterParameter("width", static_cast<std::uint32_t>(width));
-            RegisterParameter("height", static_cast<std::uint32_t>(height));
 
             m_context = std::make_unique<CLWContext>(context);
             m_primitives = std::make_unique<CLWParallelPrimitives>(context);
@@ -118,12 +116,13 @@ namespace Baikal
 
         void MLDenoiser::InitDenoiserInference()
         {
-            auto width = GetParameter("width").GetUintVal();
-            auto height = GetParameter("height").GetUintVal();
             auto gpu_mem_frac = GetParameter("gpu_mem_frac").GetFloatVal();
             auto visible_devices = GetParameter("visible_devices").GetStringVal();
 
-            m_inference = CreateDenoiserInference(m_inputs, gpu_mem_frac, visible_devices, width, height);
+            m_inference = CreateDenoiserInference(m_inputs,
+                                                  gpu_mem_frac,
+                                                  visible_devices,
+                                                  m_width, m_height);
 
             // Realloc cache if needed
             auto shape = m_inference->GetInputShape();
@@ -168,6 +167,14 @@ namespace Baikal
 
         void MLDenoiser::Apply(InputSet const& input_set, Output& output)
         {
+            if (m_width != input_set.begin()->second->width() ||
+                m_height != input_set.begin()->second->height())
+            {
+                m_width = input_set.begin()->second->width();
+                m_height = input_set.begin()->second->height();
+                SetDirty();
+            }
+
             if (m_is_dirty)
             {
                 InitDenoiserInference();

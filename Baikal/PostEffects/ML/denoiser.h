@@ -51,7 +51,7 @@ namespace Baikal
         {
         public:
 
-            MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height);
+            MLDenoiser(const CLWContext& context);
 
             InputTypes GetInputTypes() const override;
 
@@ -88,6 +88,8 @@ namespace Baikal
             Tensor m_last_denoised_image;
             std::uint32_t m_start_seq_num = 0;
             std::uint32_t m_last_seq_num = 0;
+            std::uint32_t m_width = 0;
+            std::uint32_t m_height = 0;
             bool m_is_dirty = true;
         };
     }
