@@ -89,21 +89,14 @@ namespace Baikal
 
         MLDenoiser::MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height)
                    : m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
-                   , m_inference(CreateDenoiserInference(m_inputs, 0.1f, "", width, height))
         {
+            RegisterParameter("gpu_mem_frac", .1f);
+            RegisterParameter("visible_devices", std::string());
+            RegisterParameter("width", static_cast<std::uint32_t>(width));
+            RegisterParameter("height", static_cast<std::uint32_t>(height));
+
             m_context = std::make_unique<CLWContext>(context);
             m_primitives = std::make_unique<CLWParallelPrimitives>(context);
-
-            auto shape = m_inference->GetInputShape();
-
-            size_t bytes_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
-
-            m_device_cache = std::make_unique<CLWBuffer<char>>(
-                CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, bytes_count));
-            m_device_depth_cache = std::make_unique<CLWBuffer<RadeonRays::float3>>(
-                    CLWBuffer<RadeonRays::float3>::Create(*m_context, CL_MEM_READ_WRITE, shape.width * shape.height));
-
-            m_host_cache.resize(bytes_count);
 
             // compute memory layout
             switch (m_inputs)
@@ -120,6 +113,32 @@ namespace Baikal
                 m_layout.emplace_back(OutputType::kAlbedo, 3);
                 m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                 break;
+            }
+        }
+
+        void MLDenoiser::InitDenoiserInference()
+        {
+            auto width = GetParameter("width").GetUintVal();
+            auto height = GetParameter("height").GetUintVal();
+            auto gpu_mem_frac = GetParameter("gpu_mem_frac").GetFloatVal();
+            auto visible_devices = GetParameter("visible_devices").GetStringVal();
+
+            m_inference = CreateDenoiserInference(m_inputs, gpu_mem_frac, visible_devices, width, height);
+
+            // Realloc cache if needed
+            auto shape = m_inference->GetInputShape();
+
+            size_t bytes_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
+
+            if (m_host_cache.size() < bytes_count)
+            {
+                m_device_cache = std::make_unique<CLWBuffer<char>>(
+                        CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, bytes_count));
+                m_device_depth_cache = std::make_unique<CLWBuffer<RadeonRays::float3>>(
+                        CLWBuffer<RadeonRays::float3>::Create(*m_context, CL_MEM_READ_WRITE,
+                                                              shape.width * shape.height));
+
+                m_host_cache.resize(bytes_count);
             }
         }
 
@@ -149,6 +168,12 @@ namespace Baikal
 
         void MLDenoiser::Apply(InputSet const& input_set, Output& output)
         {
+            if (m_is_dirty)
+            {
+                InitDenoiserInference();
+                m_is_dirty = false;
+            }
+
             auto shape = m_inference->GetInputShape();
 
             auto tensor = m_inference->GetInputTensor();
@@ -390,6 +415,37 @@ namespace Baikal
         void MLDenoiser::Update(Camera* camera, unsigned int samples)
         {
 
+        }
+
+        void MLDenoiser::SetParameter(std::string const& name, Param value)
+        {
+            auto param = GetParameter(name);
+
+            switch (value.GetType())
+            {
+                case PostEffect::ParamType::kUintVal:
+                {
+                    if (param.GetUintVal() != value.GetUintVal())
+                        SetDirty();
+                    break;
+                }
+                case PostEffect::ParamType::kFloatVal:
+                {
+                    if (param.GetFloatVal() != value.GetFloatVal())
+                        SetDirty();
+                    break;
+                }
+                case PostEffect::ParamType::kStringVal:
+                {
+                    if (param.GetStringVal() != value.GetStringVal())
+                        SetDirty();
+                    break;
+                }
+                default:
+                    break; // Do nothing with kFloat4Val
+            }
+
+            PostEffect::SetParameter(name, value);
         }
     }
 }

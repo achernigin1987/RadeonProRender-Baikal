@@ -53,12 +53,14 @@ namespace Baikal
         enum class ParamType
         {
             kFloatVal = 0,
+            kUintVal,
             kFloat4Val,
             kStringVal
         };
 
         struct ParamValue
         {
+            std::uint32_t uint_value;
             float float_value;
             RadeonRays::float4 float4_value;
             std::string str_value;
@@ -66,20 +68,20 @@ namespace Baikal
 
         class Param
         {
-            friend class PostEffect;
-
         public:
             ParamType GetType() const;
 
             float GetFloatVal() const;
+            std::uint32_t GetUintVal() const;
             RadeonRays::float4 GetFloat4Val() const;
             std::string GetStringVal() const;
 
-        private:
             Param(float value);
+            Param(std::uint32_t value);
             Param(RadeonRays::float4 const& value);
             Param(std::string const& value);
 
+        private:
             ParamType m_type;
             ParamValue m_value;
         };
@@ -101,27 +103,15 @@ namespace Baikal
 
         virtual void Update(Camera* camera, unsigned int samples) = 0;
 
-        // Set scalar parameter
-        void SetParameter(std::string const& name, float value);
-        // Set scalar parameter
-        void SetParameter(std::string const& name, const RadeonRays::float4& value);
-        // Set string parameter
-        void SetParameter(std::string const& name, const std::string& value);
+        virtual void SetParameter(std::string const& name, Param value);
 
         Param GetParameter(std::string const& name);
 
     protected:
-        // Adds scalar parameter into the parameter map
-        void RegisterParameter(std::string const& name, float init_value);
-        void RegisterParameter(std::string const& name, RadeonRays::float4 const& init_value);
-        // Adds string parameter into the parameter map
-        void RegisterParameter(std::string const& name, std::string const& init_value);
+
+        void RegisterParameter(std::string const& name, Param init_value);
 
     private:
-
-        void SetParameter(std::string const& name, const Param& value);
-
-        void RegisterParameter(std::string const& name, Param const& init_value);
         // Parameter map
         std::map<std::string, Param> m_parameters;
     };

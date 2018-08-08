@@ -25,6 +25,12 @@ THE SOFTWARE.
 namespace Baikal
 {
 
+    PostEffect::Param::Param(std::uint32_t value)
+            : m_type(ParamType::kUintVal)
+    {
+        m_value.uint_value = value;
+    }
+
     PostEffect::Param::Param(float value)
                       : m_type(ParamType::kFloatVal)
     {
@@ -56,6 +62,14 @@ namespace Baikal
         return m_value.float_value;
     }
 
+    std::uint32_t PostEffect::Param::GetUintVal() const
+    {
+        if (m_type != ParamType::kUintVal)
+            throw std::runtime_error("Attempt to get incorrect param type value");
+
+        return m_value.uint_value;
+    }
+
     RadeonRays::float4 PostEffect::Param::GetFloat4Val() const
     {
         if (m_type != ParamType::kFloat4Val)
@@ -84,7 +98,7 @@ namespace Baikal
         return iter->second;
     }
 
-    void PostEffect::SetParameter(std::string const& name, const Param& value)
+    void PostEffect::SetParameter(std::string const& name, Param value)
     {
         auto iter = m_parameters.find(name);
 
@@ -93,43 +107,21 @@ namespace Baikal
             throw std::runtime_error("PostEffect: no such parameter " + name);
         }
 
+        if (value.GetType() != iter->second.GetType())
+        {
+            throw std::runtime_error("PostEffect: attemp to change type of registred parameter " + name);
+        }
+
         iter->second = value;
     }
 
-    void PostEffect::RegisterParameter(std::string const &name, Param const& initial_value)
+    void PostEffect::RegisterParameter(std::string const &name, Param initial_value)
     {
-        assert(m_parameters.find(name) == m_parameters.cend());
+        if (m_parameters.find(name) != m_parameters.cend())
+        {
+            throw std::runtime_error("Attempt to register already existing name");
+        }
 
         m_parameters.emplace(name, initial_value);
-    }
-
-    void PostEffect::SetParameter(std::string const& name, float value)
-    {
-        SetParameter(name, Param(value));
-    }
-
-    void PostEffect::SetParameter(std::string const& name, RadeonRays::float4 const& value)
-    {
-        SetParameter(name, Param(value));
-    }
-
-    void PostEffect::SetParameter(std::string const& name, std::string const& value)
-    {
-        SetParameter(name, Param(value));
-    }
-
-    void PostEffect::RegisterParameter(std::string const& name, float init_value)
-    {
-        RegisterParameter(name, Param(init_value));
-    }
-
-    void PostEffect::RegisterParameter(std::string const& name, RadeonRays::float4 const& init_value)
-    {
-        RegisterParameter(name, Param(init_value));
-    }
-
-    void PostEffect::RegisterParameter(std::string const& name, std::string const& init_value)
-    {
-        RegisterParameter(name, Param(init_value));
     }
 }
