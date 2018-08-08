@@ -92,17 +92,17 @@ namespace Baikal
 
         s.image_file_format = m_cmd_parser.GetOption("-iff", s.image_file_format);
 
-        s.gpu_mem_frac = m_cmd_parser.GetOption("-gmf", s.gpu_mem_frac);
+        s.gpu_mem_fraction = m_cmd_parser.GetOption("-gmf", s.gpu_mem_fraction);
 
-        if (s.gpu_mem_frac < 0)
+        if (s.gpu_mem_fraction < 0)
         {
             std::cout << "WARNING: '-gmf' option value clamped to zero" << std::endl;
-            s.gpu_mem_frac = .0f;
+            s.gpu_mem_fraction = .0f;
         }
-        else if (s.gpu_mem_frac > 1)
+        else if (s.gpu_mem_fraction > 1)
         {
             std::cout << "WARNING: '-gmf' option value clamped to one" << std::endl;
-            s.gpu_mem_frac = 1.f;
+            s.gpu_mem_fraction = 1.f;
         }
 
         s.visible_devices = m_cmd_parser.GetOption("-vds", s.visible_devices);

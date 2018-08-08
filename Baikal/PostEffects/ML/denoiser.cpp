@@ -90,7 +90,7 @@ namespace Baikal
         MLDenoiser::MLDenoiser(const CLWContext& context)
                    : m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
         {
-            RegisterParameter("gpu_mem_frac", .1f);
+            RegisterParameter("gpu_memory_fraction", .1f);
             RegisterParameter("visible_devices", std::string());
 
             m_context = std::make_unique<CLWContext>(context);
@@ -116,11 +116,11 @@ namespace Baikal
 
         void MLDenoiser::InitDenoiserInference()
         {
-            auto gpu_mem_frac = GetParameter("gpu_mem_frac").GetFloat();
+            auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
             auto visible_devices = GetParameter("visible_devices").GetString();
 
             m_inference = CreateDenoiserInference(m_inputs,
-                                                  gpu_mem_frac,
+                                                  gpu_memory_fraction,
                                                   visible_devices,
                                                   m_width, m_height);
 

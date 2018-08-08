@@ -98,7 +98,7 @@ namespace Baikal
         int device_index;
 
         // device settings
-        float gpu_mem_frac; // float number from 0 to 1, percentage of max used device memory
+        float gpu_mem_fraction; // float number from 0 to 1, percentage of max used device memory
         std::string visible_devices;
     };
 
