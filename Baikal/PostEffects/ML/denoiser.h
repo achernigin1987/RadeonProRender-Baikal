@@ -64,9 +64,6 @@ namespace Baikal
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
-            void SetDirty()
-            { m_is_dirty = true; }
-
             void InitDenoiserInference();
 
             template <class T>

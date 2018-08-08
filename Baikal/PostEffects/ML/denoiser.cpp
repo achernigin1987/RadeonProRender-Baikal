@@ -116,8 +116,8 @@ namespace Baikal
 
         void MLDenoiser::InitDenoiserInference()
         {
-            auto gpu_mem_frac = GetParameter("gpu_mem_frac").GetFloatVal();
-            auto visible_devices = GetParameter("visible_devices").GetStringVal();
+            auto gpu_mem_frac = GetParameter("gpu_mem_frac").GetFloat();
+            auto visible_devices = GetParameter("visible_devices").GetString();
 
             m_inference = CreateDenoiserInference(m_inputs,
                                                   gpu_mem_frac,
@@ -172,7 +172,7 @@ namespace Baikal
             {
                 m_width = input_set.begin()->second->width();
                 m_height = input_set.begin()->second->height();
-                SetDirty();
+                m_is_dirty = true;
             }
 
             if (m_is_dirty)
@@ -375,11 +375,11 @@ namespace Baikal
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
                     auto constexpr gamma = 2.2f;
-                            dest->x = std::pow(*source++, gamma);
-                            dest->y = std::pow(*source++, gamma);
-                            dest->z = std::pow(*source++, gamma);
-                            dest->w = 1;
-                            ++dest;
+                    dest->x = std::pow(*source++, gamma);
+                    dest->y = std::pow(*source++, gamma);
+                    dest->z = std::pow(*source++, gamma);
+                    dest->w = 1;
+                    ++dest;
                 }
 
                 m_context->WriteBuffer<float3>(0,
@@ -427,32 +427,8 @@ namespace Baikal
         void MLDenoiser::SetParameter(std::string const& name, Param value)
         {
             auto param = GetParameter(name);
-
-            switch (value.GetType())
-            {
-                case PostEffect::ParamType::kUintVal:
-                {
-                    if (param.GetUintVal() != value.GetUintVal())
-                        SetDirty();
-                    break;
-                }
-                case PostEffect::ParamType::kFloatVal:
-                {
-                    if (param.GetFloatVal() != value.GetFloatVal())
-                        SetDirty();
-                    break;
-                }
-                case PostEffect::ParamType::kStringVal:
-                {
-                    if (param.GetStringVal() != value.GetStringVal())
-                        SetDirty();
-                    break;
-                }
-                default:
-                    break; // Do nothing with kFloat4Val
-            }
-
             PostEffect::SetParameter(name, value);
+            m_is_dirty = true;
         }
     }
 }

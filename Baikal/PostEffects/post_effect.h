@@ -58,23 +58,15 @@ namespace Baikal
             kStringVal
         };
 
-        struct ParamValue
-        {
-            std::uint32_t uint_value;
-            float float_value;
-            RadeonRays::float4 float4_value;
-            std::string str_value;
-        };
-
         class Param
         {
         public:
             ParamType GetType() const;
 
-            float GetFloatVal() const;
-            std::uint32_t GetUintVal() const;
-            RadeonRays::float4 GetFloat4Val() const;
-            std::string GetStringVal() const;
+            float GetFloat() const;
+            std::uint32_t GetUint() const;
+            const RadeonRays::float4& GetFloat4() const;
+            const std::string& GetString() const;
 
             Param(float value);
             Param(std::uint32_t value);
@@ -82,8 +74,14 @@ namespace Baikal
             Param(std::string const& value);
 
         private:
+
+            void AssertType(ParamType type) const;
+
             ParamType m_type;
-            ParamValue m_value;
+            std::uint32_t m_uint_value;
+            float m_float_value;
+            RadeonRays::float4 m_float4_value;
+            std::string m_str_value;
         };
 
         // Data type to pass all necessary content into the post effect.
@@ -105,13 +103,14 @@ namespace Baikal
 
         virtual void SetParameter(std::string const& name, Param value);
 
-        Param GetParameter(std::string const& name);
+        const Param& GetParameter(std::string const& name) const;
 
     protected:
 
         void RegisterParameter(std::string const& name, Param init_value);
 
     private:
+
         // Parameter map
         std::map<std::string, Param> m_parameters;
     };

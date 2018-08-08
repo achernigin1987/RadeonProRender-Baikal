@@ -26,67 +26,63 @@ namespace Baikal
 {
 
     PostEffect::Param::Param(std::uint32_t value)
-            : m_type(ParamType::kUintVal)
-    {
-        m_value.uint_value = value;
-    }
+                      : m_type(ParamType::kUintVal),
+                        m_uint_value(value)
+    {   }
 
     PostEffect::Param::Param(float value)
-                      : m_type(ParamType::kFloatVal)
-    {
-        m_value.float_value = value;
-    }
+                      : m_type(ParamType::kFloatVal),
+                        m_float_value(value)
+    {   }
 
     PostEffect::Param::Param(RadeonRays::float4 const& value)
-            : m_type(ParamType::kFloat4Val)
-    {
-        m_value.float4_value = value;
-    }
+                      : m_type(ParamType::kFloat4Val),
+                        m_float4_value(value)
+    {   }
 
     PostEffect::Param::Param(std::string const& value)
-            : m_type(ParamType::kStringVal)
-    {
-        m_value.str_value = value;
-    }
+                      : m_type(ParamType::kStringVal),
+                        m_str_value(value)
+    {   }
 
     PostEffect::ParamType PostEffect::Param::GetType() const
     {
         return m_type;
     }
 
-    float PostEffect::Param::GetFloatVal() const
+    void PostEffect::Param::AssertType(ParamType type) const
     {
-        if (m_type != ParamType::kFloatVal)
+        if (m_type != type)
+        {
             throw std::runtime_error("Attempt to get incorrect param type value");
-
-        return m_value.float_value;
+        }
     }
 
-    std::uint32_t PostEffect::Param::GetUintVal() const
+    float PostEffect::Param::GetFloat() const
     {
-        if (m_type != ParamType::kUintVal)
-            throw std::runtime_error("Attempt to get incorrect param type value");
-
-        return m_value.uint_value;
+        AssertType(ParamType::kFloatVal);
+        return m_float_value;
     }
 
-    RadeonRays::float4 PostEffect::Param::GetFloat4Val() const
+    std::uint32_t PostEffect::Param::GetUint() const
     {
-        if (m_type != ParamType::kFloat4Val)
-            throw std::runtime_error("Attempt to get incorrect param type value");
-
-        return m_value.float4_value;
+        AssertType(ParamType::kUintVal);
+        return m_uint_value;
     }
 
-    std::string PostEffect::Param::GetStringVal() const
+    const RadeonRays::float4& PostEffect::Param::GetFloat4() const
     {
-        if (m_type != ParamType::kStringVal)
-            throw std::runtime_error("Attempt to get incorrect param type value");
-
-        return m_value.str_value;
+        AssertType(ParamType::kFloat4Val);
+        return m_float4_value;
     }
 
-    PostEffect::Param PostEffect::GetParameter(std::string const& name)
+    const std::string& PostEffect::Param::GetString() const
+    {
+        AssertType(ParamType::kStringVal);
+        return m_str_value;
+    }
+
+    const PostEffect::Param& PostEffect::GetParameter(std::string const& name) const
     {
         auto iter = m_parameters.find(name);
 
@@ -112,7 +108,7 @@ namespace Baikal
             throw std::runtime_error("PostEffect: attemp to change type of registred parameter " + name);
         }
 
-        iter->second = value;
+        iter->second = std::move(value);
     }
 
     void PostEffect::RegisterParameter(std::string const &name, Param initial_value)

@@ -105,11 +105,11 @@ namespace Baikal
 
     inline void BilateralDenoiser::Apply(InputSet const& input_set, Output& output)
     {
-        auto radius = static_cast<std::uint32_t>(GetParameter("radius").GetFloat4Val().x);
-        auto sigma_color = GetParameter("color_sensitivity").GetFloat4Val().x;
-        auto sigma_position = GetParameter("position_sensitivity").GetFloat4Val().x;
-        auto sigma_normal = GetParameter("normal_sensitivity").GetFloat4Val().x;
-        auto sigma_albedo = GetParameter("albedo_sensitivity").GetFloat4Val().x;
+        auto radius = static_cast<std::uint32_t>(GetParameter("radius").GetFloat4().x);
+        auto sigma_color = GetParameter("color_sensitivity").GetFloat4().x;
+        auto sigma_position = GetParameter("position_sensitivity").GetFloat4().x;
+        auto sigma_normal = GetParameter("normal_sensitivity").GetFloat4().x;
+        auto sigma_albedo = GetParameter("albedo_sensitivity").GetFloat4().x;
 
         auto color = FindOutput(input_set, Renderer::OutputType::kColor);
         auto normal = FindOutput(input_set, Renderer::OutputType::kWorldShadingNormal);
