@@ -65,6 +65,9 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
         AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
         m_output_accessor = std::make_unique<RendererOutputAccessor>("images", m_width, m_height);
+        // TODO: it's applicable only for MLDenoiser
+        m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
+        m_post_effect->SetParameter("visible_devices", settings.visible_devices);
 #endif
 
         LoadScene(settings);
@@ -146,7 +149,7 @@ namespace Baikal
     {
         m_post_effect_type = type;
 
-        m_post_effect = m_cfgs[device_idx].factory->CreatePostEffect(type, m_width, m_height);
+        m_post_effect = m_cfgs[device_idx].factory->CreatePostEffect(type);
 
         // create or get inputs for post-effect
         for (auto required_input : m_post_effect->GetInputTypes())
@@ -174,7 +177,7 @@ namespace Baikal
 
     float4 AppClRender::GetDenoiserFloatParam(const std::string& name)
     {
-        return m_post_effect->GetParameter(name);
+        return m_post_effect->GetParameter(name).GetFloat4();
     }
 #endif
 

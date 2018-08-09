@@ -219,8 +219,8 @@ namespace Baikal
         uint32_t prev_buffer_index = m_current_buffer_index;
         m_current_buffer_index = (m_current_buffer_index + 1) % m_num_tmp_buffers;
 
-        auto sigma_color = GetParameter("color_sensitivity").x;
-        auto sigma_position = GetParameter("position_sensitivity").x;
+        auto sigma_color = GetParameter("color_sensitivity").GetFloat4().x;
+        auto sigma_position = GetParameter("position_sensitivity").GetFloat4().x;
 
         auto color = FindOutput(input_set, Renderer::OutputType::kColor);
         auto normal = FindOutput(input_set, Renderer::OutputType::kWorldShadingNormal);

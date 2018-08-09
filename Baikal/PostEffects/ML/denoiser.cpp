@@ -58,7 +58,7 @@ namespace Baikal
 
         namespace
         {
-            std::unique_ptr<Inference> CreateDenoiserInference(
+            std::unique_ptr<Inference> CreateInference(
                     MLDenoiserInputs inputs,
                     float gpu_memory_fraction,
                     std::string const &visible_devices,
@@ -87,23 +87,14 @@ namespace Baikal
             }
         }
 
-        MLDenoiser::MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height)
+        MLDenoiser::MLDenoiser(const CLWContext& context)
                    : m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
-                   , m_inference(CreateDenoiserInference(m_inputs, 0.1f, "", width, height))
         {
+            RegisterParameter("gpu_memory_fraction", .1f);
+            RegisterParameter("visible_devices", std::string());
+
             m_context = std::make_unique<CLWContext>(context);
             m_primitives = std::make_unique<CLWParallelPrimitives>(context);
-
-            auto shape = m_inference->GetInputShape();
-
-            size_t bytes_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
-
-            m_device_cache = std::make_unique<CLWBuffer<char>>(
-                CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, bytes_count));
-            m_device_depth_cache = std::make_unique<CLWBuffer<RadeonRays::float3>>(
-                    CLWBuffer<RadeonRays::float3>::Create(*m_context, CL_MEM_READ_WRITE, shape.width * shape.height));
-
-            m_host_cache.resize(bytes_count);
 
             // compute memory layout
             switch (m_inputs)
@@ -120,6 +111,33 @@ namespace Baikal
                 m_layout.emplace_back(OutputType::kAlbedo, 3);
                 m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                 break;
+            }
+        }
+
+        void MLDenoiser::InitInference()
+        {
+            auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
+            auto visible_devices = GetParameter("visible_devices").GetString();
+
+            m_inference = CreateInference(m_inputs,
+                                          gpu_memory_fraction,
+                                          visible_devices,
+                                          m_width, m_height);
+
+            // Realloc cache if needed
+            auto shape = m_inference->GetInputShape();
+
+            size_t bytes_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
+
+            if (m_host_cache.size() != bytes_count)
+            {
+                m_device_cache = std::make_unique<CLWBuffer<char>>(
+                        CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, bytes_count));
+                m_device_depth_cache = std::make_unique<CLWBuffer<RadeonRays::float3>>(
+                        CLWBuffer<RadeonRays::float3>::Create(*m_context, CL_MEM_READ_WRITE,
+                                                              shape.width * shape.height));
+
+                m_host_cache.resize(bytes_count);
             }
         }
 
@@ -149,6 +167,20 @@ namespace Baikal
 
         void MLDenoiser::Apply(InputSet const& input_set, Output& output)
         {
+            if (m_width != input_set.begin()->second->width() ||
+                m_height != input_set.begin()->second->height())
+            {
+                m_width = input_set.begin()->second->width();
+                m_height = input_set.begin()->second->height();
+                m_is_dirty = true;
+            }
+
+            if (m_is_dirty)
+            {
+                InitInference();
+                m_is_dirty = false;
+            }
+
             auto shape = m_inference->GetInputShape();
 
             auto tensor = m_inference->GetInputTensor();
@@ -194,19 +226,6 @@ namespace Baikal
                                                   HostCache<float3>(),
                                                   device_mem.GetElementCount()).Wait();
 
-                    // copy only the first channel
-                    auto source = HostCache<float3>();
-                    for (auto i = 0u; i < shape.width * shape.height; ++i)
-                    {
-                        if (std::isnan(source->x) || std::isnan(source->y) || std::isnan(source->z) || std::isnan(source->w))
-                        {
-                            source->x = 0;
-                            source->y = 0;
-                            source->z = 0;
-                        }
-                        ++source;
-                    }
-
                     m_context->WriteBuffer<RadeonRays::float3>(0,
                                                                *m_device_depth_cache,
                                                                reinterpret_cast<RadeonRays::float3*>(m_host_cache.data()),
@@ -225,7 +244,7 @@ namespace Baikal
                                                 device_mem.GetElementCount()).Wait();
                     auto t = device_mem.GetElementCount();
                     auto dest = host_mem;
-                    source = HostCache<float3>();
+                    auto source = HostCache<float3>();
                     for (auto i = 0u; i < t; ++i)
                     {
                         *dest = source->x;
@@ -274,7 +293,7 @@ namespace Baikal
                     auto source = HostCache<float3>();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        if (source->w && !std::isnan(source->x))
+                        if (source->w)
                         {
                             dest[0] = source->x / source->w;
                         }
@@ -355,7 +374,7 @@ namespace Baikal
                 auto source = inference_res.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
-		    auto constexpr gamma = 2.2f;
+                    auto constexpr gamma = 2.2f;
                     dest->x = std::pow(*source++, gamma);
                     dest->y = std::pow(*source++, gamma);
                     dest->z = std::pow(*source++, gamma);
@@ -376,17 +395,18 @@ namespace Baikal
                 auto source = m_last_denoised_image.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
-		    auto constexpr gamma = 2.2f;
+                    auto constexpr gamma = 2.2f;
                     dest->x = std::pow(*source++, gamma);
                     dest->y = std::pow(*source++, gamma);
                     dest->z = std::pow(*source++, gamma);
                     dest->w = 1;
                     ++dest;
                 }
+
                 m_context->WriteBuffer<float3>(0,
                                                clw_inference_output->data(),
                                                HostCache<float3>(),
-                                               inference_res.size() / 3).Wait();
+                                               m_last_denoised_image.size() / 3).Wait();
             }
             else
             {
@@ -402,6 +422,13 @@ namespace Baikal
         void MLDenoiser::Update(Camera* camera, unsigned int samples)
         {
 
+        }
+
+        void MLDenoiser::SetParameter(std::string const& name, Param value)
+        {
+            auto param = GetParameter(name);
+            PostEffect::SetParameter(name, value);
+            m_is_dirty = true;
         }
     }
 }

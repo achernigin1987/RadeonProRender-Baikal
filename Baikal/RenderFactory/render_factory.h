@@ -66,8 +66,7 @@ namespace Baikal
         std::unique_ptr<Output> CreateOutput(std::uint32_t w, std::uint32_t h) const = 0;
 
         virtual 
-        std::unique_ptr<PostEffect> CreatePostEffect(
-                PostEffectType type, std::size_t width, std::size_t height) const = 0;
+        std::unique_ptr<PostEffect> CreatePostEffect(PostEffectType type) const = 0;
 
         virtual
         std::unique_ptr<SceneController<Scene>> CreateSceneController() const = 0;

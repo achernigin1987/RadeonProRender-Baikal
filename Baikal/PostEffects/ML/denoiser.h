@@ -51,15 +51,20 @@ namespace Baikal
         {
         public:
 
-            MLDenoiser(const CLWContext& context, std::size_t width, std::size_t height);
+            MLDenoiser(const CLWContext& context);
 
             InputTypes GetInputTypes() const override;
 
             void Apply(InputSet const& input_set, Output& output) override;
 
             void Update(Camera* camera, unsigned int samples) override;
+
+            void SetParameter(std::string const& name, Param value) override;
+
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
+
+            void InitInference();
 
             template <class T>
             T* HostCache()
@@ -80,6 +85,9 @@ namespace Baikal
             Tensor m_last_denoised_image;
             std::uint32_t m_start_seq_num = 0;
             std::uint32_t m_last_seq_num = 0;
+            std::uint32_t m_width = 0;
+            std::uint32_t m_height = 0;
+            bool m_is_dirty = true;
         };
     }
 }
