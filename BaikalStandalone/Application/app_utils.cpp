@@ -99,7 +99,9 @@ namespace Baikal
         auto has_primary_device = [](std::string const& str)
         {
             if (str.empty())
+            {
                 return true;
+            }
 
             std::stringstream ss(str);
 
@@ -109,9 +111,10 @@ namespace Baikal
                 getline( ss, substr, ',' );
 
                 if (substr == "0")
+                {
                     return true;
+                }
             }
-
             return false;
         };
 
