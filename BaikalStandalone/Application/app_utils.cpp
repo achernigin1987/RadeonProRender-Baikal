@@ -108,7 +108,7 @@ namespace Baikal
             while (ss.good())
             {
                 std::string substr;
-                getline( ss, substr, ',' );
+                std::getline( ss, substr, ',' );
 
                 if (substr == "0")
                 {
