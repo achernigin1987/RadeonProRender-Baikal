@@ -98,11 +98,21 @@ namespace Baikal
 
         auto has_primary_device = [](std::string const& str)
         {
-            return (str.empty() ||
-                    str == "0" ||
-                    str.find(" 0 ") != std::string::npos ||
-                    str.find("0 ") != std::string::npos ||
-                    str.find(" 0") != std::string::npos);
+            if (str.empty())
+                return true;
+
+            std::stringstream ss(str);
+
+            while (ss.good())
+            {
+                std::string substr;
+                getline( ss, substr, ',' );
+
+                if (substr == "0")
+                    return true;
+            }
+
+            return false;
         };
 
         float max_gmf = 1.f;
