@@ -96,8 +96,17 @@ namespace Baikal
 
         s.visible_devices = m_cmd_parser.GetOption("-vds", s.visible_devices);
 
+        auto has_primary_device = [](std::string const& str)
+        {
+            return (str.empty() ||
+                    str == "0" ||
+                    str.find(" 0 ") != std::string::npos ||
+                    str.find("0 ") != std::string::npos ||
+                    str.find(" 0") != std::string::npos);
+        };
+
         float max_gmf = 1.f;
-        if (s.visible_devices.empty() || s.visible_devices == "0")
+        if (has_primary_device(s.visible_devices))
         {
             max_gmf = .5f;
         }
