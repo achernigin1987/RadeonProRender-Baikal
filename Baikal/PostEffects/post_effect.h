@@ -74,7 +74,6 @@ namespace Baikal
             Param(std::string const& value);
 
         private:
-
             void AssertType(ParamType type) const;
 
             ParamType m_type;
@@ -99,6 +98,7 @@ namespace Baikal
         // Apply post effect and use output for the result
         virtual void Apply(InputSet const& input_set, Output& output) = 0;
 
+        // TODO: remove this method afterwards
         virtual void Update(Camera* camera, unsigned int samples) = 0;
 
         virtual void SetParameter(std::string const& name, Param value);

@@ -65,6 +65,7 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
         AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
         m_output_accessor = std::make_unique<RendererOutputAccessor>("images", m_width, m_height);
+        // TODO: it's applicable only for MLDenoiser
         m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
         m_post_effect->SetParameter("visible_devices", settings.visible_devices);
 #endif

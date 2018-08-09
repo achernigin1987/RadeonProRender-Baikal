@@ -64,7 +64,7 @@ namespace Baikal
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
-            void InitDenoiserInference();
+            void InitInference();
 
             template <class T>
             T* HostCache()

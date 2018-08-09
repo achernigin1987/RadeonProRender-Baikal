@@ -94,18 +94,24 @@ namespace Baikal
 
         s.gpu_mem_fraction = m_cmd_parser.GetOption("-gmf", s.gpu_mem_fraction);
 
-        if (s.gpu_mem_fraction < 0)
+        s.visible_devices = m_cmd_parser.GetOption("-vds", s.visible_devices);
+
+        float max_gmf = 1.f;
+        if (s.visible_devices.empty() || s.visible_devices == "0")
         {
-            std::cout << "WARNING: '-gmf' option value clamped to zero" << std::endl;
-            s.gpu_mem_fraction = .0f;
-        }
-        else if (s.gpu_mem_fraction > 1)
-        {
-            std::cout << "WARNING: '-gmf' option value clamped to one" << std::endl;
-            s.gpu_mem_fraction = 1.f;
+            max_gmf = .5f;
         }
 
-        s.visible_devices = m_cmd_parser.GetOption("-vds", s.visible_devices);
+        if (s.gpu_mem_fraction < 0.0f)
+        {
+            std::cout << "WARNING: '-gmf' option value clamped to zero" << std::endl;
+            s.gpu_mem_fraction = 0.0f;
+        }
+        else if (s.gpu_mem_fraction > max_gmf)
+        {
+            std::cout << "WARNING: '-gmf' option value clamped to one or 0.5 in case primary device" << std::endl;
+            s.gpu_mem_fraction = 1.f;
+        }
 
         if (m_cmd_parser.OptionExists("-ct"))
         {

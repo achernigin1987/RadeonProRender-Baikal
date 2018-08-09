@@ -58,7 +58,7 @@ namespace Baikal
 
         namespace
         {
-            std::unique_ptr<Inference> CreateDenoiserInference(
+            std::unique_ptr<Inference> CreateInference(
                     MLDenoiserInputs inputs,
                     float gpu_memory_fraction,
                     std::string const &visible_devices,
@@ -114,22 +114,22 @@ namespace Baikal
             }
         }
 
-        void MLDenoiser::InitDenoiserInference()
+        void MLDenoiser::InitInference()
         {
             auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
             auto visible_devices = GetParameter("visible_devices").GetString();
 
-            m_inference = CreateDenoiserInference(m_inputs,
-                                                  gpu_memory_fraction,
-                                                  visible_devices,
-                                                  m_width, m_height);
+            m_inference = CreateInference(m_inputs,
+                                          gpu_memory_fraction,
+                                          visible_devices,
+                                          m_width, m_height);
 
             // Realloc cache if needed
             auto shape = m_inference->GetInputShape();
 
             size_t bytes_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
 
-            if (m_host_cache.size() < bytes_count)
+            if (m_host_cache.size() != bytes_count)
             {
                 m_device_cache = std::make_unique<CLWBuffer<char>>(
                         CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, bytes_count));
@@ -177,7 +177,7 @@ namespace Baikal
 
             if (m_is_dirty)
             {
-                InitDenoiserInference();
+                InitInference();
                 m_is_dirty = false;
             }
 
