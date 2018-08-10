@@ -31,7 +31,6 @@ THE SOFTWARE.
 #include "CLWBuffer.h"
 #include "math/mathutils.h"
 
-//#define ML_DENOISER_IMAGES_DIR "/home/alexander/images"
 // E.g. #define ML_DENOISER_IMAGES_DIR "/images/dir"
 #ifdef ML_DENOISER_IMAGES_DIR
 #include <fstream>
@@ -167,7 +166,7 @@ namespace Baikal
             }
         }
 
-        void MLDenoiser::DivisionBySampleCount(CLWBuffer<RadeonRays::float3> dst,
+        void MLDenoiser::DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
                                                CLWBuffer<RadeonRays::float3> src)
         {
             assert (dst.GetElementCount() >= src.GetElementCount());
@@ -186,7 +185,7 @@ namespace Baikal
                 m_context->Launch1D(0,
                                     thread_num,
                                     64,
-                                    division_kernel).Wait();
+                                    division_kernel);
             }
         }
 
@@ -225,6 +224,7 @@ namespace Baikal
                 {
                 case OutputType::kColor:
                 {
+                    // TODO: call DivideBySampleCount after removing gamma correction
                     m_context->ReadBuffer<float3>(0,
                                                   device_mem,
                                                   m_host_cache.data(),
@@ -233,7 +233,6 @@ namespace Baikal
                     auto dest = host_mem;
                     auto source = m_host_cache.data();
                     sample_count = static_cast<unsigned int>(source->w);
-                    (void) sample_count;
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
                         dest[0] = std::pow(source->x / source->w, 1.f / 2.2f);
@@ -246,7 +245,7 @@ namespace Baikal
                 }
                 case OutputType::kDepth:
                 {
-                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_cache);
+                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem);
 
                     m_primitives->Normalize(0,
                                             CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem),
@@ -256,7 +255,12 @@ namespace Baikal
                     m_context->ReadBuffer<RadeonRays::float3>(0,
                                                 CLWBuffer<RadeonRays::float3>::CreateFromClBuffer(normalized_buf),
                                                 m_host_cache.data(),
-                                                normalized_buf.GetElementCount()).Wait();
+                                                normalized_buf.GetElementCount());
+
+                    m_context->ReadBuffer<float3>(0,
+                                                  device_mem,
+                                                  m_host_cache.data(),
+                                                  device_mem.GetElementCount()).Wait();
 
                     auto t = device_mem.GetElementCount();
                     auto dest = host_mem;
@@ -271,6 +275,8 @@ namespace Baikal
                 }
                 case OutputType::kViewShadingNormal:
                 {
+                    DivideBySampleCount(*m_device_cache, device_mem);
+
                     m_context->ReadBuffer<float3>(0,
                                                   *m_device_cache,
                                                   m_host_cache.data(),
@@ -291,8 +297,10 @@ namespace Baikal
                 }
                 case OutputType::kGloss:
                 {
+                    DivideBySampleCount(*m_device_cache, device_mem);
+
                     m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
+                                                  *m_device_cache,
                                                   m_host_cache.data(),
                                                   device_mem.GetElementCount()).Wait();
 
@@ -302,6 +310,7 @@ namespace Baikal
 
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
+                        dest[0] = source->x;
                         dest += shape.channels;
                         ++source;
                     }
@@ -309,7 +318,7 @@ namespace Baikal
                 }
                 case OutputType::kAlbedo:
                 {
-                    DivisionBySampleCount(*m_device_cache, device_mem);
+                    DivideBySampleCount(*m_device_cache, device_mem);
 
                     m_context->ReadBuffer<float3>(0,
                                                   *m_device_cache,
@@ -336,7 +345,7 @@ namespace Baikal
 
 #ifdef ML_DENOISER_IMAGES_DIR
             static unsigned input_index = 0;
-            //SaveImage("input", tensor.data(), tensor.size(), input_index++);
+            SaveImage("input", tensor.data(), tensor.size(), input_index++);
 #endif
             if (sample_count >= 8)
             {

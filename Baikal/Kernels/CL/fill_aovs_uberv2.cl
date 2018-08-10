@@ -36,9 +36,12 @@ THE SOFTWARE.
 #include <../Baikal/Kernels/CL/path.cl>
 #include <../Baikal/Kernels/CL/vertex.cl>
 
-#define CORRECT_VALUE(value)\
-    if (any(isnan(value)) || (value.w == 0))\
-        value = make_float4(0.f, 0.f, 0.f, 1.f);
+#define CORRECT_VALUE(x) {\
+    float4 value = x;\
+    if (any(isnan(value)) || (value.w == 0)) {\
+        value = make_float4(0.f, 0.f, 0.f, 1.f);\
+    }\
+}
 
 // Fill AOVs
 KERNEL void FillAOVsUberV2(

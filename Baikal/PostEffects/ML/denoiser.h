@@ -67,7 +67,7 @@ namespace Baikal
 
             void InitInference();
 
-            void DivisionBySampleCount(CLWBuffer<RadeonRays::float3> dst,
+            void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
                                        CLWBuffer<RadeonRays::float3> src);
 
 
