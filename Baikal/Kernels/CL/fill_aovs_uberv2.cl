@@ -37,7 +37,7 @@ THE SOFTWARE.
 #include <../Baikal/Kernels/CL/vertex.cl>
 
 #define CORRECT_VALUE(value)\
-    if (any(isnan(value.xyz)) || (value.w == 0))\
+    if (any(isnan(value)) || (value.w == 0))\
         value = make_float4(0.f, 0.f, 0.f, 1.f);
 
 // Fill AOVs

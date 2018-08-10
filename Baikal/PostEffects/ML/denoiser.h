@@ -25,6 +25,7 @@ THE SOFTWARE.
 #include "PostEffects/ML/inference.h"
 #include "PostEffects/ML/tensor.h"
 #include "PostEffects/post_effect.h"
+#include "PostEffects/clw_post_effect.h"
 
 #include <cstddef>
 #include <memory>
@@ -47,11 +48,11 @@ namespace Baikal
             kColorAlbedoNormal8,
         };
 
-        class MLDenoiser : public PostEffect
+        class MLDenoiser : public ClwPostEffect
         {
         public:
 
-            MLDenoiser(const CLWContext& context);
+            MLDenoiser(const CLWContext& context, const CLProgramManager *program_manager);
 
             InputTypes GetInputTypes() const override;
 
@@ -66,11 +67,9 @@ namespace Baikal
 
             void InitInference();
 
-            template <class T>
-            T* HostCache()
-            {
-                return reinterpret_cast<T*>(m_host_cache.data());
-            }
+            void DivisionBySampleCount(CLWBuffer<RadeonRays::float3> dst,
+                                       CLWBuffer<RadeonRays::float3> src);
+
 
             MLDenoiserInputs m_inputs;
             Inference::Ptr m_inference;
@@ -78,10 +77,9 @@ namespace Baikal
             std::unique_ptr<CLWContext> m_context;
             std::unique_ptr<CLWParallelPrimitives> m_primitives;
             // GPU cache
-            std::unique_ptr<CLWBuffer<char>> m_device_cache;
-            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_depth_cache;
+            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
             // CPU cache
-            std::vector<std::uint8_t> m_host_cache;
+            std::vector<RadeonRays::float3> m_host_cache;
             Tensor m_last_denoised_image;
             std::uint32_t m_start_seq_num = 0;
             std::uint32_t m_last_seq_num = 0;
