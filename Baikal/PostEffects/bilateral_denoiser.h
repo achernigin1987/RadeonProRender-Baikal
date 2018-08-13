@@ -84,11 +84,11 @@ namespace Baikal
 #endif
     {
         // Add necessary params
-        RegisterParameter("radius", RadeonRays::float4(5.f, 0.f, 0.f, 0.f));
-        RegisterParameter("color_sensitivity", RadeonRays::float4(5.f, 0.f, 0.f, 0.f));
-        RegisterParameter("position_sensitivity", RadeonRays::float4(5.f, 0.f, 0.f, 0.f));
-        RegisterParameter("normal_sensitivity", RadeonRays::float4(0.1f, 0.f, 0.f, 0.f));
-        RegisterParameter("albedo_sensitivity", RadeonRays::float4(0.1f, 0.f, 0.f, 0.f));
+        RegisterParameter("radius", 5.f);
+        RegisterParameter("color_sensitivity", 5.f);
+        RegisterParameter("position_sensitivity", 5.f);
+        RegisterParameter("normal_sensitivity", 0.1f);
+        RegisterParameter("albedo_sensitivity", 0.1f);
     }
 
     inline ClwOutput* BilateralDenoiser::FindOutput(InputSet const& input_set, Renderer::OutputType type)
@@ -105,11 +105,11 @@ namespace Baikal
 
     inline void BilateralDenoiser::Apply(InputSet const& input_set, Output& output)
     {
-        auto radius = static_cast<std::uint32_t>(GetParameter("radius").GetFloat4().x);
-        auto sigma_color = GetParameter("color_sensitivity").GetFloat4().x;
-        auto sigma_position = GetParameter("position_sensitivity").GetFloat4().x;
-        auto sigma_normal = GetParameter("normal_sensitivity").GetFloat4().x;
-        auto sigma_albedo = GetParameter("albedo_sensitivity").GetFloat4().x;
+        auto radius = static_cast<std::uint32_t>(GetParameter("radius").GetFloat());
+        auto sigma_color = GetParameter("color_sensitivity").GetFloat();
+        auto sigma_position = GetParameter("position_sensitivity").GetFloat();
+        auto sigma_normal = GetParameter("normal_sensitivity").GetFloat();
+        auto sigma_albedo = GetParameter("albedo_sensitivity").GetFloat();
 
         auto color = FindOutput(input_set, Renderer::OutputType::kColor);
         auto normal = FindOutput(input_set, Renderer::OutputType::kWorldShadingNormal);

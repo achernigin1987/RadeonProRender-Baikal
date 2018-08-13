@@ -99,6 +99,7 @@ namespace Baikal
                  m_inputs(MLDenoiserInputs::kColorAlbedoDepthNormal9)
         {
             RegisterParameter("gpu_memory_fraction", .1f);
+            RegisterParameter("start_spp", 8u);
             RegisterParameter("visible_devices", std::string());
 
             m_context = std::make_unique<CLWContext>(context);
@@ -207,6 +208,8 @@ namespace Baikal
 
         void MLDenoiser::Apply(InputSet const& input_set, Output& output)
         {
+            auto start_spp = GetParameter("start_spp").GetUint();
+
             if (m_width != input_set.begin()->second->width() ||
                 m_height != input_set.begin()->second->height())
             {
@@ -359,7 +362,7 @@ namespace Baikal
             static unsigned input_index = 0;
             SaveImage("input", tensor.data(), tensor.size(), input_index++);
 #endif
-            if (sample_count >= 8)
+            if (sample_count >= start_spp)
             {
                 tensor.tag = ++m_last_seq_num;
                 m_inference->PushInput(std::move(tensor));

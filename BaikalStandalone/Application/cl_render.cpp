@@ -63,11 +63,25 @@ namespace Baikal
         InitCl(settings, m_tex);
 
 #ifdef ENABLE_DENOISER
-        AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
+        switch (settings.denoiser_mode)
+        {
+            case DenoiserMode::kBilateral:
+                AddPostEffect(m_primary, PostEffectType::kBilateralDenoiser);
+                break;
+            case DenoiserMode::kWavelet:
+                AddPostEffect(m_primary, PostEffectType::kWaveletDenoiser);
+                break;
+            case DenoiserMode ::kML:
+                AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
+                m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
+                m_post_effect->SetParameter("visible_devices", settings.visible_devices);
+                m_post_effect->SetParameter("start_spp", settings.start_spp);
+                break;
+            default:
+                throw std::runtime_error("AppClRender(...): Unsupported denoiser type");
+        }
+
         m_output_accessor = std::make_unique<RendererOutputAccessor>("images", m_width, m_height);
-        // TODO: it's applicable only for MLDenoiser
-        m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
-        m_post_effect->SetParameter("visible_devices", settings.visible_devices);
 #endif
 
         LoadScene(settings);
@@ -170,14 +184,14 @@ namespace Baikal
         return m_post_effect_type;
     }
 
-    void AppClRender::SetDenoiserFloatParam(const std::string& name, const float4& value)
+    void AppClRender::SetDenoiserFloatParam(const std::string& name, float value)
     {
         m_post_effect->SetParameter(name, value);
     }
 
-    float4 AppClRender::GetDenoiserFloatParam(const std::string& name)
+    float AppClRender::GetDenoiserFloatParam(const std::string& name)
     {
-        return m_post_effect->GetParameter(name).GetFloat4();
+        return m_post_effect->GetParameter(name).GetFloat();
     }
 #endif
 
