@@ -243,7 +243,7 @@ namespace Baikal
                     DivideBySampleCount(*m_device_cache, device_mem);
                     // TODO: call DivideBySampleCount after removing gamma correction
                     m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
+                                                  *m_device_cache,
                                                   m_host_cache.data(),
                                                   device_mem.GetElementCount()).Wait();
 
@@ -411,6 +411,7 @@ namespace Baikal
             {
                 auto dest = m_host_cache.data();
                 auto source = m_last_denoised_image.data();
+                // TODO: use memcpy here
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
                     dest->x = *source++;
