@@ -208,7 +208,7 @@ namespace Baikal
             }
             else
             {
-                std::cerr << "WARNING: unknown denoiser mode";
+                std::cerr << "WARNING: unknown denoiser mode\n";
             }
         }
 

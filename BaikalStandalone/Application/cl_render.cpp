@@ -332,7 +332,6 @@ namespace Baikal
             {
                 if (m_ctrl[i].scene_state != m_ctrl[m_primary].scene_state)
                 {
-                    std::cout << "Frame " << m_frame_count << ": device " << i << " skipped update";
                     // Skip update if worker has sent us non-actual data
                     continue;
                 }

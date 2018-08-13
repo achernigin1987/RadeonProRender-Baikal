@@ -81,7 +81,8 @@ namespace Baikal
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
             // CPU cache
             std::vector<RadeonRays::float3> m_host_cache;
-            Tensor m_last_denoised_image;
+            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_last_denoised_image;
+            bool m_has_denoised_image = false;
             std::uint32_t m_start_seq_num = 0;
             std::uint32_t m_last_seq_num = 0;
             std::uint32_t m_width = 0;
