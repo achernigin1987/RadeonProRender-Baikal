@@ -60,6 +60,8 @@ namespace Baikal
 
         s.num_bounces = m_cmd_parser.GetOption("-nb", s.num_bounces);
 
+        s.split_output = m_cmd_parser.OptionExists("-split");
+
         s.camera_pos.x = m_cmd_parser.GetOption("-cpx", s.camera_pos.x);
 
         s.camera_pos.y = m_cmd_parser.GetOption("-cpy", s.camera_pos.y);

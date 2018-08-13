@@ -39,6 +39,7 @@ THE SOFTWARE.
 #endif
 
 #include "OpenImageIO/imageio.h"
+#include "cl_render.h"
 
 #include <fstream>
 #include <sstream>
@@ -49,13 +50,14 @@ THE SOFTWARE.
 namespace Baikal
 {
 
-#ifdef ENABLE_DENOISER
     namespace
     {
+        constexpr float kGamma = 2.2f;
+#ifdef ENABLE_DENOISER
         std::unique_ptr<RendererOutputAccessor> m_output_accessor;
         const std::size_t m_dump_period = 20;
-    }
 #endif
+    }
 
     AppClRender::AppClRender(AppSettings& settings, GLuint tex)
     : m_tex(tex), m_output_type(Renderer::OutputType::kColor), m_frame_count(0)
@@ -360,10 +362,10 @@ namespace Baikal
         {
 #ifdef ENABLE_DENOISER
             m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
-            ApplyGammaCorrection(m_primary, 2.2f, false);
+            ApplyGammaCorrection(m_primary, kGamma, false);
 #else
             GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-            ApplyGammaCorrection(m_primary, 2.2f, true);
+            ApplyGammaCorrection(m_primary, kGamma, true);
 #endif
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_tex);
@@ -372,31 +374,19 @@ namespace Baikal
         }
         else
         {
-            std::vector<cl_mem> objects;
-            objects.push_back(m_cl_interop_image);
-            m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
-
-            auto copykernel = dynamic_cast<MonteCarloRenderer*>(
-                    m_cfgs[m_primary].renderer.get())->GetCopyKernel();
-
 #ifdef ENABLE_DENOISER
-            auto output = m_post_effect_output.get();
+            if (settings.split_output)
+            {
+                CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor),
+                         m_post_effect_output.get());
+            }
+            else
+            {
+                CopyToGL(m_post_effect_output.get());
+            }
 #else
-            auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
+            CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor));
 #endif
-            unsigned argc = 0;
-
-            copykernel.SetArg(argc++, dynamic_cast<Baikal::ClwOutput*>(output)->data());
-            copykernel.SetArg(argc++, output->width());
-            copykernel.SetArg(argc++, output->height());
-            copykernel.SetArg(argc++, 2.2f);
-            copykernel.SetArg(argc++, m_cl_interop_image);
-
-            int globalsize = output->width() * output->height();
-            m_cfgs[m_primary].context.Launch1D(0, ((globalsize + 63) / 64) * 64, 64, copykernel);
-
-            m_cfgs[m_primary].context.ReleaseGLObjects(0, objects);
-            m_cfgs[m_primary].context.Finish(0);
         }
 
         if (settings.benchmark)
@@ -508,9 +498,9 @@ namespace Baikal
                 float3 val = data[(height - 1 - y) * width + x];
                 tempbuf[y * width + x] = (1.f / val.w) * val;
 
-                tempbuf[y * width + x].x = std::pow(tempbuf[y * width + x].x, 1.f / 2.2f);
-                tempbuf[y * width + x].y = std::pow(tempbuf[y * width + x].y, 1.f / 2.2f);
-                tempbuf[y * width + x].z = std::pow(tempbuf[y * width + x].z, 1.f / 2.2f);
+                tempbuf[y * width + x].x = std::pow(tempbuf[y * width + x].x, 1.f / kGamma);
+                tempbuf[y * width + x].y = std::pow(tempbuf[y * width + x].y, 1.f / kGamma);
+                tempbuf[y * width + x].z = std::pow(tempbuf[y * width + x].z, 1.f / kGamma);
             }
 
         ImageOutput* out = ImageOutput::create(name);
@@ -622,7 +612,7 @@ namespace Baikal
         settings.time_benchmark_time = delta / 1000.f;
 
         GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-        ApplyGammaCorrection(m_primary, 2.2f, true);
+        ApplyGammaCorrection(m_primary, kGamma, true);
 
         auto& fdata = m_outputs[m_primary].fdata;
         std::vector<RadeonRays::float3> data(fdata.size());
@@ -802,5 +792,53 @@ namespace Baikal
             }
         }
     }
+
 #endif
+
+    void AppClRender::CopyToGL(Output* output)
+    {
+        std::vector<cl_mem> objects = {m_cl_interop_image};
+        m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
+
+        auto copykernel = dynamic_cast<MonteCarloRenderer*>(
+            m_cfgs[m_primary].renderer.get())->GetCopyKernel();
+
+        copykernel.SetArg(0, dynamic_cast<ClwOutput*>(output)->data());
+        copykernel.SetArg(1, output->width());
+        copykernel.SetArg(2, output->height());
+        copykernel.SetArg(3, kGamma);
+        copykernel.SetArg(4, m_cl_interop_image);
+
+        int globalsize = output->width() * output->height();
+        m_cfgs[m_primary].context.Launch1D(0, (globalsize + 63) / 64 * 64, 64, copykernel);
+
+        m_cfgs[m_primary].context.ReleaseGLObjects(0, objects);
+        m_cfgs[m_primary].context.Finish(0);
+    }
+
+    void AppClRender::CopyToGL(Output* left_output, Output* right_output)
+    {
+        assert(left_output->width() == right_output->width());
+        assert(left_output->height() == right_output->height());
+
+        std::vector<cl_mem> objects = {m_cl_interop_image};
+        m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
+
+        auto copykernel = dynamic_cast<MonteCarloRenderer*>(
+            m_cfgs[m_primary].renderer.get())->GetCopySplitKernel();
+
+        copykernel.SetArg(0, dynamic_cast<ClwOutput*>(left_output)->data());
+        copykernel.SetArg(1, dynamic_cast<ClwOutput*>(right_output)->data());
+        copykernel.SetArg(2, left_output->width());
+        copykernel.SetArg(3, left_output->height());
+        copykernel.SetArg(4, kGamma);
+        copykernel.SetArg(5, m_cl_interop_image);
+
+        int globalsize = left_output->width() * left_output->height();
+        m_cfgs[m_primary].context.Launch1D(0, (globalsize + 63) / 64 * 64, 64, copykernel);
+
+        m_cfgs[m_primary].context.ReleaseGLObjects(0, objects);
+        m_cfgs[m_primary].context.Finish(0);
+    }
+
 } // Baikal

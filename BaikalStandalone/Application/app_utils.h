@@ -51,6 +51,7 @@ namespace Baikal
         bool interop;
         float cspeed;
         Mode mode;
+        bool split_output = false;
 
         //ao
         float ao_radius;
