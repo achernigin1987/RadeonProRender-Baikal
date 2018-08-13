@@ -50,13 +50,14 @@ THE SOFTWARE.
 namespace Baikal
 {
 
-#ifdef ENABLE_DENOISER
     namespace
     {
+        constexpr float kGamma = 2.2f;
+#ifdef ENABLE_DENOISER
         std::unique_ptr<RendererOutputAccessor> m_output_accessor;
         const std::size_t m_dump_period = 20;
-    }
 #endif
+    }
 
     AppClRender::AppClRender(AppSettings& settings, GLuint tex)
     : m_tex(tex), m_output_type(Renderer::OutputType::kColor), m_frame_count(0)
@@ -347,10 +348,10 @@ namespace Baikal
         {
 #ifdef ENABLE_DENOISER
             m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
-            ApplyGammaCorrection(m_primary, 2.2f, false);
+            ApplyGammaCorrection(m_primary, kGamma, false);
 #else
             GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-            ApplyGammaCorrection(m_primary, 2.2f, true);
+            ApplyGammaCorrection(m_primary, kGamma, true);
 #endif
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_tex);
@@ -362,15 +363,15 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
             if (settings.split_output)
             {
-                CopyToGl(GetRendererOutput(m_primary, Renderer::OutputType::kColor),
+                CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor),
                          m_post_effect_output.get());
             }
             else
             {
-                CopyToGl(m_post_effect_output.get());
+                CopyToGL(m_post_effect_output.get());
             }
 #else
-            CopyToGl(GetRendererOutput(m_primary, Renderer::OutputType::kColor));
+            CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor));
 #endif
         }
 
@@ -483,9 +484,9 @@ namespace Baikal
                 float3 val = data[(height - 1 - y) * width + x];
                 tempbuf[y * width + x] = (1.f / val.w) * val;
 
-                tempbuf[y * width + x].x = std::pow(tempbuf[y * width + x].x, 1.f / 2.2f);
-                tempbuf[y * width + x].y = std::pow(tempbuf[y * width + x].y, 1.f / 2.2f);
-                tempbuf[y * width + x].z = std::pow(tempbuf[y * width + x].z, 1.f / 2.2f);
+                tempbuf[y * width + x].x = std::pow(tempbuf[y * width + x].x, 1.f / kGamma);
+                tempbuf[y * width + x].y = std::pow(tempbuf[y * width + x].y, 1.f / kGamma);
+                tempbuf[y * width + x].z = std::pow(tempbuf[y * width + x].z, 1.f / kGamma);
             }
 
         ImageOutput* out = ImageOutput::create(name);
@@ -597,7 +598,7 @@ namespace Baikal
         settings.time_benchmark_time = delta / 1000.f;
 
         GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-        ApplyGammaCorrection(m_primary, 2.2f, true);
+        ApplyGammaCorrection(m_primary, kGamma, true);
 
         auto& fdata = m_outputs[m_primary].fdata;
         std::vector<RadeonRays::float3> data(fdata.size());
@@ -780,7 +781,7 @@ namespace Baikal
 
 #endif
 
-    void AppClRender::CopyToGl(Output* output)
+    void AppClRender::CopyToGL(Output* output)
     {
         std::vector<cl_mem> objects = {m_cl_interop_image};
         m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
@@ -791,7 +792,7 @@ namespace Baikal
         copykernel.SetArg(0, dynamic_cast<ClwOutput*>(output)->data());
         copykernel.SetArg(1, output->width());
         copykernel.SetArg(2, output->height());
-        copykernel.SetArg(3, 2.2f);
+        copykernel.SetArg(3, kGamma);
         copykernel.SetArg(4, m_cl_interop_image);
 
         int globalsize = output->width() * output->height();
@@ -801,7 +802,7 @@ namespace Baikal
         m_cfgs[m_primary].context.Finish(0);
     }
 
-    void AppClRender::CopyToGl(Output* left_output, Output* right_output)
+    void AppClRender::CopyToGL(Output* left_output, Output* right_output)
     {
         assert(left_output->width() == right_output->width());
         assert(left_output->height() == right_output->height());
@@ -816,7 +817,7 @@ namespace Baikal
         copykernel.SetArg(1, dynamic_cast<ClwOutput*>(right_output)->data());
         copykernel.SetArg(2, left_output->width());
         copykernel.SetArg(3, left_output->height());
-        copykernel.SetArg(4, 2.2f);
+        copykernel.SetArg(4, kGamma);
         copykernel.SetArg(5, m_cl_interop_image);
 
         int globalsize = left_output->width() * left_output->height();
