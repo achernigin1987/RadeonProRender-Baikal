@@ -64,7 +64,7 @@ namespace Baikal
             case PostEffectType::kWaveletDenoiser:
                 return std::make_unique<WaveletDenoiser>(m_context, &m_program_manager);
             case PostEffectType::kMLDenoiser:
-                return std::make_unique<PostEffects::MLDenoiser>(m_context);
+                return std::make_unique<PostEffects::MLDenoiser>(m_context, &m_program_manager);
             default:
                 throw std::runtime_error("PostEffect is not supported");
         }

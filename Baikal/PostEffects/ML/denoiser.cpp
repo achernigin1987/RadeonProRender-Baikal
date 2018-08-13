@@ -87,8 +87,13 @@ namespace Baikal
             }
         }
 
-        MLDenoiser::MLDenoiser(const CLWContext& context)
-                   : m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
+        MLDenoiser::MLDenoiser(const CLWContext& context, const CLProgramManager *program_manager)
+#ifdef BAIKAL_EMBED_KERNELS
+                : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
+#else
+                : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl"),
+#endif
+                 m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
         {
             RegisterParameter("gpu_memory_fraction", .1f);
             RegisterParameter("visible_devices", std::string());
@@ -131,13 +136,9 @@ namespace Baikal
 
             if (m_host_cache.size() != bytes_count)
             {
-                m_device_cache = std::make_unique<CLWBuffer<char>>(
-                        CLWBuffer<char>::Create(*m_context, CL_MEM_READ_WRITE, bytes_count));
-                m_device_depth_cache = std::make_unique<CLWBuffer<RadeonRays::float3>>(
-                        CLWBuffer<RadeonRays::float3>::Create(*m_context, CL_MEM_READ_WRITE,
-                                                              shape.width * shape.height));
-
-                m_host_cache.resize(bytes_count);
+                m_device_cache = std::make_unique<CLWBuffer<float3>>(
+                        CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE,  shape.width * shape.height));
+                m_host_cache.resize(shape.width * shape.height);
             }
         }
 
@@ -162,6 +163,29 @@ namespace Baikal
                             });
                 default:
                     throw std::runtime_error("Model is not supported");
+            }
+        }
+
+        void MLDenoiser::DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
+                                               CLWBuffer<RadeonRays::float3> src)
+        {
+            assert (dst.GetElementCount() >= src.GetElementCount());
+
+            auto division_kernel = GetKernel("DivideBySamleCount");
+
+            // Set kernel parameters
+            int argc = 0;
+            division_kernel.SetArg(argc++, dst);
+            division_kernel.SetArg(argc++, src);
+            division_kernel.SetArg(argc++, (int)src.GetElementCount());
+
+            // run DivideBySamleCount kernel
+            {
+                auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
+                m_context->Launch1D(0,
+                                    thread_num,
+                                    64,
+                                    division_kernel);
             }
         }
 
@@ -200,15 +224,15 @@ namespace Baikal
                 {
                 case OutputType::kColor:
                 {
+                    // TODO: call DivideBySampleCount after removing gamma correction
                     m_context->ReadBuffer<float3>(0,
                                                   device_mem,
-                                                  HostCache<float3>(),
+                                                  m_host_cache.data(),
                                                   device_mem.GetElementCount()).Wait();
 
                     auto dest = host_mem;
-                    auto source = HostCache<float3>();
+                    auto source = m_host_cache.data();
                     sample_count = static_cast<unsigned int>(source->w);
-                    (void) sample_count;
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
                         dest[0] = std::pow(source->x / source->w, 1.f / 2.2f);
@@ -221,30 +245,26 @@ namespace Baikal
                 }
                 case OutputType::kDepth:
                 {
-                    m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
-                                                  HostCache<float3>(),
-                                                  device_mem.GetElementCount()).Wait();
-
-                    m_context->WriteBuffer<RadeonRays::float3>(0,
-                                                               *m_device_depth_cache,
-                                                               reinterpret_cast<RadeonRays::float3*>(m_host_cache.data()),
-                                                               device_mem.GetElementCount()).Wait();
-
-                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_cache);
+                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem);
 
                     m_primitives->Normalize(0,
-                                            CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_depth_cache),
+                                            CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem),
                                             normalized_buf,
-                                            (int)device_mem.GetElementCount()).Wait();
+                                            (int)device_mem.GetElementCount());
 
                     m_context->ReadBuffer<RadeonRays::float3>(0,
                                                 CLWBuffer<RadeonRays::float3>::CreateFromClBuffer(normalized_buf),
-                                                (RadeonRays::float3*)m_host_cache.data(),
-                                                device_mem.GetElementCount()).Wait();
+                                                m_host_cache.data(),
+                                                normalized_buf.GetElementCount());
+
+                    m_context->ReadBuffer<float3>(0,
+                                                  device_mem,
+                                                  m_host_cache.data(),
+                                                  device_mem.GetElementCount()).Wait();
+
                     auto t = device_mem.GetElementCount();
                     auto dest = host_mem;
-                    auto source = HostCache<float3>();
+                    auto source = m_host_cache.data();
                     for (auto i = 0u; i < t; ++i)
                     {
                         *dest = source->x;
@@ -255,26 +275,20 @@ namespace Baikal
                 }
                 case OutputType::kViewShadingNormal:
                 {
+                    DivideBySampleCount(*m_device_cache, device_mem);
+
                     m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
-                                                  HostCache<float3>(),
+                                                  *m_device_cache,
+                                                  m_host_cache.data(),
                                                   device_mem.GetElementCount()).Wait();
 
                     // copy only the first two channels
                     auto dest = host_mem;
-                    auto source = HostCache<float3>();
+                    auto source = m_host_cache.data();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        if (source->w)
-                        {
-                            dest[0] = RadeonRays::clamp(source->x / source->w, 0.f, 1.f);
-                            dest[1] = RadeonRays::clamp(source->y / source->w, 0.f, 1.f);
-                        }
-                        else
-                        {
-                            dest[0] = 0;
-                            dest[1] = 0;
-                        }
+                        dest[0] = source->x;
+                        dest[1] = source->y;
                         dest += shape.channels;
                         ++source;
                     }
@@ -283,24 +297,20 @@ namespace Baikal
                 }
                 case OutputType::kGloss:
                 {
+                    DivideBySampleCount(*m_device_cache, device_mem);
+
                     m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
-                                                  HostCache<float3>(),
+                                                  *m_device_cache,
+                                                  m_host_cache.data(),
                                                   device_mem.GetElementCount()).Wait();
 
                     // copy only the first channel
                     auto dest = host_mem;
-                    auto source = HostCache<float3>();
+                    auto source = m_host_cache.data();
+
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        if (source->w)
-                        {
-                            dest[0] = source->x / source->w;
-                        }
-                        else
-                        {
-                            dest[0] = 0;
-                        }
+                        dest[0] = source->x;
                         dest += shape.channels;
                         ++source;
                     }
@@ -308,28 +318,20 @@ namespace Baikal
                 }
                 case OutputType::kAlbedo:
                 {
+                    DivideBySampleCount(*m_device_cache, device_mem);
+
                     m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
-                                                  HostCache<float3>(),
+                                                  *m_device_cache,
+                                                  m_host_cache.data(),
                                                   device_mem.GetElementCount()).Wait();
 
-                    // copy only the first channel
                     auto dest = host_mem;
-                    auto source = HostCache<float3>();
+                    auto source = m_host_cache.data();
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        if (source->w)
-                        {
-                            dest[0] = source->x / source->w;
-                            dest[1] = source->y / source->w;
-                            dest[2] = source->z / source->w;
-                        }
-                        else
-                        {
-                            dest[0] = 0;
-                            dest[1] = 0;
-                            dest[2] = 0;
-                        }
+                        dest[0] = source->x;
+                        dest[1] = source->y;
+                        dest[2] = source->z;
                         dest += shape.channels;
                         ++source;
                     }
@@ -368,9 +370,9 @@ namespace Baikal
             if (!inference_res.empty() && inference_res.tag >= m_start_seq_num)
             {
 #ifdef ML_DENOISER_IMAGES_DIR
-                SaveImage("output", inference_res.data(), inference_res.size(), inference_res.tag);
+                //SaveImage("output", inference_res.data(), inference_res.size(), inference_res.tag);
 #endif
-                auto dest = HostCache<float3>();
+                auto dest = m_host_cache.data();
                 auto source = inference_res.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
@@ -383,15 +385,15 @@ namespace Baikal
                 }
 
                 m_context->WriteBuffer<float3>(0,
-                    clw_inference_output->data(),
-                    HostCache<float3>(),
-                    inference_res.size() / 3).Wait();
+                                               clw_inference_output->data(),
+                                               m_host_cache.data(),
+                                               inference_res.size() / 3).Wait();
 
                 m_last_denoised_image = std::move(inference_res);
             }
             else if (!m_last_denoised_image.empty())
             {
-                auto dest = HostCache<float3>();
+                auto dest = m_host_cache.data();
                 auto source = m_last_denoised_image.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
@@ -405,7 +407,7 @@ namespace Baikal
 
                 m_context->WriteBuffer<float3>(0,
                                                clw_inference_output->data(),
-                                               HostCache<float3>(),
+                                               m_host_cache.data(),
                                                m_last_denoised_image.size() / 3).Wait();
             }
             else

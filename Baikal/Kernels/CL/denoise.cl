@@ -23,6 +23,7 @@ THE SOFTWARE.
 #define DENOISE_CL
 
 #include <../Baikal/Kernels/CL/common.cl>
+#include <../Baikal/Kernels/CL/utils.cl>
 
 // Similarity function
 inline float C(float3 x1, float3 x2, float sigma)
@@ -111,5 +112,30 @@ void BilateralDenoise_main(
         }
     }
 }
+
+// perform division on w component
+KERNEL
+void DivideBySamleCount(GLOBAL float4* restrict dst,
+                        GLOBAL float4 const* restrict src,
+                        int elems_num)
+{
+    int id = get_global_id(0);
+
+    if (id >= elems_num)
+    {
+        return;
+    }
+
+    if (src[id].w != 0.0f)
+    {
+        dst[id].xyz = src[id].xyz / src[id].w;
+    }
+    else
+    {
+        dst[id] = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+}
+
 
 #endif
