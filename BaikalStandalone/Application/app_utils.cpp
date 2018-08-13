@@ -209,6 +209,8 @@ namespace Baikal
         {
             s.denoiser_mode = DenoiserMode::kML;
         }
+
+        s.start_spp = m_cmd_parser.GetOption("-start_spp", 8u);
 #endif
         return s;
     }

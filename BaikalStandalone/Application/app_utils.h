@@ -104,6 +104,7 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
         // denoiser settings
         DenoiserMode denoiser_mode;
+        std::uint32_t start_spp;
 #endif
     };
 

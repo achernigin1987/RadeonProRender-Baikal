@@ -75,6 +75,7 @@ namespace Baikal
                 AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
                 m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
                 m_post_effect->SetParameter("visible_devices", settings.visible_devices);
+                m_post_effect->SetParameter("start_spp", settings.start_spp);
                 break;
             default:
                 throw std::runtime_error("AppClRender(...): Unsupported denoiser type");
