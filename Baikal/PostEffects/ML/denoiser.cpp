@@ -230,9 +230,15 @@ namespace Baikal
             auto host_mem = tensor.data();
 
             unsigned sample_count = 0;
+            bool too_few_samples = false;
 
             for (const auto& input_desc : m_layout)
             {
+                if (too_few_samples)
+                {
+                    break;
+                }
+
                 auto type = input_desc.first;
                 auto input = input_set.at(type);
 
@@ -253,6 +259,12 @@ namespace Baikal
                     auto dest = host_mem;
                     auto source = m_host_cache.data();
                     sample_count = static_cast<unsigned int>(source->w);
+                    if (sample_count < start_spp)
+                    {
+                        too_few_samples = true;
+                        break;
+                    }
+
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
                         dest[0] = source->x;
@@ -362,15 +374,15 @@ namespace Baikal
             static unsigned input_index = 0;
             SaveImage("input", tensor.data(), tensor.size(), input_index++);
 #endif
-            if (sample_count >= start_spp)
-            {
-                tensor.tag = ++m_last_seq_num;
-                m_inference->PushInput(std::move(tensor));
-            }
-            else
+            if (too_few_samples)
             {
                 m_start_seq_num = m_last_seq_num + 1;
                 m_last_denoised_image = {};
+            }
+            else
+            {
+                tensor.tag = ++m_last_seq_num;
+                m_inference->PushInput(std::move(tensor));
             }
 
             auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
