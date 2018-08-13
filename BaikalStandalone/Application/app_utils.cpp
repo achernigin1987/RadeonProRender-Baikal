@@ -199,7 +199,7 @@ namespace Baikal
         : help(false)
         , path("../Resources/CornellBox")
         , modelname("orig.objm")
-        , envmapname("../Resources/Textures/studio015.hdr")
+        , envmapname("../Resources/Textures/pano_port_001.jpg")
         //render
         , width(512)
         , height(512)
