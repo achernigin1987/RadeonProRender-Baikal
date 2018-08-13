@@ -217,7 +217,7 @@ namespace Baikal
 
                 auto ibl = ImageBasedLight::Create();
                 ibl->SetTexture(ibl_texture);
-		ibl->SetMultiplier(settings.envmapmul);
+                ibl->SetMultiplier(settings.envmapmul);
                 m_scene->AttachLight(ibl);
             }
 

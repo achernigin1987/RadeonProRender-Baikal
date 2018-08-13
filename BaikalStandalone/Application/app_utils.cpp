@@ -233,7 +233,7 @@ namespace Baikal
         , num_bounces(9)
         , num_samples(-1)
         , interop(true)
-        , cspeed(10.25f)
+        , cspeed(20.f)
         , mode(Mode::kUseSingleGpu)
         //ao
         , ao_radius(1.f)
