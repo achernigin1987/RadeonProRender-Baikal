@@ -187,6 +187,29 @@ namespace Baikal
             s.cmd_line_mode = true;
         }
 
+#ifdef ENABLE_DENOISER
+        if (m_cmd_parser.OptionExists("-denoiser_type"))
+        {
+            auto denoiser_mode = m_cmd_parser.GetOption("-denoiser_type");
+
+            if (denoiser_mode == "bilateral")
+            {
+                s.denoiser_mode = DenoiserMode::kBilateral;
+            }
+            else if (denoiser_mode == "wavelet")
+            {
+                s.denoiser_mode = DenoiserMode::kWavelet;
+            }
+            else if (denoiser_mode == "ml")
+            {
+                s.denoiser_mode = DenoiserMode::kML;
+            }
+        }
+        else
+        {
+            s.denoiser_mode = DenoiserMode::kML;
+        }
+#endif
         return s;
     }
 

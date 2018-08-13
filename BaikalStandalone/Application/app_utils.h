@@ -100,6 +100,11 @@ namespace Baikal
         // device settings
         float gpu_mem_fraction = 0; // float number from 0 to 1, percentage of max used device memory, 0 for default behavior
         std::string visible_devices;
+
+#ifdef ENABLE_DENOISER
+        // denoiser settings
+        DenoiserMode denoiser_mode;
+#endif
     };
 
     class AppCliParser

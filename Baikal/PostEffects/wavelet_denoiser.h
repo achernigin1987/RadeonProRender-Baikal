@@ -133,9 +133,9 @@ namespace Baikal
         , m_buffers_initialized(false)
     {
         // Add necessary params
-        RegisterParameter("color_sensitivity", RadeonRays::float4(0.07f, 0.f, 0.f, 0.f));
-        RegisterParameter("position_sensitivity", RadeonRays::float4(0.03f, 0.f, 0.f, 0.f));
-        RegisterParameter("normal_sensitivity", RadeonRays::float4(0.01f, 0.f, 0.f, 0.f));
+        RegisterParameter("color_sensitivity", 0.07f);
+        RegisterParameter("position_sensitivity", 0.03f);
+        RegisterParameter("normal_sensitivity", 0.01f);
 
         for (uint32_t buffer_index = 0; buffer_index < m_num_tmp_buffers; buffer_index++)
         {
@@ -219,8 +219,8 @@ namespace Baikal
         uint32_t prev_buffer_index = m_current_buffer_index;
         m_current_buffer_index = (m_current_buffer_index + 1) % m_num_tmp_buffers;
 
-        auto sigma_color = GetParameter("color_sensitivity").GetFloat4().x;
-        auto sigma_position = GetParameter("position_sensitivity").GetFloat4().x;
+        auto sigma_color = GetParameter("color_sensitivity").GetFloat();
+        auto sigma_position = GetParameter("position_sensitivity").GetFloat();
 
         auto color = FindOutput(input_set, Renderer::OutputType::kColor);
         auto normal = FindOutput(input_set, Renderer::OutputType::kWorldShadingNormal);

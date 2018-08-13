@@ -39,6 +39,13 @@ enum class DeviceType
     kSecondary
 };
 
+enum class DenoiserMode
+{
+    kBilateral = 0,
+    kWavelet,
+    kML
+};
+
 enum class Mode
 {
     kUseAll = 0,
