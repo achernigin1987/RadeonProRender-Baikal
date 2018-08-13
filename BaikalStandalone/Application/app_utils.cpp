@@ -228,9 +228,9 @@ namespace Baikal
         , modelname("orig.objm")
         , envmapname("../Resources/Textures/pano_port_001.jpg")
         //render
-        , width(512)
-        , height(512)
-        , num_bounces(5)
+        , width(800)
+        , height(600)
+        , num_bounces(9)
         , num_samples(-1)
         , interop(true)
         , cspeed(10.25f)
