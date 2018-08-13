@@ -241,7 +241,7 @@ namespace Baikal
                 case OutputType::kColor:
                 {
                     DivideBySampleCount(*m_device_cache, device_mem);
-                    // TODO: call DivideBySampleCount after removing gamma correction
+
                     m_context->ReadBuffer<float3>(0,
                                                   *m_device_cache,
                                                   m_host_cache.data(),
