@@ -83,6 +83,7 @@ namespace Baikal
             std::unique_ptr<CLWContext> m_context;
             std::unique_ptr<CLWParallelPrimitives> m_primitives;
             // GPU cache
+            std::unique_ptr<CLWBuffer<float>> m_sample_count_cache;
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
             std::unique_ptr<CLWBuffer<float>> m_device_tensor;
             // CPU cache
