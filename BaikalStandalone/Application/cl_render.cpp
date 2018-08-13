@@ -346,14 +346,11 @@ namespace Baikal
         {
 #ifdef ENABLE_DENOISER
             m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
-            //GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-            float gamma = 1.f / 2.2f; // TODO: It's applicable only for MLDenoiser
+            ApplyGammaCorrection(m_primary, 2.2f, false);
 #else
             GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-            float gamma = 1.f / 2.2f;
+            ApplyGammaCorrection(m_primary, 2.2f, true);
 #endif
-            ApplyGammaCorrection(m_primary, gamma);
-
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_tex);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RGBA, GL_UNSIGNED_BYTE, &m_outputs[m_primary].udata[0]);
@@ -370,21 +367,15 @@ namespace Baikal
 
 #ifdef ENABLE_DENOISER
             auto output = m_post_effect_output.get();
-            float gamma = 1.f / 2.2f; // TODO: It's applicable only for MLDenoiser
-
-            //auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
-            //float gamma = 1.f / 2.2f;
 #else
             auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
-            float gamma = 1.f / 2.2f;
 #endif
-
             unsigned argc = 0;
 
             copykernel.SetArg(argc++, dynamic_cast<Baikal::ClwOutput*>(output)->data());
             copykernel.SetArg(argc++, output->width());
             copykernel.SetArg(argc++, output->height());
-            copykernel.SetArg(argc++, gamma);
+            copykernel.SetArg(argc++, 2.2f);
             copykernel.SetArg(argc++, m_cl_interop_image);
 
             int globalsize = output->width() * output->height();
@@ -393,7 +384,6 @@ namespace Baikal
             m_cfgs[m_primary].context.ReleaseGLObjects(0, objects);
             m_cfgs[m_primary].context.Finish(0);
         }
-
 
         if (settings.benchmark)
         {
@@ -618,7 +608,7 @@ namespace Baikal
         settings.time_benchmark_time = delta / 1000.f;
 
         GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
-        ApplyGammaCorrection(m_primary, 1.f / 2.2f);
+        ApplyGammaCorrection(m_primary, 2.2f, true);
 
         auto& fdata = m_outputs[m_primary].fdata;
         std::vector<RadeonRays::float3> data(fdata.size());
@@ -640,22 +630,38 @@ namespace Baikal
         dynamic_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->Benchmark(scene, settings.stats);
     }
 
-    void AppClRender::ApplyGammaCorrection(size_t device_idx, float gamma)
+    void AppClRender::ApplyGammaCorrection(size_t device_idx, float gamma, bool divideBySpp = true)
     {
         auto adjust_gamma = [gamma](float val)
         {
-            return (unsigned char)clamp(std::pow(val , gamma) * 255, 0, 255);
+            return (unsigned char)clamp(std::pow(val , 1.f / gamma) * 255, 0, 255);
         };
 
-        for (int i = 0; i < (int)m_outputs[device_idx].fdata.size(); ++i)
+        if (divideBySpp)
         {
-            auto &fdata = m_outputs[device_idx].fdata[i];
-            auto &udata = m_outputs[device_idx].udata;
+            for (int i = 0; i < (int)m_outputs[device_idx].fdata.size(); ++i)
+            {
+                auto &fdata = m_outputs[device_idx].fdata[i];
+                auto &udata = m_outputs[device_idx].udata;
 
-            udata[4 * i] = adjust_gamma(fdata.x / fdata.w);
-            udata[4 * i + 1] = adjust_gamma(fdata.y / fdata.w);
-            udata[4 * i + 2] = adjust_gamma(fdata.z / fdata.w);
-            udata[4 * i + 3] = 1;
+                udata[4 * i] = adjust_gamma(fdata.x / fdata.w);
+                udata[4 * i + 1] = adjust_gamma(fdata.y / fdata.w);
+                udata[4 * i + 2] = adjust_gamma(fdata.z / fdata.w);
+                udata[4 * i + 3] = 1;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < (int)m_outputs[device_idx].fdata.size(); ++i)
+            {
+                auto &fdata = m_outputs[device_idx].fdata[i];
+                auto &udata = m_outputs[device_idx].udata;
+
+                udata[4 * i] = adjust_gamma(fdata.x);
+                udata[4 * i + 1] = adjust_gamma(fdata.y);
+                udata[4 * i + 2] = adjust_gamma(fdata.z);
+                udata[4 * i + 3] = 1;
+            }
         }
     }
 
