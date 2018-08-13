@@ -71,10 +71,13 @@ namespace Baikal
                         model_path = "models/color_depth_normal_gloss_7.pb";
                         input_channels = 7;
                         break;
-
                     case MLDenoiserInputs::kColorAlbedoNormal8:
                         model_path = "models/color_albedo_normal_8.pb";
                         input_channels = 8;
+                        break;
+                    case MLDenoiserInputs::kColorAlbedoDepthNormal9:
+                        model_path = "models/color_albedo_depth_normal_9_v2.pb";
+                        input_channels = 9;
                         break;
                 }
 
@@ -104,18 +107,23 @@ namespace Baikal
             // compute memory layout
             switch (m_inputs)
             {
-            case MLDenoiserInputs::kColorDepthNormalGloss7:
-                m_layout.emplace_back(OutputType::kColor, 3);
-                m_layout.emplace_back(OutputType::kDepth, 1);
-                m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
-                m_layout.emplace_back(OutputType::kGloss, 1);
-                break;
-
-            case MLDenoiserInputs::kColorAlbedoNormal8:
-                m_layout.emplace_back(OutputType::kColor, 3 );
-                m_layout.emplace_back(OutputType::kAlbedo, 3);
-                m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
-                break;
+                case MLDenoiserInputs::kColorDepthNormalGloss7:
+                    m_layout.emplace_back(OutputType::kColor, 3);
+                    m_layout.emplace_back(OutputType::kDepth, 1);
+                    m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
+                    m_layout.emplace_back(OutputType::kGloss, 1);
+                    break;
+                case MLDenoiserInputs::kColorAlbedoNormal8:
+                    m_layout.emplace_back(OutputType::kColor, 3 );
+                    m_layout.emplace_back(OutputType::kAlbedo, 3);
+                    m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
+                    break;
+                case MLDenoiserInputs::kColorAlbedoDepthNormal9:
+                    m_layout.emplace_back(OutputType::kColor, 3 );
+                    m_layout.emplace_back(OutputType::kAlbedo, 3);
+                    m_layout.emplace_back(OutputType::kDepth, 1);
+                    m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
+                    break;
             }
         }
 
@@ -159,6 +167,14 @@ namespace Baikal
                             {
                                     Renderer::OutputType::kColor,
                                     Renderer::OutputType::kAlbedo,
+                                    Renderer::OutputType::kViewShadingNormal,
+                            });
+                case MLDenoiserInputs::kColorAlbedoDepthNormal9:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kAlbedo,
+                                    Renderer::OutputType::kDepth,
                                     Renderer::OutputType::kViewShadingNormal,
                             });
                 default:

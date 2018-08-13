@@ -46,6 +46,7 @@ namespace Baikal
         {
             kColorDepthNormalGloss7,
             kColorAlbedoNormal8,
+            kColorAlbedoDepthNormal9
         };
 
         class MLDenoiser : public ClwPostEffect
