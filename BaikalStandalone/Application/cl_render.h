@@ -97,7 +97,6 @@ namespace Baikal
         PostEffectType GetPostEffectType() const;
         void SetDenoiserFloatParam(const std::string& name, float value);
         float GetDenoiserFloatParam(const std::string& name);
-        void RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const;
         void DumpAllOutputs(size_t device_idx) const;
 #endif
     private:
