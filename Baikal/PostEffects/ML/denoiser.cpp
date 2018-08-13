@@ -262,7 +262,7 @@ namespace Baikal
                 }
                 case OutputType::kDepth:
                 {
-                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem);
+                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_cache);
 
                     m_primitives->Normalize(0,
                                             CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem),
@@ -272,12 +272,7 @@ namespace Baikal
                     m_context->ReadBuffer<RadeonRays::float3>(0,
                                                 CLWBuffer<RadeonRays::float3>::CreateFromClBuffer(normalized_buf),
                                                 m_host_cache.data(),
-                                                normalized_buf.GetElementCount());
-
-                    m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
-                                                  m_host_cache.data(),
-                                                  device_mem.GetElementCount()).Wait();
+                                                normalized_buf.GetElementCount()).Wait();
 
                     auto t = device_mem.GetElementCount();
                     auto dest = host_mem;
