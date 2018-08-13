@@ -732,9 +732,9 @@ namespace Baikal
                 m_cl->StopRenderThreads();
 
             }
-            catch (std::runtime_error&)
+            catch (std::runtime_error& e)
             {
-                std::cout << "Caught exception in Application::Run()\n";
+                std::cout << "Caught exception in Application::Run(): " << e.what() << "\n";
                 throw;
             }
 

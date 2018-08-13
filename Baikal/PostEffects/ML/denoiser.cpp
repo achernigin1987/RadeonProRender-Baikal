@@ -188,7 +188,7 @@ namespace Baikal
         {
             assert (dst.GetElementCount() >= src.GetElementCount());
 
-            auto division_kernel = GetKernel("DivideBySamleCount");
+            auto division_kernel = GetKernel("DivideBySampleCount");
 
             // Set kernel parameters
             int argc = 0;
@@ -196,7 +196,7 @@ namespace Baikal
             division_kernel.SetArg(argc++, src);
             division_kernel.SetArg(argc++, (int)src.GetElementCount());
 
-            // run DivideBySamleCount kernel
+            // run DivideBySampleCount kernel
             {
                 auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
                 m_context->Launch1D(0,
