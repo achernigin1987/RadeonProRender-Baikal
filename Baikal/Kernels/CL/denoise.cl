@@ -138,5 +138,39 @@ void DivideBySamleCount(GLOBAL float4* restrict dst,
 
 }
 
+KERNEL
+void CopyInterleaved(GLOBAL float4* restrict dst,
+                     GLOBAL float4 const* restrict src,
+                     int dst_width,
+                     int dst_height,
+                     int dst_channels_offset, // offset inside pixel in channels (not bytes)
+                     int dst_channels_num,
+                     int src_width,
+                     int src_height,
+                     int src_channels_offset, // offset inside pixel in channels (not bytes)
+                     int src_channels_num,
+                     int channels_to_copy)
+{
+    int global_id = get_global_id(0);
+
+    int x = global_id % dst_width;
+    int y = global_id / dst_width;
+
+    if ((x > dst_width) || (global_id > dst_width * dst_height))
+    {
+        return;
+    }
+
+    int src_offset = src_channels_num * (y * src_width + x) + src_channels_offset;
+    int dst_offset = dst_channels_num * (y * dst_width + x) + dst_channels_offset;
+
+    GLOBAL float* dst_pixel = (GLOBAL float*)dst + dst_offset;
+    GLOBAL float const* src_pixel = (GLOBAL float const*)src + src_offset;
+
+    for (int i = 0; i < channels_to_copy; i++)
+    {
+        dst_pixel[i] = src_pixel[i];
+    }
+}
 
 #endif

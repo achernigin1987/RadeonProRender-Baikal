@@ -147,6 +147,12 @@ namespace Baikal
             {
                 m_device_cache = std::make_unique<CLWBuffer<float3>>(
                         CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE,  shape.width * shape.height));
+
+                m_device_tensor = std::make_unique<CLWBuffer<float>>(
+                        CLWBuffer<float>::Create(*m_context,
+                                                 CL_MEM_READ_WRITE,
+                                                 shape.channels * shape.width * shape.height));
+
                 m_host_cache.resize(shape.width * shape.height);
             }
         }
@@ -206,6 +212,40 @@ namespace Baikal
             }
         }
 
+        void MLDenoiser::WriteToTensor(CLWBuffer<RadeonRays::float3> src_buffer,
+                                       int dst_channels_offset,
+                                       int src_channels_offset,
+                                       int src_channels_num,
+                                       int channels_to_copy)
+        {
+            auto shape = m_inference->GetInputShape();
+
+            auto copy_kernel = GetKernel("CopyInterleaved");
+
+            int argc = 0;
+            copy_kernel.SetArg(argc++, *m_device_tensor);
+            copy_kernel.SetArg(argc++, src_buffer);
+            copy_kernel.SetArg(argc++, m_width);
+            copy_kernel.SetArg(argc++, m_height);
+            copy_kernel.SetArg(argc++, dst_channels_offset);
+            copy_kernel.SetArg(argc++, static_cast<int>(shape.channels));
+            copy_kernel.SetArg(argc++, m_width);
+            copy_kernel.SetArg(argc++, m_height);
+            copy_kernel.SetArg(argc++, src_channels_offset);
+            copy_kernel.SetArg(argc++, src_channels_num);
+            copy_kernel.SetArg(argc++, channels_to_copy);
+
+            // run copy_kernel
+            {
+                auto thread_num = ((m_width * m_height + 63) / 64) * 64;
+                m_context->Launch1D(0,
+                                    thread_num,
+                                    64,
+                                    copy_kernel);
+            }
+
+        }
+
         void MLDenoiser::Apply(InputSet const& input_set, Output& output)
         {
             auto start_spp = GetParameter("start_spp").GetUint();
@@ -230,6 +270,7 @@ namespace Baikal
             auto host_mem = tensor.data();
 
             unsigned sample_count = 0;
+            //unsigned channels_count = 0u;
 
             for (const auto& input_desc : m_layout)
             {
