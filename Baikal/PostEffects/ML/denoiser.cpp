@@ -240,6 +240,7 @@ namespace Baikal
                 {
                 case OutputType::kColor:
                 {
+                    DivideBySampleCount(*m_device_cache, device_mem);
                     // TODO: call DivideBySampleCount after removing gamma correction
                     m_context->ReadBuffer<float3>(0,
                                                   device_mem,
@@ -251,9 +252,9 @@ namespace Baikal
                     sample_count = static_cast<unsigned int>(source->w);
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        dest[0] = std::pow(source->x / source->w, 1.f / 2.2f);
-                        dest[1] = std::pow(source->y / source->w, 1.f / 2.2f);
-                        dest[2] = std::pow(source->z / source->w, 1.f / 2.2f);
+                        dest[0] = source->x;
+                        dest[1] = source->y;
+                        dest[2] = source->z;
                         dest += shape.channels;
                         ++source;
                     }
@@ -392,10 +393,9 @@ namespace Baikal
                 auto source = inference_res.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
-                    auto constexpr gamma = 2.2f;
-                    dest->x = std::pow(*source++, gamma);
-                    dest->y = std::pow(*source++, gamma);
-                    dest->z = std::pow(*source++, gamma);
+                    dest->x = *source++;
+                    dest->y = *source++;
+                    dest->z = *source++;
                     dest->w = 1;
                     ++dest;
                 }
@@ -413,10 +413,9 @@ namespace Baikal
                 auto source = m_last_denoised_image.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
-                    auto constexpr gamma = 2.2f;
-                    dest->x = std::pow(*source++, gamma);
-                    dest->y = std::pow(*source++, gamma);
-                    dest->z = std::pow(*source++, gamma);
+                    dest->x = *source++;
+                    dest->y = *source++;
+                    dest->z = *source++;
                     dest->w = 1;
                     ++dest;
                 }

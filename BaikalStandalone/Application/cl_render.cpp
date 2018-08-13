@@ -345,8 +345,9 @@ namespace Baikal
         if (!settings.interop)
         {
 #ifdef ENABLE_DENOISER
-            m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
-            float gamma = 1.f; // TODO: It's applicable only for MLDenoiser
+            //m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
+            GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
+            float gamma = 1.f / 2.2f; // TODO: It's applicable only for MLDenoiser
 #else
             GetOutputData(m_primary, Renderer::OutputType::kColor, &m_outputs[m_primary].fdata[0]);
             float gamma = 1.f / 2.2f;
@@ -368,8 +369,11 @@ namespace Baikal
                     m_cfgs[m_primary].renderer.get())->GetCopyKernel();
 
 #ifdef ENABLE_DENOISER
-            auto output = m_post_effect_output.get();
-            float gamma = 1.f; // TODO: It's applicable only for MLDenoiser
+            //auto output = m_post_effect_output.get();
+            //float gamma = 1.f / 2.2f; // TODO: It's applicable only for MLDenoiser
+
+            auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
+            float gamma = 1.f / 2.2f;
 #else
             auto output = GetRendererOutput(m_primary, Renderer::OutputType::kColor);
             float gamma = 1.f / 2.2f;
