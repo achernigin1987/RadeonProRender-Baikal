@@ -71,10 +71,13 @@ namespace Baikal
                         model_path = "models/color_depth_normal_gloss_7.pb";
                         input_channels = 7;
                         break;
-
                     case MLDenoiserInputs::kColorAlbedoNormal8:
                         model_path = "models/color_albedo_normal_8.pb";
                         input_channels = 8;
+                        break;
+                    case MLDenoiserInputs::kColorAlbedoDepthNormal9:
+                        model_path = "models/color_albedo_depth_normal_9_v2.pb";
+                        input_channels = 9;
                         break;
                 }
 
@@ -93,7 +96,7 @@ namespace Baikal
 #else
                 : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl"),
 #endif
-                 m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
+                 m_inputs(MLDenoiserInputs::kColorAlbedoDepthNormal9)
         {
             RegisterParameter("gpu_memory_fraction", .1f);
             RegisterParameter("visible_devices", std::string());
@@ -104,18 +107,23 @@ namespace Baikal
             // compute memory layout
             switch (m_inputs)
             {
-            case MLDenoiserInputs::kColorDepthNormalGloss7:
-                m_layout.emplace_back(OutputType::kColor, 3);
-                m_layout.emplace_back(OutputType::kDepth, 1);
-                m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
-                m_layout.emplace_back(OutputType::kGloss, 1);
-                break;
-
-            case MLDenoiserInputs::kColorAlbedoNormal8:
-                m_layout.emplace_back(OutputType::kColor, 3 );
-                m_layout.emplace_back(OutputType::kAlbedo, 3);
-                m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
-                break;
+                case MLDenoiserInputs::kColorDepthNormalGloss7:
+                    m_layout.emplace_back(OutputType::kColor, 3);
+                    m_layout.emplace_back(OutputType::kDepth, 1);
+                    m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
+                    m_layout.emplace_back(OutputType::kGloss, 1);
+                    break;
+                case MLDenoiserInputs::kColorAlbedoNormal8:
+                    m_layout.emplace_back(OutputType::kColor, 3 );
+                    m_layout.emplace_back(OutputType::kAlbedo, 3);
+                    m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
+                    break;
+                case MLDenoiserInputs::kColorAlbedoDepthNormal9:
+                    m_layout.emplace_back(OutputType::kColor, 3 );
+                    m_layout.emplace_back(OutputType::kAlbedo, 3);
+                    m_layout.emplace_back(OutputType::kDepth, 1);
+                    m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
+                    break;
             }
         }
 
@@ -159,6 +167,14 @@ namespace Baikal
                             {
                                     Renderer::OutputType::kColor,
                                     Renderer::OutputType::kAlbedo,
+                                    Renderer::OutputType::kViewShadingNormal,
+                            });
+                case MLDenoiserInputs::kColorAlbedoDepthNormal9:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kAlbedo,
+                                    Renderer::OutputType::kDepth,
                                     Renderer::OutputType::kViewShadingNormal,
                             });
                 default:
@@ -224,9 +240,10 @@ namespace Baikal
                 {
                 case OutputType::kColor:
                 {
-                    // TODO: call DivideBySampleCount after removing gamma correction
+                    DivideBySampleCount(*m_device_cache, device_mem);
+
                     m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
+                                                  *m_device_cache,
                                                   m_host_cache.data(),
                                                   device_mem.GetElementCount()).Wait();
 
@@ -235,9 +252,9 @@ namespace Baikal
                     sample_count = static_cast<unsigned int>(source->w);
                     for (auto i = 0u; i < shape.width * shape.height; ++i)
                     {
-                        dest[0] = std::pow(source->x / source->w, 1.f / 2.2f);
-                        dest[1] = std::pow(source->y / source->w, 1.f / 2.2f);
-                        dest[2] = std::pow(source->z / source->w, 1.f / 2.2f);
+                        dest[0] = source->x;
+                        dest[1] = source->y;
+                        dest[2] = source->z;
                         dest += shape.channels;
                         ++source;
                     }
@@ -245,7 +262,7 @@ namespace Baikal
                 }
                 case OutputType::kDepth:
                 {
-                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem);
+                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_cache);
 
                     m_primitives->Normalize(0,
                                             CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem),
@@ -255,12 +272,7 @@ namespace Baikal
                     m_context->ReadBuffer<RadeonRays::float3>(0,
                                                 CLWBuffer<RadeonRays::float3>::CreateFromClBuffer(normalized_buf),
                                                 m_host_cache.data(),
-                                                normalized_buf.GetElementCount());
-
-                    m_context->ReadBuffer<float3>(0,
-                                                  device_mem,
-                                                  m_host_cache.data(),
-                                                  device_mem.GetElementCount()).Wait();
+                                                normalized_buf.GetElementCount()).Wait();
 
                     auto t = device_mem.GetElementCount();
                     auto dest = host_mem;
@@ -376,10 +388,9 @@ namespace Baikal
                 auto source = inference_res.data();
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
-                    auto constexpr gamma = 2.2f;
-                    dest->x = std::pow(*source++, gamma);
-                    dest->y = std::pow(*source++, gamma);
-                    dest->z = std::pow(*source++, gamma);
+                    dest->x = *source++;
+                    dest->y = *source++;
+                    dest->z = *source++;
                     dest->w = 1;
                     ++dest;
                 }
@@ -395,12 +406,12 @@ namespace Baikal
             {
                 auto dest = m_host_cache.data();
                 auto source = m_last_denoised_image.data();
+                // TODO: use memcpy here
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
-                    auto constexpr gamma = 2.2f;
-                    dest->x = std::pow(*source++, gamma);
-                    dest->y = std::pow(*source++, gamma);
-                    dest->z = std::pow(*source++, gamma);
+                    dest->x = *source++;
+                    dest->y = *source++;
+                    dest->z = *source++;
                     dest->w = 1;
                     ++dest;
                 }

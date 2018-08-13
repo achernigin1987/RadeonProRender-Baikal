@@ -129,6 +129,7 @@ void DivideBySamleCount(GLOBAL float4* restrict dst,
     if (src[id].w != 0.0f)
     {
         dst[id].xyz = src[id].xyz / src[id].w;
+        dst[id].w = src[id].w;
     }
     else
     {
