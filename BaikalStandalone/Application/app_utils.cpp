@@ -190,24 +190,24 @@ namespace Baikal
 #ifdef ENABLE_DENOISER
         if (m_cmd_parser.OptionExists("-denoiser_type"))
         {
-            auto denoiser_mode = m_cmd_parser.GetOption("-denoiser_type");
+            auto denoiser_type = m_cmd_parser.GetOption("-denoiser_type");
 
-            if (denoiser_mode == "bilateral")
+            if (denoiser_type == "bilateral")
             {
-                s.denoiser_mode = DenoiserMode::kBilateral;
+                s.denoiser_type = DenoiserMode::kBilateral;
             }
-            else if (denoiser_mode == "wavelet")
+            else if (denoiser_type == "wavelet")
             {
-                s.denoiser_mode = DenoiserMode::kWavelet;
+                s.denoiser_type = DenoiserMode::kWavelet;
             }
-            else if (denoiser_mode == "ml")
+            else if (denoiser_type == "ml")
             {
-                s.denoiser_mode = DenoiserMode::kML;
+                s.denoiser_type = DenoiserMode::kML;
             }
-        }
-        else
-        {
-            s.denoiser_mode = DenoiserMode::kML;
+            else
+            {
+                std::cerr << "WARNING: unknown denoiser mode";
+            }
         }
 
         s.start_spp = m_cmd_parser.GetOption("-start_spp", 8u);

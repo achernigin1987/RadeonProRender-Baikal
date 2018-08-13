@@ -977,7 +977,8 @@ namespace Baikal
 
                 if (m_cl->GetDenoiserFloatParam("position_sensitivity") != sigmaPosition ||
                     m_cl->GetDenoiserFloatParam("normal_sensitivity") != sigmaNormal ||
-                    m_cl->GetDenoiserFloatParam("color_sensitivity") != sigmaColor) {
+                    m_cl->GetDenoiserFloatParam("color_sensitivity") != sigmaColor)
+                {
                     m_cl->SetDenoiserFloatParam("position_sensitivity", sigmaPosition);
                     m_cl->SetDenoiserFloatParam("normal_sensitivity", sigmaNormal);
                     m_cl->SetDenoiserFloatParam("color_sensitivity", sigmaColor);
