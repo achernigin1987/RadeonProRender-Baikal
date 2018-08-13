@@ -145,9 +145,16 @@ namespace Baikal
 
             if (m_host_cache.size() != bytes_count)
             {
-                m_device_cache = std::make_unique<CLWBuffer<float3>>(
-                        CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE,  shape.width * shape.height));
                 m_host_cache.resize(shape.width * shape.height);
+
+                m_device_cache.reset();
+                m_device_cache = std::make_unique<CLWBuffer<float3>>(
+                        CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE, shape.width * shape.height));
+
+                m_last_denoised_image.reset();
+                m_last_denoised_image = std::make_unique<CLWBuffer<float3>>(
+                        CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE, shape.width * shape.height));
+                m_has_denoised_image = false;
             }
         }
 
@@ -377,7 +384,7 @@ namespace Baikal
             if (too_few_samples)
             {
                 m_start_seq_num = m_last_seq_num + 1;
-                m_last_denoised_image = {};
+                m_has_denoised_image = false;
             }
             else
             {
@@ -411,39 +418,35 @@ namespace Baikal
                 }
 
                 m_context->WriteBuffer<float3>(0,
-                                               clw_inference_output->data(),
+                                               *m_last_denoised_image,
                                                m_host_cache.data(),
-                                               inference_res.size() / 3).Wait();
+                                               inference_res.size() / 3);
+                m_has_denoised_image = true;
 
-                m_last_denoised_image = std::move(inference_res);
+                m_context->CopyBuffer<float3>(0,
+                                              *m_last_denoised_image,
+                                              clw_inference_output->data(),
+                                              0 /* srcOffset */,
+                                              0 /* destOffset */,
+                                              m_last_denoised_image->GetElementCount()).Wait();
             }
-            else if (!m_last_denoised_image.empty())
+            else if (m_has_denoised_image)
             {
-                auto dest = m_host_cache.data();
-                auto source = m_last_denoised_image.data();
-                // TODO: use memcpy here
-                for (auto i = 0u; i < shape.width * shape.height; ++i)
-                {
-                    dest->x = *source++;
-                    dest->y = *source++;
-                    dest->z = *source++;
-                    dest->w = 1;
-                    ++dest;
-                }
-
-                m_context->WriteBuffer<float3>(0,
-                                               clw_inference_output->data(),
-                                               m_host_cache.data(),
-                                               m_last_denoised_image.size() / 3).Wait();
+                m_context->CopyBuffer<float3>(0,
+                                              *m_last_denoised_image,
+                                              clw_inference_output->data(),
+                                              0 /* srcOffset */,
+                                              0 /* destOffset */,
+                                              m_last_denoised_image->GetElementCount()).Wait();
             }
             else
             {
                 m_context->CopyBuffer<float3>(0,
-                                      dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data(),
-                                      clw_inference_output->data(),
-                                      0,
-                                      0,
-                                      shape.width * shape.height).Wait();
+                                              dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data(),
+                                              clw_inference_output->data(),
+                                              0 /* srcOffset */,
+                                              0 /* destOffset */,
+                                              shape.width * shape.height).Wait();
             }
         }
 
