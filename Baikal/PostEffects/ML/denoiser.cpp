@@ -96,7 +96,7 @@ namespace Baikal
 #else
                 : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl"),
 #endif
-                 m_inputs(MLDenoiserInputs::kColorAlbedoNormal8)
+                 m_inputs(MLDenoiserInputs::kColorAlbedoDepthNormal9)
         {
             RegisterParameter("gpu_memory_fraction", .1f);
             RegisterParameter("visible_devices", std::string());
