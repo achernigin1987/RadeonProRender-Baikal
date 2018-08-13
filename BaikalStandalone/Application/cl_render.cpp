@@ -388,7 +388,7 @@ namespace Baikal
             }
             else
             {
-                CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor));
+                CopyToGL(GetRendererOutput(m_primary, m_output_type));
             }
 #else
             CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor));
