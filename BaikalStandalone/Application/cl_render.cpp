@@ -65,7 +65,7 @@ namespace Baikal
         InitCl(settings, m_tex);
 
 #ifdef ENABLE_DENOISER
-        switch (settings.denoiser_mode)
+        switch (settings.denoiser_type)
         {
             case DenoiserMode::kBilateral:
                 AddPostEffect(m_primary, PostEffectType::kBilateralDenoiser);
