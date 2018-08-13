@@ -983,6 +983,9 @@ namespace Baikal
                     m_cl->SetDenoiserFloatParam("color_sensitivity", sigmaColor);
                 }
             }
+
+            ImGui::Separator();
+            ImGui::Checkbox("Split output", &m_settings.split_output);
 #endif
             ImGui::End();
 

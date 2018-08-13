@@ -111,7 +111,8 @@ namespace Baikal
         void AddRendererOutput(size_t device_idx, Renderer::OutputType type);
         void GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const;
         void AddPostEffect(size_t device_idx, PostEffectType type);
-
+        void CopyToGl(Output* output);
+        void CopyToGl(Output* left_output, Output* right_output);
         void ApplyGammaCorrection(size_t device_idx, float gamma, bool divideBySpp);
 
         Baikal::Scene1::Ptr m_scene;
