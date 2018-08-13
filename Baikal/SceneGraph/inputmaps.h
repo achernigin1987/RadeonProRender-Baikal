@@ -159,7 +159,6 @@ namespace Baikal
         InputMap(InputMapType::kSampler),
         m_texture(texture)
         {
-            assert(m_texture);
             SetDirty(true);
         }
     };
