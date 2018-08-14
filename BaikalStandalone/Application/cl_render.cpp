@@ -59,7 +59,6 @@ namespace Baikal
     {
         InitCl(settings, m_tex);
 
-        m_denoiser_type = settings.denoiser_type;
         switch (m_denoiser_type)
         {
             case DenoiserType::kNone:
@@ -70,7 +69,7 @@ namespace Baikal
             case DenoiserType::kWavelet:
                 AddPostEffect(m_primary, PostEffectType::kWaveletDenoiser);
                 break;
-            case DenoiserType ::kML:
+            case DenoiserType::kML:
                 AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
                 m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
                 m_post_effect->SetParameter("visible_devices", settings.visible_devices);
@@ -79,6 +78,7 @@ namespace Baikal
             default:
                 throw std::runtime_error("AppClRender(...): Unsupported denoiser type");
         }
+        m_denoiser_type = settings.denoiser_type;
 
         LoadScene(settings);
 
