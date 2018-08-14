@@ -127,7 +127,7 @@ namespace Baikal
                     break;
             }
 
-            m_sample_count_cache = std::make_unique<CLWBuffer<float>>(
+            m_inputs_cache = std::make_unique<CLWBuffer<float>>(
                     m_context->CreateBuffer<float>(1, CL_MEM_READ_WRITE));
         }
 
@@ -214,17 +214,15 @@ namespace Baikal
             division_kernel.SetArg(argc++, (int)src.GetElementCount());
 
             // run DivideBySampleCount kernel
-            {
-                auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
-                m_context->Launch1D(0,
-                                    thread_num,
-                                    64,
-                                    division_kernel);
-            }
+            auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                division_kernel);
         }
 
 
-        void MLDenoiser::WriteToTensor(CLWBuffer<RadeonRays::float3> src_buffer,
+        void MLDenoiser::WriteToInputs(CLWBuffer<RadeonRays::float3> src_buffer,
                                        int dst_channels_offset,
                                        int src_channels_offset,
                                        int src_channels_num,
@@ -241,22 +239,22 @@ namespace Baikal
             copy_kernel.SetArg(argc++, m_height);
             copy_kernel.SetArg(argc++, dst_channels_offset);
             copy_kernel.SetArg(argc++, static_cast<int>(shape.channels));
+            // input and output buffers have the same width in pixels
             copy_kernel.SetArg(argc++, m_width);
+            // input and output buffers have the same height in pixels
             copy_kernel.SetArg(argc++, m_height);
             copy_kernel.SetArg(argc++, src_channels_offset);
             copy_kernel.SetArg(argc++, src_channels_num);
             copy_kernel.SetArg(argc++, channels_to_copy);
-            copy_kernel.SetArg(argc++, 1);
-            copy_kernel.SetArg(argc++, *m_sample_count_cache);
+            copy_kernel.SetArg(argc++, *m_inputs_cache);
 
             // run copy_kernel
-            {
-                auto thread_num = ((m_width * m_height + 63) / 64) * 64;
-                m_context->Launch1D(0,
-                                    thread_num,
-                                    64,
-                                    copy_kernel);
-            }
+            auto thread_num = ((m_width * m_height + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                copy_kernel);
+
 
         }
 
@@ -304,9 +302,9 @@ namespace Baikal
                 {
                     float real_sample_count = 0.f;
                     DivideBySampleCount(*m_device_cache, device_mem);
-                    WriteToTensor(*m_device_cache, channels_count, 0, 4, 3);
-                    m_context->ReadBuffer<float>(0, *m_sample_count_cache, &real_sample_count, 1).Wait();
-                    sample_count = (unsigned)real_sample_count;
+                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
+                    m_context->ReadBuffer<float>(0, *m_inputs_cache, &real_sample_count, 1).Wait();
+                    sample_count = static_cast<unsigned>(real_sample_count);
                     channels_count += 3;
                     if (sample_count < start_spp)
                     {
@@ -324,7 +322,7 @@ namespace Baikal
                                             normalized_buf,
                                             (int)device_mem.GetElementCount());
 
-                    WriteToTensor(CLWBuffer<float3>::CreateFromClBuffer(normalized_buf),
+                    WriteToInputs(CLWBuffer<float3>::CreateFromClBuffer(normalized_buf),
                                   channels_count,
                                   0,
                                   4,
@@ -336,21 +334,21 @@ namespace Baikal
                 case OutputType::kViewShadingNormal:
                 {
                     DivideBySampleCount(*m_device_cache, device_mem);
-                    WriteToTensor(*m_device_cache, channels_count, 0, 4, 2);
+                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 2);
                     channels_count += 2;
                     break;
                 }
                 case OutputType::kGloss:
                 {
                     DivideBySampleCount(*m_device_cache, device_mem);
-                    WriteToTensor(*m_device_cache, channels_count, 0, 4, 1);
+                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 1);
                     channels_count += 1;
                     break;
                 }
                 case OutputType::kAlbedo:
                 {
                     DivideBySampleCount(*m_device_cache, device_mem);
-                    WriteToTensor(*m_device_cache, channels_count, 0, 4, 3);
+                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
                     channels_count += 3;
                     break;
                 }
@@ -377,7 +375,7 @@ namespace Baikal
                                              *m_device_tensor,
                                              tensor.data(),
                                              m_device_tensor->GetElementCount()).Wait();
-                
+
                 tensor.tag = ++m_last_seq_num;
                 m_inference->PushInput(std::move(tensor));
             }
@@ -408,7 +406,6 @@ namespace Baikal
                 }
 
                 m_context->WriteBuffer<float3>(0,
-
                                                *m_last_denoised_image,
                                                m_host_cache.data(),
                                                inference_res.size() / 3);

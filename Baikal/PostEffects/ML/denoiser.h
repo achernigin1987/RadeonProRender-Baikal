@@ -71,7 +71,7 @@ namespace Baikal
             void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
                                        CLWBuffer<RadeonRays::float3> src);
 
-            void WriteToTensor(CLWBuffer<RadeonRays::float3> src_buffer,
+            void WriteToInputs(CLWBuffer<RadeonRays::float3> src_buffer,
                                int dst_channels_offset,
                                int src_channels_offset,
                                int src_channels_num,
@@ -83,7 +83,7 @@ namespace Baikal
             std::unique_ptr<CLWContext> m_context;
             std::unique_ptr<CLWParallelPrimitives> m_primitives;
             // GPU cache
-            std::unique_ptr<CLWBuffer<float>> m_sample_count_cache;
+            std::unique_ptr<CLWBuffer<float>> m_inputs_cache;
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
             std::unique_ptr<CLWBuffer<float>> m_device_tensor;
             // CPU cache
