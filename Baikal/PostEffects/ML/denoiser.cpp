@@ -329,6 +329,7 @@ namespace Baikal
                                   0,
                                   4,
                                   1);
+
                     channels_count += 1;
                     break;
                 }
@@ -367,18 +368,16 @@ namespace Baikal
             {
                 m_start_seq_num = m_last_seq_num + 1;
                 m_has_denoised_image = false;
+            }
+            else
+            {
                 auto tensor = m_inference->GetInputTensor();
 
                 m_context->ReadBuffer<float>(0,
                                              *m_device_tensor,
                                              tensor.data(),
                                              m_device_tensor->GetElementCount()).Wait();
-
-                tensor.tag = ++m_last_seq_num;
-                m_inference->PushInput(std::move(tensor));
-            }
-            else
-            {
+                
                 tensor.tag = ++m_last_seq_num;
                 m_inference->PushInput(std::move(tensor));
             }
