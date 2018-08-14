@@ -126,6 +126,9 @@ namespace Baikal
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     break;
             }
+
+            m_inputs_cache = std::make_unique<CLWBuffer<float>>(
+                    m_context->CreateBuffer<float>(1, CL_MEM_READ_WRITE));
         }
 
         void MLDenoiser::InitInference()
@@ -155,6 +158,13 @@ namespace Baikal
                 m_last_denoised_image = std::make_unique<CLWBuffer<float3>>(
                         CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE, shape.width * shape.height));
                 m_has_denoised_image = false;
+
+                m_device_tensor = std::make_unique<CLWBuffer<float>>(
+                        CLWBuffer<float>::Create(*m_context,
+                                                 CL_MEM_READ_WRITE,
+                                                 shape.channels * shape.width * shape.height));
+
+                m_host_cache.resize(shape.width * shape.height);
             }
         }
 
@@ -204,13 +214,48 @@ namespace Baikal
             division_kernel.SetArg(argc++, (int)src.GetElementCount());
 
             // run DivideBySampleCount kernel
-            {
-                auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
-                m_context->Launch1D(0,
-                                    thread_num,
-                                    64,
-                                    division_kernel);
-            }
+            auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                division_kernel);
+        }
+
+
+        void MLDenoiser::WriteToInputs(CLWBuffer<RadeonRays::float3> src_buffer,
+                                       int dst_channels_offset,
+                                       int src_channels_offset,
+                                       int src_channels_num,
+                                       int channels_to_copy)
+        {
+            auto shape = m_inference->GetInputShape();
+
+            auto copy_kernel = GetKernel("CopyInterleaved");
+
+            int argc = 0;
+            copy_kernel.SetArg(argc++, *m_device_tensor);
+            copy_kernel.SetArg(argc++, src_buffer);
+            copy_kernel.SetArg(argc++, m_width);
+            copy_kernel.SetArg(argc++, m_height);
+            copy_kernel.SetArg(argc++, dst_channels_offset);
+            copy_kernel.SetArg(argc++, static_cast<int>(shape.channels));
+            // input and output buffers have the same width in pixels
+            copy_kernel.SetArg(argc++, m_width);
+            // input and output buffers have the same height in pixels
+            copy_kernel.SetArg(argc++, m_height);
+            copy_kernel.SetArg(argc++, src_channels_offset);
+            copy_kernel.SetArg(argc++, src_channels_num);
+            copy_kernel.SetArg(argc++, channels_to_copy);
+            copy_kernel.SetArg(argc++, *m_inputs_cache);
+
+            // run copy_kernel
+            auto thread_num = ((m_width * m_height + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                copy_kernel);
+
+
         }
 
         void MLDenoiser::Apply(InputSet const& input_set, Output& output)
@@ -233,10 +278,9 @@ namespace Baikal
 
             auto shape = m_inference->GetInputShape();
 
-            auto tensor = m_inference->GetInputTensor();
-            auto host_mem = tensor.data();
 
             unsigned sample_count = 0;
+            unsigned channels_count = 0u;
             bool too_few_samples = false;
 
             for (const auto& input_desc : m_layout)
@@ -256,29 +300,16 @@ namespace Baikal
                 {
                 case OutputType::kColor:
                 {
+                    float real_sample_count = 0.f;
                     DivideBySampleCount(*m_device_cache, device_mem);
-
-                    m_context->ReadBuffer<float3>(0,
-                                                  *m_device_cache,
-                                                  m_host_cache.data(),
-                                                  device_mem.GetElementCount()).Wait();
-
-                    auto dest = host_mem;
-                    auto source = m_host_cache.data();
-                    sample_count = static_cast<unsigned int>(source->w);
+                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
+                    m_context->ReadBuffer<float>(0, *m_inputs_cache, &real_sample_count, 1).Wait();
+                    sample_count = static_cast<unsigned>(real_sample_count);
+                    channels_count += 3;
                     if (sample_count < start_spp)
                     {
                         too_few_samples = true;
                         break;
-                    }
-
-                    for (auto i = 0u; i < shape.width * shape.height; ++i)
-                    {
-                        dest[0] = source->x;
-                        dest[1] = source->y;
-                        dest[2] = source->z;
-                        dest += shape.channels;
-                        ++source;
                     }
                     break;
                 }
@@ -291,96 +322,46 @@ namespace Baikal
                                             normalized_buf,
                                             (int)device_mem.GetElementCount());
 
-                    m_context->ReadBuffer<RadeonRays::float3>(0,
-                                                CLWBuffer<RadeonRays::float3>::CreateFromClBuffer(normalized_buf),
-                                                m_host_cache.data(),
-                                                normalized_buf.GetElementCount()).Wait();
+                    WriteToInputs(CLWBuffer<float3>::CreateFromClBuffer(normalized_buf),
+                                  channels_count,
+                                  0,
+                                  4,
+                                  1);
 
-                    auto t = device_mem.GetElementCount();
-                    auto dest = host_mem;
-                    auto source = m_host_cache.data();
-                    for (auto i = 0u; i < t; ++i)
-                    {
-                        *dest = source->x;
-                        dest += shape.channels;
-                        ++source;
-                    }
+                    channels_count += 1;
                     break;
                 }
                 case OutputType::kViewShadingNormal:
                 {
                     DivideBySampleCount(*m_device_cache, device_mem);
-
-                    m_context->ReadBuffer<float3>(0,
-                                                  *m_device_cache,
-                                                  m_host_cache.data(),
-                                                  device_mem.GetElementCount()).Wait();
-
-                    // copy only the first two channels
-                    auto dest = host_mem;
-                    auto source = m_host_cache.data();
-                    for (auto i = 0u; i < shape.width * shape.height; ++i)
-                    {
-                        dest[0] = source->x;
-                        dest[1] = source->y;
-                        dest += shape.channels;
-                        ++source;
-                    }
-
+                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 2);
+                    channels_count += 2;
                     break;
                 }
                 case OutputType::kGloss:
                 {
                     DivideBySampleCount(*m_device_cache, device_mem);
-
-                    m_context->ReadBuffer<float3>(0,
-                                                  *m_device_cache,
-                                                  m_host_cache.data(),
-                                                  device_mem.GetElementCount()).Wait();
-
-                    // copy only the first channel
-                    auto dest = host_mem;
-                    auto source = m_host_cache.data();
-
-                    for (auto i = 0u; i < shape.width * shape.height; ++i)
-                    {
-                        dest[0] = source->x;
-                        dest += shape.channels;
-                        ++source;
-                    }
+                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 1);
+                    channels_count += 1;
                     break;
                 }
                 case OutputType::kAlbedo:
                 {
                     DivideBySampleCount(*m_device_cache, device_mem);
-
-                    m_context->ReadBuffer<float3>(0,
-                                                  *m_device_cache,
-                                                  m_host_cache.data(),
-                                                  device_mem.GetElementCount()).Wait();
-
-                    auto dest = host_mem;
-                    auto source = m_host_cache.data();
-                    for (auto i = 0u; i < shape.width * shape.height; ++i)
-                    {
-                        dest[0] = source->x;
-                        dest[1] = source->y;
-                        dest[2] = source->z;
-                        dest += shape.channels;
-                        ++source;
-                    }
+                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
+                    channels_count += 3;
                     break;
                 }
                 default:
                     break;
                 }
-                host_mem += input_desc.second;
             }
 
 #ifdef ML_DENOISER_IMAGES_DIR
             static unsigned input_index = 0;
             SaveImage("input", tensor.data(), tensor.size(), input_index++);
 #endif
+
             if (too_few_samples)
             {
                 m_start_seq_num = m_last_seq_num + 1;
@@ -388,6 +369,13 @@ namespace Baikal
             }
             else
             {
+                auto tensor = m_inference->GetInputTensor();
+
+                m_context->ReadBuffer<float>(0,
+                                             *m_device_tensor,
+                                             tensor.data(),
+                                             m_device_tensor->GetElementCount()).Wait();
+
                 tensor.tag = ++m_last_seq_num;
                 m_inference->PushInput(std::move(tensor));
             }
@@ -422,6 +410,7 @@ namespace Baikal
                                                m_host_cache.data(),
                                                inference_res.size() / 3);
                 m_has_denoised_image = true;
+
 
                 m_context->CopyBuffer<float3>(0,
                                               *m_last_denoised_image,
