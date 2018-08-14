@@ -955,8 +955,8 @@ namespace Baikal
                 ImGui::Text("Shadow rays: %f Mrays/s", stats.shadow_throughput * 1e-6f);
             }
 
-            if (m_cl->GetPostEffectType() == PostEffectType::kBilateralDenoiser ||
-                m_cl->GetPostEffectType() == PostEffectType::kWaveletDenoiser)
+            if (m_cl->GetDenoiserType() == DenoiserType::kBilateral ||
+                m_cl->GetDenoiserType() == DenoiserType::kWavelet)
             {
                 ImGui::Separator();
 

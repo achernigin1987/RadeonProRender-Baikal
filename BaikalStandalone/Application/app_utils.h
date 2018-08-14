@@ -103,7 +103,7 @@ namespace Baikal
         std::string visible_devices;
 
         // denoiser settings
-        DenoiserMode denoiser_type = DenoiserMode::kNone;
+        DenoiserType denoiser_type = DenoiserType::kNone;
         std::uint32_t denoiser_start_spp = 8;
     };
 

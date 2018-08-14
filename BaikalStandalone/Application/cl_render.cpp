@@ -59,17 +59,18 @@ namespace Baikal
     {
         InitCl(settings, m_tex);
 
-        switch (settings.denoiser_type)
+        m_denoiser_type = settings.denoiser_type;
+        switch (m_denoiser_type)
         {
-            case DenoiserMode::kNone:
+            case DenoiserType::kNone:
                 break;
-            case DenoiserMode::kBilateral:
+            case DenoiserType::kBilateral:
                 AddPostEffect(m_primary, PostEffectType::kBilateralDenoiser);
                 break;
-            case DenoiserMode::kWavelet:
+            case DenoiserType::kWavelet:
                 AddPostEffect(m_primary, PostEffectType::kWaveletDenoiser);
                 break;
-            case DenoiserMode ::kML:
+            case DenoiserType ::kML:
                 AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
                 m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
                 m_post_effect->SetParameter("visible_devices", settings.visible_devices);
@@ -160,8 +161,6 @@ namespace Baikal
 
     void AppClRender::AddPostEffect(size_t device_idx, PostEffectType type)
     {
-        m_post_effect_type = type;
-
         m_post_effect = m_cfgs[device_idx].factory->CreatePostEffect(type);
 
         // create or get inputs for post-effect
@@ -178,9 +177,9 @@ namespace Baikal
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
     }
 
-    PostEffectType AppClRender::GetPostEffectType() const
+    DenoiserType AppClRender::GetDenoiserType() const
     {
-        return m_post_effect_type;
+        return m_denoiser_type;
     }
 
     void AppClRender::SetDenoiserFloatParam(const std::string& name, float value)
@@ -358,7 +357,7 @@ namespace Baikal
 
         if (!settings.interop)
         {
-            if (m_post_effect_type != PostEffectType::kNone)
+            if (m_post_effect_output)
             {
                 m_post_effect_output->GetData(&m_outputs[m_primary].fdata[0]);
                 ApplyGammaCorrection(m_primary, kGamma, false);
@@ -376,7 +375,7 @@ namespace Baikal
         }
         else
         {
-            if (m_post_effect_type == PostEffectType::kNone)
+            if (!m_post_effect_output)
             {
                 CopyToGL(GetRendererOutput(m_primary, m_output_type));
             }
