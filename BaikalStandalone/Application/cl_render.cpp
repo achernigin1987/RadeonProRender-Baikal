@@ -23,6 +23,7 @@ THE SOFTWARE.
 
 #include "Application/cl_render.h"
 #include "Application/gl_render.h"
+#include "Utils/output_accessor.h"
 
 #include "SceneGraph/scene1.h"
 #include "SceneGraph/camera.h"
@@ -33,10 +34,8 @@ THE SOFTWARE.
 #include "Renderers/monte_carlo_renderer.h"
 #include "Renderers/adaptive_renderer.h"
 #include "Utils/clw_class.h"
-#include "Utils/output_accessor.h"
 
 #include "OpenImageIO/imageio.h"
-#include "cl_render.h"
 
 #include <fstream>
 #include <sstream>
@@ -50,7 +49,7 @@ namespace Baikal
     namespace
     {
         constexpr float kGamma = 2.2f;
-#ifdef DUMP_PATH
+#ifdef IMAGE_DUMP_PATH
         std::unique_ptr<RendererOutputAccessor> s_output_accessor;
 #endif
     }
@@ -74,7 +73,7 @@ namespace Baikal
                 AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
                 m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
                 m_post_effect->SetParameter("visible_devices", settings.visible_devices);
-                m_post_effect->SetParameter("start_spp", settings.start_spp);
+                m_post_effect->SetParameter("start_spp", settings.denoiser_start_spp);
                 break;
             default:
                 throw std::runtime_error("AppClRender(...): Unsupported denoiser type");
@@ -82,9 +81,9 @@ namespace Baikal
 
         LoadScene(settings);
 
-#ifdef DUMP_PATH
+#ifdef IMAGE_DUMP_PATH
         s_output_accessor = std::make_unique<RendererOutputAccessor>(
-                DUMP_PATH, m_width, m_height);
+                IMAGE_DUMP_PATH, m_width, m_height);
 #endif
     }
 
@@ -317,11 +316,12 @@ namespace Baikal
     {
         ++settings.samplecount;
 
+#ifdef IMAGE_DUMP_PATH
+        s_output_accessor->SaveAllOutputs(m_renderer_outputs);
+#endif
+
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
-#ifdef DUMP_PATH
-            s_output_accessor->SaveAllOutputs(i, m_renderer_outputs);
-#endif
             if (m_cfgs[i].type == DeviceType::kPrimary) // TODO: mldenoiser
             {
                 continue;
@@ -410,9 +410,6 @@ namespace Baikal
             settings.rt_benchmarked = true;
         }
 
-#ifdef DUMP_PATH
-        s_output_accessor->NextFrame();
-#endif
         //ClwClass::Update();
     }
 

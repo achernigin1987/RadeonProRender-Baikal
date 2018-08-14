@@ -211,7 +211,7 @@ namespace Baikal
             }
         }
 
-        s.start_spp = m_cmd_parser.GetOption("-start_spp", s.start_spp);
+        s.denoiser_start_spp = m_cmd_parser.GetOption("-start_spp", s.denoiser_start_spp);
 
         return s;
     }

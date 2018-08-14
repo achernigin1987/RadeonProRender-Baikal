@@ -104,7 +104,7 @@ namespace Baikal
 
         // denoiser settings
         DenoiserMode denoiser_type = DenoiserMode::kNone;
-        std::uint32_t start_spp = 8;
+        std::uint32_t denoiser_start_spp = 8;
     };
 
     class AppCliParser

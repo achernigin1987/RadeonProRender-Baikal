@@ -22,26 +22,23 @@ namespace Baikal
             m_image_rgb.resize(m_width * m_height);
         };
 
-        void NextFrame()
-        {
-            ++m_frame_count;
-        }
-
         void SaveAllOutputs(
-                std::size_t device_idx,
                 const std::vector<std::map<Renderer::OutputType, std::unique_ptr<Output>>>& outputs)
         {
             if (m_frame_count % kDumpPeriod == 0)
             {
-                for (auto& output : outputs[device_idx])
+                for (std::size_t idx = 0; idx < outputs.size(); ++idx)
                 {
-                    SaveImageFromRendererOutput(
-                        device_idx,
-                        output.first,
-                        output.second.get(),
-                        m_frame_count);
+                    for (auto& output : outputs[idx])
+                    {
+                        SaveImageFromRendererOutput(idx,
+                                                    output.first,
+                                                    output.second.get(),
+                                                    m_frame_count);
+                    }
                 }
             }
+            ++m_frame_count;
         }
 
         void SaveImageFromRendererOutput(

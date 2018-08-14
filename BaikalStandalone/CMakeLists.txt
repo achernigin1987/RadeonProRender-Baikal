@@ -34,7 +34,8 @@ set(UTILS_SOURCES
     Utils/config_manager.cpp
     Utils/config_manager.h
     Utils/shader_manager.cpp
-    Utils/shader_manager.h)
+    Utils/shader_manager.h
+    Utils/output_accessor.h)
 
 set(KERNEL_SOURCES
     Kernels/GLSL/simple.fsh
