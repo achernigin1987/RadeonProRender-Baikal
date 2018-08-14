@@ -29,11 +29,7 @@
 #include "Utils/config_manager.h"
 #include "Application/gl_render.h"
 #include "SceneGraph/camera.h"
-
-#ifdef ENABLE_DENOISER
 #include "PostEffects/post_effect.h"
-#include "Utils/output_accessor.h"
-#endif
 
 #include <thread>
 #include <atomic>
@@ -93,12 +89,12 @@ namespace Baikal
         std::future<int> GetShapeId(std::uint32_t x, std::uint32_t y);
         Baikal::Shape::Ptr GetShapeById(int shape_id);
 
-#ifdef ENABLE_DENOISER
         PostEffectType GetPostEffectType() const;
         void SetDenoiserFloatParam(const std::string& name, float value);
         float GetDenoiserFloatParam(const std::string& name);
-        void DumpAllOutputs(size_t device_idx) const;
-#endif
+
+        void AddOutput(Renderer::OutputType type);
+
     private:
         using RendererOutputs = std::map<Renderer::OutputType, std::unique_ptr<Output>>;
 
@@ -112,7 +108,7 @@ namespace Baikal
         void AddPostEffect(size_t device_idx, PostEffectType type);
         void CopyToGL(Output* output);
         void CopyToGL(Output* left_output, Output* right_output);
-        void ApplyGammaCorrection(size_t device_idx, float gamma, bool divideBySpp);
+        void ApplyGammaCorrection(size_t device_idx, float gamma, bool divide_by_spp);
 
         Baikal::Scene1::Ptr m_scene;
         Baikal::Camera::Ptr m_camera;
@@ -135,14 +131,11 @@ namespace Baikal
         CLWImage2D m_cl_interop_image;
         //save GL tex for no interop case
         GLuint m_tex;
-        Renderer::OutputType m_output_type;
+        Renderer::OutputType m_output_type = Renderer::OutputType::kColor;
 
-#ifdef ENABLE_DENOISER
         std::unique_ptr<PostEffect> m_post_effect;
-        PostEffectType m_post_effect_type;
+        PostEffectType m_post_effect_type = PostEffectType::kNone;
         PostEffect::InputSet m_post_effect_inputs;
         std::unique_ptr<Output> m_post_effect_output;
-        size_t m_frame_count;
-#endif
     };
 }

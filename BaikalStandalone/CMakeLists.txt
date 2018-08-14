@@ -60,10 +60,6 @@ target_include_directories(BaikalStandalone
     PRIVATE .)
 target_link_libraries(BaikalStandalone PRIVATE Baikal BaikalIO glfw3::glfw3 OpenGL::GL GLEW::GLEW)
 
-if (BAIKAL_ENABLE_DENOISER)
-    target_compile_definitions(BaikalStandalone PUBLIC ENABLE_DENOISER)
-endif(BAIKAL_ENABLE_DENOISER)
-
 if (BAIKAL_ENABLE_GLTF)
     target_link_libraries(BaikalStandalone PRIVATE RadeonProRender RprSupport)
 endif (BAIKAL_ENABLE_GLTF)

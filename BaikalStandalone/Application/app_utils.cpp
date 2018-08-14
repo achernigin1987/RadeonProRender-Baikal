@@ -189,7 +189,6 @@ namespace Baikal
             s.cmd_line_mode = true;
         }
 
-#ifdef ENABLE_DENOISER
         if (m_cmd_parser.OptionExists("-denoiser_type"))
         {
             auto denoiser_type = m_cmd_parser.GetOption("-denoiser_type");
@@ -212,8 +211,8 @@ namespace Baikal
             }
         }
 
-        s.start_spp = m_cmd_parser.GetOption("-start_spp", 8u);
-#endif
+        s.start_spp = m_cmd_parser.GetOption("-start_spp", s.start_spp);
+
         return s;
     }
 

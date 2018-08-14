@@ -41,7 +41,8 @@ enum class DeviceType
 
 enum class DenoiserMode
 {
-    kBilateral = 0,
+    kNone = 0,
+    kBilateral,
     kWavelet,
     kML
 };

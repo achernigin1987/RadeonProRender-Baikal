@@ -35,6 +35,7 @@ namespace Baikal
 
     enum class PostEffectType
     {
+        kNone,
         kBilateralDenoiser,
         kWaveletDenoiser,
         kMLDenoiser
