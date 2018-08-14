@@ -732,9 +732,9 @@ namespace Baikal
                 m_cl->StopRenderThreads();
 
             }
-            catch (std::runtime_error&)
+            catch (std::runtime_error& e)
             {
-                std::cout << "Caught exception in Application::Run()\n";
+                std::cout << "Caught exception in Application::Run(): " << e.what() << "\n";
                 throw;
             }
 
@@ -773,33 +773,21 @@ namespace Baikal
         }
     }
 
-
-
     bool Application::UpdateGui()
     {
         static const ImVec2 win_size(380, 580);
-        static float aperture = 0.0f;
+        static float aperture = m_settings.camera_aperture;
         static float focal_length = 35.f;
         static float focus_distance = 1.f;
-        static int num_bounces = 5;
+        static int num_bounces = m_settings.num_bounces;
+
         static const std::vector<std::pair<Baikal::Renderer::OutputType, char const*>> kBaikalOutputs =
         {
+                // TODO: extend this list after SIGGRAPH
             { Renderer::OutputType::kColor, "Color" },
-            { Renderer::OutputType::kOpacity, "Opacity" },
-            { Renderer::OutputType::kVisibility, "Visibility" },
-            { Renderer::OutputType::kWorldPosition, "World Position" },
-            { Renderer::OutputType::kWorldShadingNormal, "Shading Normal" },
-            { Renderer::OutputType::kWorldGeometricNormal, "Geometric Normal" },
-            { Renderer::OutputType::kUv, "Texture Coordinates" },
-            { Renderer::OutputType::kWireframe, "Wireframe" },
             { Renderer::OutputType::kAlbedo, "Albedo" },
-            { Renderer::OutputType::kWorldTangent, "Tangent" },
-            { Renderer::OutputType::kWorldBitangent, "Bitangent" },
-            { Renderer::OutputType::kGloss, "Glossiness" },
-            { Renderer::OutputType::kMeshID, "Object ID" },
-            { Renderer::OutputType::kGroupID, "Object Group ID" },
-            { Renderer::OutputType::kBackground, "Background" },
-            { Renderer::OutputType::kDepth, "Depth" }
+            { Renderer::OutputType::kViewShadingNormal, "View Shading Normal" },
+            { Renderer::OutputType::kDepth, "View Shading Depth" }
         };
 
         static int output = 0;

@@ -115,9 +115,9 @@ void BilateralDenoise_main(
 
 // perform division on w component
 KERNEL
-void DivideBySamleCount(GLOBAL float4* restrict dst,
-                        GLOBAL float4 const* restrict src,
-                        int elems_num)
+void DivideBySampleCount(GLOBAL float4* restrict dst,
+                         GLOBAL float4 const* restrict src,
+                         int elems_num)
 {
     int id = get_global_id(0);
 

@@ -39,7 +39,6 @@ THE SOFTWARE.
 #endif
 
 #include "OpenImageIO/imageio.h"
-#include "cl_render.h"
 
 #include <fstream>
 #include <sstream>
@@ -218,7 +217,7 @@ namespace Baikal
 
                 auto ibl = ImageBasedLight::Create();
                 ibl->SetTexture(ibl_texture);
-		ibl->SetMultiplier(settings.envmapmul);
+                ibl->SetMultiplier(settings.envmapmul);
                 m_scene->AttachLight(ibl);
             }
 
@@ -333,7 +332,6 @@ namespace Baikal
             {
                 if (m_ctrl[i].scene_state != m_ctrl[m_primary].scene_state)
                 {
-                    std::cout << "Frame " << m_frame_count << ": device " << i << " skipped update";
                     // Skip update if worker has sent us non-actual data
                     continue;
                 }
@@ -375,14 +373,21 @@ namespace Baikal
         else
         {
 #ifdef ENABLE_DENOISER
-            if (settings.split_output)
+            if (m_output_type == Renderer::OutputType::kColor)
             {
-                CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor),
-                         m_post_effect_output.get());
+                if (settings.split_output)
+                {
+                    CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor),
+                             m_post_effect_output.get());
+                }
+                else
+                {
+                    CopyToGL(m_post_effect_output.get());
+                }
             }
             else
             {
-                CopyToGL(m_post_effect_output.get());
+                CopyToGL(GetRendererOutput(m_primary, m_output_type));
             }
 #else
             CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor));
@@ -424,24 +429,10 @@ namespace Baikal
         }
 
 #ifdef ENABLE_DENOISER
-//        std::string basic_path = "/media/achernigin/Storage/denoise/cam_31_aov_";
-//        m_output_accessor->LoadImageToRendererOutput(
-//                m_cfgs[m_primary].context,
-//                GetRendererOutput(m_primary, Renderer::OutputType::kColor),
-//                basic_path + "color_f8.bin");
-//        m_output_accessor->LoadImageToRendererOutput(
-//                m_cfgs[m_primary].context,
-//                GetRendererOutput(m_primary, Renderer::OutputType::kDepth),
-//                basic_path + "view_shading_depth_f8.bin");
-//        m_output_accessor->LoadImageToRendererOutput(
-//                m_cfgs[m_primary].context,
-//                GetRendererOutput(m_primary, Renderer::OutputType::kViewShadingNormal),
-//                basic_path + "view_shading_normal_f8.bin");
-//        m_output_accessor->LoadImageToRendererOutput(
-//                m_cfgs[m_primary].context,q
-//                GetRendererOutput(m_primary, Renderer::OutputType::kGloss),
-//                basic_path + "gloss_f8.bin");
-        m_post_effect->Apply(m_post_effect_inputs, *m_post_effect_output);
+        if (m_output_type == Renderer::OutputType::kColor)
+        {
+            m_post_effect->Apply(m_post_effect_inputs, *m_post_effect_output);
+        }
 #endif
     }
 
@@ -679,26 +670,8 @@ namespace Baikal
 
     void AppClRender::SetOutputType(Renderer::OutputType type)
     {
-        for (std::size_t i = 0; i < m_cfgs.size(); ++i)
-        {
-#ifdef ENABLE_DENOISER
-            RestoreDenoiserOutput(i, m_output_type);
-#else
-            m_cfgs[i].renderer->SetOutput(m_output_type, nullptr);
-#endif
-            if (type == Renderer::OutputType::kOpacity || type == Renderer::OutputType::kVisibility)
-            {
-                m_cfgs[i].renderer->SetOutput(Renderer::OutputType::kColor, m_outputs[i].dummy_output.get());
-            }
-            else
-            {
-                m_cfgs[i].renderer->SetOutput(Renderer::OutputType::kColor, nullptr);
-            }
-            m_cfgs[i].renderer->SetOutput(type, GetRendererOutput(i, Renderer::OutputType::kColor));
-        }
         m_output_type = type;
     }
-
 
     std::future<int> AppClRender::GetShapeId(std::uint32_t x, std::uint32_t y)
     {
@@ -759,41 +732,22 @@ namespace Baikal
     }
 
 #ifdef ENABLE_DENOISER
-    void AppClRender::RestoreDenoiserOutput(std::size_t cfg_index, Renderer::OutputType type) const
-    {
-//        switch (type)
-//        {
-//        case Renderer::OutputType::kWorldShadingNormal:
-//            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_normal.get());
-//            break;
-//        case Renderer::OutputType::kWorldPosition:
-//            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_position.get());
-//            break;
-//        case Renderer::OutputType::kAlbedo:
-//            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_albedo.get());
-//            break;
-//        case Renderer::OutputType::kMeshID:
-//            m_cfgs[cfg_index].renderer->SetOutput(type, m_outputs[cfg_index].output_mesh_id.get());
-//            break;
-//        default:
-//            // Nothing to restore
-//            m_cfgs[cfg_index].renderer->SetOutput(type, nullptr);
-//            break;
-//        }
-    }
-
     void AppClRender::DumpAllOutputs(size_t device_idx) const
     {
         if (m_frame_count % m_dump_period == 0)
         {
             for (auto& output : m_renderer_outputs[device_idx])
             {
-                m_output_accessor->SaveImageFromRendererOutput(device_idx, output.first, output.second.get(), m_frame_count);
+                m_output_accessor->SaveImageFromRendererOutput(
+                        device_idx,
+                        output.first,
+                        output.second.get(),
+                        m_frame_count);
             }
         }
     }
-
 #endif
+
 
     void AppClRender::CopyToGL(Output* output)
     {
@@ -801,7 +755,7 @@ namespace Baikal
         m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
 
         auto copykernel = dynamic_cast<MonteCarloRenderer*>(
-            m_cfgs[m_primary].renderer.get())->GetCopyKernel();
+                m_cfgs[m_primary].renderer.get())->GetCopyKernel();
 
         copykernel.SetArg(0, dynamic_cast<ClwOutput*>(output)->data());
         copykernel.SetArg(1, output->width());
@@ -825,7 +779,7 @@ namespace Baikal
         m_cfgs[m_primary].context.AcquireGLObjects(0, objects);
 
         auto copykernel = dynamic_cast<MonteCarloRenderer*>(
-            m_cfgs[m_primary].renderer.get())->GetCopySplitKernel();
+                m_cfgs[m_primary].renderer.get())->GetCopySplitKernel();
 
         copykernel.SetArg(0, dynamic_cast<ClwOutput*>(left_output)->data());
         copykernel.SetArg(1, dynamic_cast<ClwOutput*>(right_output)->data());
