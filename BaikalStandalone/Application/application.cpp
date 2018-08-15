@@ -715,6 +715,11 @@ namespace Baikal
 
         if (!m_settings.cmd_line_mode)
         {
+            // Add outputs selectable in UI
+            m_cl->AddOutput(Renderer::OutputType::kAlbedo);
+            m_cl->AddOutput(Renderer::OutputType::kViewShadingNormal);
+            m_cl->AddOutput(Renderer::OutputType::kDepth);
+
             try
             {
                 m_cl->StartRenderThreads();
@@ -950,8 +955,9 @@ namespace Baikal
                 ImGui::Text("Shadow rays: %f Mrays/s", stats.shadow_throughput * 1e-6f);
             }
 
-#ifdef ENABLE_DENOISER
-            if (m_cl->GetPostEffectType() != PostEffectType::kMLDenoiser) {
+            if (m_cl->GetDenoiserType() == DenoiserType::kBilateral ||
+                m_cl->GetDenoiserType() == DenoiserType::kWavelet)
+            {
                 ImGui::Separator();
 
                 static float sigmaPosition = m_cl->GetDenoiserFloatParam("position_sensitivity");
@@ -975,7 +981,6 @@ namespace Baikal
 
             ImGui::Separator();
             ImGui::Checkbox("Split output", &m_settings.split_output);
-#endif
             ImGui::End();
 
             // Get shape/material info from renderer

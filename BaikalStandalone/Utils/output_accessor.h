@@ -22,6 +22,25 @@ namespace Baikal
             m_image_rgb.resize(m_width * m_height);
         };
 
+        void SaveAllOutputs(
+                const std::vector<std::map<Renderer::OutputType, std::unique_ptr<Output>>>& outputs)
+        {
+            if (m_frame_count % kDumpPeriod == 0)
+            {
+                for (std::size_t idx = 0; idx < outputs.size(); ++idx)
+                {
+                    for (auto& output : outputs[idx])
+                    {
+                        SaveImageFromRendererOutput(idx,
+                                                    output.first,
+                                                    output.second.get(),
+                                                    m_frame_count);
+                    }
+                }
+            }
+            ++m_frame_count;
+        }
+
         void SaveImageFromRendererOutput(
                 size_t device_idx,
                 Renderer::OutputType output_type,
@@ -145,7 +164,9 @@ namespace Baikal
         std::vector<RadeonRays::float3> m_image_data;
         std::vector<RGB> m_image_rgb;
         std::string m_output_dir;
-        size_t m_width;
-        size_t m_height;
+        std::size_t m_width;
+        std::size_t m_height;
+        std::size_t m_frame_count = 0;
+        static constexpr std::size_t kDumpPeriod = 20;
     };
 }

@@ -189,22 +189,21 @@ namespace Baikal
             s.cmd_line_mode = true;
         }
 
-#ifdef ENABLE_DENOISER
         if (m_cmd_parser.OptionExists("-denoiser_type"))
         {
             auto denoiser_type = m_cmd_parser.GetOption("-denoiser_type");
 
             if (denoiser_type == "bilateral")
             {
-                s.denoiser_type = DenoiserMode::kBilateral;
+                s.denoiser_type = DenoiserType::kBilateral;
             }
             else if (denoiser_type == "wavelet")
             {
-                s.denoiser_type = DenoiserMode::kWavelet;
+                s.denoiser_type = DenoiserType::kWavelet;
             }
             else if (denoiser_type == "ml")
             {
-                s.denoiser_type = DenoiserMode::kML;
+                s.denoiser_type = DenoiserType::kML;
             }
             else
             {
@@ -212,8 +211,8 @@ namespace Baikal
             }
         }
 
-        s.start_spp = m_cmd_parser.GetOption("-start_spp", 8u);
-#endif
+        s.denoiser_start_spp = m_cmd_parser.GetOption("-start_spp", s.denoiser_start_spp);
+
         return s;
     }
 

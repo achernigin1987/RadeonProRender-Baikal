@@ -34,7 +34,8 @@ set(UTILS_SOURCES
     Utils/config_manager.cpp
     Utils/config_manager.h
     Utils/shader_manager.cpp
-    Utils/shader_manager.h)
+    Utils/shader_manager.h
+    Utils/output_accessor.h)
 
 set(KERNEL_SOURCES
     Kernels/GLSL/simple.fsh
@@ -59,10 +60,6 @@ target_include_directories(BaikalStandalone
     PRIVATE ${Baikal_SOURCE_DIR}
     PRIVATE .)
 target_link_libraries(BaikalStandalone PRIVATE Baikal BaikalIO glfw3::glfw3 OpenGL::GL GLEW::GLEW)
-
-if (BAIKAL_ENABLE_DENOISER)
-    target_compile_definitions(BaikalStandalone PUBLIC ENABLE_DENOISER)
-endif(BAIKAL_ENABLE_DENOISER)
 
 if (BAIKAL_ENABLE_GLTF)
     target_link_libraries(BaikalStandalone PRIVATE RadeonProRender RprSupport)
