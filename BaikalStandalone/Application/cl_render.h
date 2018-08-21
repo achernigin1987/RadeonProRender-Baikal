@@ -95,8 +95,8 @@ namespace Baikal
         Baikal::Shape::Ptr GetShapeById(int shape_id);
 
         DenoiserType GetDenoiserType() const;
-        void SetDenoiserFloatParam(const std::string& name, float value);
-        float GetDenoiserFloatParam(const std::string& name) const;
+        void SetDenoiserFloatParam(std::string const& name, float value);
+        float GetDenoiserFloatParam(std::string const& name) const;
 
         void AddOutput(Renderer::OutputType type);
 

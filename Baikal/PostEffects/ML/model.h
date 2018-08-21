@@ -1,6 +1,6 @@
 #include <cstddef>
 
-#if defined(WIN32) || defined(_WIN32)
+#if defined(_WIN32)
     #ifdef MODEL_RUNNER_BUILD
         #define MODEL_RUNNER_API __declspec(dllexport)
     #else

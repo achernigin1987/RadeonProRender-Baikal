@@ -186,12 +186,12 @@ namespace Baikal
         return m_denoiser_type;
     }
 
-    void AppClRender::SetDenoiserFloatParam(const std::string& name, float value)
+    void AppClRender::SetDenoiserFloatParam(std::string const& name, float value)
     {
         m_post_effect->SetParameter(name, value);
     }
 
-    float AppClRender::GetDenoiserFloatParam(const std::string& name) const
+    float AppClRender::GetDenoiserFloatParam(std::string const& name) const
     {
         return m_post_effect->GetParameter(name).GetFloat();
     }
