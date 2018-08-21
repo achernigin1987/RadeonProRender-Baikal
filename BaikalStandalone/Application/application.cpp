@@ -979,8 +979,12 @@ namespace Baikal
                 }
             }
 
-            ImGui::Separator();
-            ImGui::Checkbox("Split output", &m_settings.split_output);
+            if (m_cl->GetDenoiserType() != DenoiserType::kNone)
+            {
+                ImGui::Separator();
+                ImGui::Checkbox("Split output", &m_settings.split_output);
+            }
+
             ImGui::End();
 
             // Get shape/material info from renderer

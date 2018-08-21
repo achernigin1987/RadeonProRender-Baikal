@@ -1,32 +1,24 @@
 #include "PostEffects/ML/model_holder.h"
 
 #include <stdexcept>
+#include <sstream>
 
-#ifdef WIN32
-#   error "Windows is not supported"
+#ifdef _WIN32
+#   include <windows.h>
 #else
 #   include <dlfcn.h>
 #endif
 
+
 namespace
 {
+#ifdef _WIN32
+    constexpr wchar_t const* kSharedObject = L"model_runner.dll";
+#else
     constexpr char const* kSharedObject = "libmodel_runner.so";
+#endif
     constexpr char const* kLoadModelFn = "LoadModel";
-
-    void* LoadSharedObject()
-    {
-        void* handle = dlopen(kSharedObject, RTLD_NOW);
-        if (handle == nullptr)
-        {
-            throw std::runtime_error(std::string("SO error: ") + dlerror());
-        }
-        return handle;
-    }
-
-    void UnloadSharedObject(void* handle)
-    {
-        dlclose(handle);
-    }
+    decltype(LoadModel)* g_load_model = nullptr;
 }
 
 namespace Baikal
@@ -34,32 +26,72 @@ namespace Baikal
     namespace PostEffects
     {
         ModelHolder::ModelHolder()
-            : m_shared_object(LoadSharedObject(), &UnloadSharedObject)
         {
+            if (g_load_model != nullptr)
+            {
+                return;
+            }
+
+#ifdef _WIN32
+            auto get_last_error = []
+            {
+                LPSTR buffer = nullptr;
+                auto size = FormatMessageA(
+                    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    nullptr,
+                    GetLastError(),
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                    (LPSTR)&buffer,
+                    0,
+                    nullptr);
+                std::string message(buffer, size);
+                LocalFree(buffer);
+                return message;
+            };
+
+            auto library = LoadLibraryW(kSharedObject);
+            if (library == nullptr)
+            {
+                throw std::runtime_error("Library error: " + get_last_error());
+            }
+
+            auto symbol = GetProcAddress(library, kLoadModelFn);
+            if (symbol == nullptr)
+            {
+                throw std::runtime_error(std::string("Symbol error: ") + get_last_error());
+            }
+#else
+            auto library = dlopen(kSharedObject, RTLD_NOW);
+            if (library == nullptr)
+            {
+                throw std::runtime_error(std::string("Library error: ") + dlerror());
+            }
+
+            auto symbol = dlsym(library, kLoadModelFn);
+            if (symbol == nullptr)
+            {
+                throw std::runtime_error(std::string("Symbol error: ") + dlerror());
+            }
+#endif
+
+            g_load_model = reinterpret_cast<decltype(LoadModel)*>(symbol);
         }
 
         ModelHolder::ModelHolder(std::string const& model_path,
                                  float gpu_memory_fraction,
                                  std::string const& visible_devices)
-            : ModelHolder()
+        : ModelHolder()
         {
-            reset(model_path, gpu_memory_fraction, visible_devices);
+            Reset(model_path, gpu_memory_fraction, visible_devices);
         }
 
-        void ModelHolder::reset(std::string const& model_path,
+        void ModelHolder::Reset(std::string const& model_path,
                                 float gpu_memory_fraction,
                                 std::string const& visible_devices)
         {
-            void* symbol = dlsym(m_shared_object.get(), kLoadModelFn);
-            if (symbol == nullptr)
-            {
-                throw std::runtime_error(std::string("Symbol error: ") + dlerror());
-            }
-            auto load_model = reinterpret_cast<decltype(LoadModel)*>(symbol);
-
-            m_model.reset(load_model(model_path.c_str(),
-                                     gpu_memory_fraction,
-                                     visible_devices.c_str()));
+            m_model.reset(g_load_model(model_path.c_str(),
+                                       gpu_memory_fraction,
+                                       visible_devices.c_str()));
         }
     }
 }

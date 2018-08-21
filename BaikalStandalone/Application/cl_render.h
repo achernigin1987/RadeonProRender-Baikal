@@ -30,11 +30,15 @@
 #include "Application/gl_render.h"
 #include "SceneGraph/camera.h"
 #include "PostEffects/post_effect.h"
+#include "Output/output.h"
 
 #include <thread>
 #include <atomic>
 #include <mutex>
 #include <future>
+#include <map>
+#include <memory>
+#include <vector>
 
 
 namespace Baikal
@@ -43,6 +47,7 @@ namespace Baikal
     {
         struct OutputData
         {
+            std::map<Renderer::OutputType, std::unique_ptr<Output>> render_outputs;
             std::unique_ptr<Baikal::Output> output;
             std::unique_ptr<Baikal::Output> dummy_output;
             std::vector<float3> fdata;
@@ -90,8 +95,8 @@ namespace Baikal
         Baikal::Shape::Ptr GetShapeById(int shape_id);
 
         DenoiserType GetDenoiserType() const;
-        void SetDenoiserFloatParam(const std::string& name, float value);
-        float GetDenoiserFloatParam(const std::string& name);
+        void SetDenoiserFloatParam(std::string const& name, float value);
+        float GetDenoiserFloatParam(std::string const& name) const;
 
         void AddOutput(Renderer::OutputType type);
 
@@ -118,7 +123,6 @@ namespace Baikal
         OutputData m_shape_id_data;
         RadeonRays::float2 m_shape_id_pos;
         std::vector<Config> m_cfgs;
-        std::vector<RendererOutputs> m_renderer_outputs;
 
         std::vector<OutputData> m_outputs;
         std::unique_ptr<ControlData[]> m_ctrl;
@@ -133,8 +137,8 @@ namespace Baikal
         GLuint m_tex;
         Renderer::OutputType m_output_type = Renderer::OutputType::kColor;
 
-        std::unique_ptr<PostEffect> m_post_effect;
         DenoiserType m_denoiser_type = DenoiserType::kNone;
+        std::unique_ptr<PostEffect> m_post_effect;
         PostEffect::InputSet m_post_effect_inputs;
         std::unique_ptr<Output> m_post_effect_output;
     };

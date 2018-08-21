@@ -22,6 +22,7 @@ THE SOFTWARE.
 #include "OpenImageIO/imageio.h"
 
 #include "Application/cl_render.h"
+
 #include "Application/gl_render.h"
 #include "Utils/output_accessor.h"
 
@@ -49,6 +50,8 @@ namespace Baikal
     namespace
     {
         constexpr float kGamma = 2.2f;
+
+        // Define the IMAGE_DUMP_PATH value to dump render data
 #ifdef IMAGE_DUMP_PATH
         std::unique_ptr<RendererOutputAccessor> s_output_accessor;
 #endif
@@ -56,6 +59,7 @@ namespace Baikal
 
     AppClRender::AppClRender(AppSettings& settings, GLuint tex)
     : m_tex(tex)
+    , m_denoiser_type(settings.denoiser_type)
     {
         InitCl(settings, m_tex);
 
@@ -143,7 +147,7 @@ namespace Baikal
         }
 
         m_outputs.resize(m_cfgs.size());
-        m_renderer_outputs.resize(m_cfgs.size());
+
         //create renderer
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
@@ -182,12 +186,12 @@ namespace Baikal
         return m_denoiser_type;
     }
 
-    void AppClRender::SetDenoiserFloatParam(const std::string& name, float value)
+    void AppClRender::SetDenoiserFloatParam(std::string const& name, float value)
     {
         m_post_effect->SetParameter(name, value);
     }
 
-    float AppClRender::GetDenoiserFloatParam(const std::string& name)
+    float AppClRender::GetDenoiserFloatParam(std::string const& name) const
     {
         return m_post_effect->GetParameter(name).GetFloat();
     }
@@ -305,7 +309,7 @@ namespace Baikal
                 m_ctrl[i].clear.store(true);
         }
 
-        for (auto& output : m_renderer_outputs[m_primary])
+        for (auto& output : m_outputs[m_primary].render_outputs)
         {
             output.second->Clear(float3());
         }
@@ -316,7 +320,7 @@ namespace Baikal
         ++settings.samplecount;
 
 #ifdef IMAGE_DUMP_PATH
-        s_output_accessor->SaveAllOutputs(m_renderer_outputs);
+        s_output_accessor->SaveAllOutputs(m_outputs);
 #endif
 
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
@@ -529,7 +533,7 @@ namespace Baikal
             bool update = false;
             if (std::atomic_compare_exchange_strong(&cd.clear, &result, 0))
             {
-                for (auto& output : m_renderer_outputs[cd.idx])
+                for (auto& output : m_outputs[cd.idx].render_outputs)
                 {
                     output.second->Clear(float3());
                 }
@@ -714,26 +718,26 @@ namespace Baikal
 
     void AppClRender::AddRendererOutput(size_t device_idx, Renderer::OutputType type)
     {
-        auto it = m_renderer_outputs[device_idx].find(type);
-        if (it == m_renderer_outputs[device_idx].end())
+        auto it = m_outputs[device_idx].render_outputs.find(type);
+        if (it == m_outputs[device_idx].render_outputs.end())
         {
             const auto& config = m_cfgs.at(device_idx);
             auto output = config.factory->CreateOutput(m_width, m_height);
             config.renderer->SetOutput(type, output.get());
             config.renderer->Clear(RadeonRays::float3(0, 0, 0), *output);
 
-            m_renderer_outputs[device_idx].emplace(type, std::move(output));
+            m_outputs[device_idx].render_outputs.emplace(type, std::move(output));
         }
     }
 
     Output* AppClRender::GetRendererOutput(size_t device_idx, Renderer::OutputType type)
     {
-        return m_renderer_outputs.at(device_idx).at(type).get();
+        return m_outputs.at(device_idx).render_outputs.at(type).get();
     }
 
     void AppClRender::GetOutputData(size_t device_idx, Renderer::OutputType type, RadeonRays::float3* data) const
     {
-        m_renderer_outputs.at(device_idx).at(type)->GetData(data);
+        m_outputs.at(device_idx).render_outputs.at(type)->GetData(data);
     }
 
     void AppClRender::CopyToGL(Output* output)

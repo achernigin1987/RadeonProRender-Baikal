@@ -22,14 +22,14 @@ namespace Baikal
             m_image_rgb.resize(m_width * m_height);
         };
 
-        void SaveAllOutputs(
-                const std::vector<std::map<Renderer::OutputType, std::unique_ptr<Output>>>& outputs)
+        template<class TOutputData>
+        void SaveAllOutputs(const std::vector<TOutputData>& outputs)
         {
             if (m_frame_count % kDumpPeriod == 0)
             {
                 for (std::size_t idx = 0; idx < outputs.size(); ++idx)
                 {
-                    for (auto& output : outputs[idx])
+                    for (auto& output : outputs[idx].render_outputs)
                     {
                         SaveImageFromRendererOutput(idx,
                                                     output.first,
@@ -41,19 +41,18 @@ namespace Baikal
             ++m_frame_count;
         }
 
-        void SaveImageFromRendererOutput(
-                size_t device_idx,
-                Renderer::OutputType output_type,
-                Output *output, size_t index)
+        void SaveImageFromRendererOutput(size_t device_idx,
+                                         Renderer::OutputType output_type,
+                                         Output *output, size_t index)
         {
             GetOutputData(output);
             NormalizeImage();
             SaveImage(device_idx, GetOutputName(output_type), index);
         }
 
-        void LoadImageToRendererOutput(const CLWContext &context,
-                                       Output *output,
-                                       const std::string &image_path)
+        void LoadImageToRendererOutput(const CLWContext& context,
+                                       Output* output,
+                                       const std::string& image_path)
         {
             using float3 = RadeonRays::float3;
             std::ifstream ifs(image_path, std::ios::binary | std::ios::ate);
@@ -63,7 +62,7 @@ namespace Baikal
             ifs.seekg(0, std::ios::beg);
             ifs.read(result.data(), pos);
 
-            auto clw_output = dynamic_cast<ClwOutput *>(output);
+            auto clw_output = dynamic_cast<ClwOutput*>(output);
 
             context.WriteBuffer<float3>(0,
                                         clw_output->data(),
@@ -72,19 +71,19 @@ namespace Baikal
         }
 
     private:
-        struct RGB
+        struct Color
         {
             float r;
             float g;
             float b;
         };
 
-        void GetOutputData(Output *output)
+        void GetOutputData(Output* output)
         {
             output->GetData(&m_image_data[0]);
         }
 
-        std::string GetOutputName(Renderer::OutputType output_type)
+        static std::string GetOutputName(Renderer::OutputType output_type)
         {
             switch (output_type)
             {
@@ -138,17 +137,17 @@ namespace Baikal
                            {
                                if (v.w == 0)
                                {
-                                   return RGB({0, 0, 0});
+                                   return Color({0, 0, 0});
                                }
                                else
                                {
                                    float invw = 1.f / v.w;
-                                   return RGB({v.x * invw, v.y * invw, v.z * invw});
+                                   return Color({v.x * invw, v.y * invw, v.z * invw});
                                }
                            });
         }
 
-        void SaveImage(size_t device_idx, const std::string &output_name, size_t index)
+        void SaveImage(size_t device_idx, std::string const& output_name, std::size_t index)
         {
             std::ostringstream path;
             path << m_output_dir
@@ -157,12 +156,12 @@ namespace Baikal
                  << "_" << output_name << ".bin";
             std::ofstream out(path.str(), std::ios_base::binary);
             out.write(reinterpret_cast<char const *>(m_image_rgb.data()),
-                      m_width * m_height * sizeof(RGB));
+                      m_width * m_height * sizeof(Color));
             std::cerr << "Written: " << path.str() << "\n";
         }
 
         std::vector<RadeonRays::float3> m_image_data;
-        std::vector<RGB> m_image_rgb;
+        std::vector<Color> m_image_rgb;
         std::string m_output_dir;
         std::size_t m_width;
         std::size_t m_height;

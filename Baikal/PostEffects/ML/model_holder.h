@@ -10,6 +10,8 @@ namespace Baikal
 {
     namespace PostEffects
     {
+        class SharedObject;
+
         class ModelHolder
         {
         public:
@@ -19,7 +21,7 @@ namespace Baikal
                         float gpu_memory_fraction,
                         std::string const& visible_devices);
 
-            void reset(std::string const& model_path,
+            void Reset(std::string const& model_path,
                        float gpu_memory_fraction,
                        std::string const& visible_devices);
 
@@ -34,7 +36,7 @@ namespace Baikal
             }
 
         private:
-            std::unique_ptr<void, void(*)(void*)> m_shared_object;
+            std::shared_ptr<SharedObject> m_shared_object;
             std::unique_ptr<ML::Model> m_model;
         };
     }
