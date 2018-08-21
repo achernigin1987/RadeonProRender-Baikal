@@ -23,7 +23,8 @@ set(ML_DENOISER_SOURCES
     PostEffects/ML/denoiser.cpp
     PostEffects/ML/inference.h
     PostEffects/ML/inference_impl.h
-    PostEffects/ML/inference_impl.cpp)
+    PostEffects/ML/inference_impl.cpp
+)
 
 set(POSTEFFECT_SOURCES
     PostEffects/clw_post_effect.h
