@@ -38,8 +38,7 @@ namespace Baikal
     PostEffect::Param::Param(RadeonRays::float2 const& value)
                       : m_type(ParamType::kFloat2),
                         m_float2_value(value)
-    {
-    }
+    {   }
 
     PostEffect::Param::Param(RadeonRays::float4 const& value)
                       : m_type(ParamType::kFloat4),

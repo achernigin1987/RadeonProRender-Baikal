@@ -114,6 +114,8 @@ namespace Baikal
         void CopyToGL(Output* output);
         void CopyToGL(Output* left_output, Output* right_output);
         void ApplyGammaCorrection(size_t device_idx, float gamma, bool divide_by_spp);
+        void InitPostEffect(AppSettings const& settings);
+        void SetPostEffectParams(int sample_cnt);
 
         Baikal::Scene1::Ptr m_scene;
         Baikal::Camera::Ptr m_camera;
