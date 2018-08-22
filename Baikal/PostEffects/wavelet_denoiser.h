@@ -116,8 +116,6 @@ namespace Baikal
         uint32_t            m_buffers_height;
 
         bool                m_buffers_initialized;
-
-
     };
 
     inline WaveletDenoiser::WaveletDenoiser(CLWContext context, const CLProgramManager* program_manager)
