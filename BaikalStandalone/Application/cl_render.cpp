@@ -68,6 +68,10 @@ namespace Baikal
             case DenoiserType::kNone:
                 break;
             case DenoiserType::kBilateral:
+                if (settings.camera_type != CameraType::kPerspective)
+                {
+                    throw std::logic_error("Bilateral denoiser requires perspective camera");
+                }
                 AddPostEffect(m_primary, PostEffectType::kBilateralDenoiser);
                 break;
             case DenoiserType::kWavelet:
@@ -418,9 +422,35 @@ namespace Baikal
 
     void AppClRender::Render(int sample_cnt)
     {
-        if (m_post_effect)
+        switch (m_denoiser_type)
         {
-            m_post_effect->Update(m_camera.get(), static_cast<unsigned>(sample_cnt));
+            case DenoiserType::kBilateral:
+            {
+                const auto radius = 10U - RadeonRays::clamp((sample_cnt / 16), 1U, 9U);
+                m_post_effect->SetParameter("radius", static_cast<float>(radius));
+                m_post_effect->SetParameter("color_sensitivity", (radius / 10.f) * 2.f);
+                m_post_effect->SetParameter("normal_sensitivity", 0.1f + (radius / 10.f) * 0.15f);
+                m_post_effect->SetParameter("position_sensitivity", 5.f + 10.f * (radius / 10.f));
+                m_post_effect->SetParameter("albedo_sensitivity", 0.5f + (radius / 10.f) * 0.5f);
+                break;
+            }
+            case DenoiserType::kWavelet:
+            {
+                auto pCamera = dynamic_cast<PerspectiveCamera*>(m_camera.get());
+                m_post_effect->SetParameter("camera_focal_length", pCamera->GetFocalLength());
+                m_post_effect->SetParameter("camera_sensor_size", pCamera->GetSensorSize());
+                m_post_effect->SetParameter("camera_depth_range", pCamera->GetDepthRange());
+                m_post_effect->SetParameter("camera_up_vector", pCamera->GetUpVector());
+                m_post_effect->SetParameter("camera_forward_vector", pCamera->GetForwardVector());
+                m_post_effect->SetParameter("camera_right_vector", -pCamera->GetRightVector());
+                m_post_effect->SetParameter("camera_position", pCamera->GetPosition());
+                m_post_effect->SetParameter("camera_aspect_ratio", static_cast<const float>(pCamera->GetAspectRatio()));
+                break;
+            }
+            case DenoiserType::kNone:
+            case DenoiserType::kML:
+            default:
+                break;
         }
 
         auto& scene = m_cfgs[m_primary].controller->GetCachedScene(m_scene);

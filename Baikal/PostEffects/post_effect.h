@@ -52,10 +52,11 @@ namespace Baikal
 
         enum class ParamType
         {
-            kFloatVal = 0,
-            kUintVal,
-            kFloat4Val,
-            kStringVal
+            kFloat = 0,
+            kUint,
+            kFloat2,
+            kFloat4,
+            kString,
         };
 
         class Param
@@ -65,21 +66,32 @@ namespace Baikal
 
             float GetFloat() const;
             std::uint32_t GetUint() const;
+            const RadeonRays::float2& GetFloat2() const;
             const RadeonRays::float4& GetFloat4() const;
             const std::string& GetString() const;
 
             Param(float value);
             Param(std::uint32_t value);
+            Param(RadeonRays::float2 const& value);
             Param(RadeonRays::float4 const& value);
             Param(std::string const& value);
+
+            operator float() const { return GetFloat(); }
+            operator std::uint32_t() const { return GetUint(); }
+            operator const RadeonRays::float2&() const { return GetFloat2(); }
+            operator const RadeonRays::float4&() const { return GetFloat4(); }
+            operator const std::string&() const { return GetString(); }
 
         private:
             void AssertType(ParamType type) const;
 
             ParamType m_type;
-            std::uint32_t m_uint_value;
-            float m_float_value;
-            RadeonRays::float4 m_float4_value;
+            union {
+                std::uint32_t m_uint_value;
+                float m_float_value;
+                RadeonRays::float2 m_float2_value;
+                RadeonRays::float4 m_float4_value;
+            };
             std::string m_str_value;
         };
 
@@ -97,9 +109,6 @@ namespace Baikal
 
         // Apply post effect and use output for the result
         virtual void Apply(InputSet const& input_set, Output& output) = 0;
-
-        // TODO: remove this method afterwards
-        virtual void Update(Camera* camera, unsigned int samples) = 0;
 
         virtual void SetParameter(std::string const& name, Param value);
 
