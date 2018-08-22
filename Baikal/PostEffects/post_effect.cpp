@@ -26,22 +26,27 @@ namespace Baikal
 {
 
     PostEffect::Param::Param(std::uint32_t value)
-                      : m_type(ParamType::kUintVal),
+                      : m_type(ParamType::kUint),
                         m_uint_value(value)
     {   }
 
     PostEffect::Param::Param(float value)
-                      : m_type(ParamType::kFloatVal),
+                      : m_type(ParamType::kFloat),
                         m_float_value(value)
     {   }
 
+    PostEffect::Param::Param(RadeonRays::float2 const& value)
+                      : m_type(ParamType::kFloat2),
+                        m_float2_value(value)
+    {   }
+
     PostEffect::Param::Param(RadeonRays::float4 const& value)
-                      : m_type(ParamType::kFloat4Val),
+                      : m_type(ParamType::kFloat4),
                         m_float4_value(value)
     {   }
 
     PostEffect::Param::Param(std::string const& value)
-                      : m_type(ParamType::kStringVal),
+                      : m_type(ParamType::kString),
                         m_str_value(value)
     {   }
 
@@ -60,25 +65,31 @@ namespace Baikal
 
     float PostEffect::Param::GetFloat() const
     {
-        AssertType(ParamType::kFloatVal);
+        AssertType(ParamType::kFloat);
         return m_float_value;
     }
 
     std::uint32_t PostEffect::Param::GetUint() const
     {
-        AssertType(ParamType::kUintVal);
+        AssertType(ParamType::kUint);
         return m_uint_value;
     }
 
     const RadeonRays::float4& PostEffect::Param::GetFloat4() const
     {
-        AssertType(ParamType::kFloat4Val);
+        AssertType(ParamType::kFloat4);
         return m_float4_value;
+    }
+
+    const RadeonRays::float2& PostEffect::Param::GetFloat2() const
+    {
+        AssertType(ParamType::kFloat2);
+        return m_float2_value;
     }
 
     const std::string& PostEffect::Param::GetString() const
     {
-        AssertType(ParamType::kStringVal);
+        AssertType(ParamType::kString);
         return m_str_value;
     }
 

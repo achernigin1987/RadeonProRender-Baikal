@@ -439,11 +439,6 @@ namespace Baikal
             }
         }
 
-        void MLDenoiser::Update(Camera* camera, unsigned int samples)
-        {
-
-        }
-
         void MLDenoiser::SetParameter(std::string const& name, Param value)
         {
             auto param = GetParameter(name);

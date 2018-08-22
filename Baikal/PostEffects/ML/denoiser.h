@@ -59,8 +59,6 @@ namespace Baikal
 
             void Apply(InputSet const& input_set, Output& output) override;
 
-            void Update(Camera* camera, unsigned int samples) override;
-
             void SetParameter(std::string const& name, Param value) override;
 
         private:
