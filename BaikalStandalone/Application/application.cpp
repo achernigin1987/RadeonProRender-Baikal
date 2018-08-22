@@ -95,6 +95,26 @@ namespace Baikal
     static float2   g_mouse_delta = float2(0, 0);
     static float2   g_scroll_delta = float2(0, 0);
 
+    static const std::vector<std::pair<Baikal::Renderer::OutputType, char const*>> kBaikalOutputs =
+    {
+        { Renderer::OutputType::kColor, "Color" },
+        { Renderer::OutputType::kOpacity, "Opacity" },
+        { Renderer::OutputType::kVisibility, "Visibility" },
+        { Renderer::OutputType::kWorldPosition, "World Position" },
+        { Renderer::OutputType::kWorldShadingNormal, "World Shading Normal" },
+        { Renderer::OutputType::kWorldGeometricNormal, "World Geometric Normal" },
+        { Renderer::OutputType::kUv, "Texture Coordinates" },
+        { Renderer::OutputType::kWireframe, "Wireframe" },
+        { Renderer::OutputType::kAlbedo, "Albedo" },
+        { Renderer::OutputType::kWorldTangent, "Tangent" },
+        { Renderer::OutputType::kWorldBitangent, "Bitangent" },
+        { Renderer::OutputType::kGloss, "Glossiness" },
+        { Renderer::OutputType::kMeshID, "Object ID" },
+        { Renderer::OutputType::kGroupID, "Object Group ID" },
+        { Renderer::OutputType::kBackground, "Background" },
+        { Renderer::OutputType::kDepth, "Depth" }
+    };
+
     const std::string kCameraLogFile("camera.xml");
     //ls - light set
     const std::string kLightLogFile("light.xml");
@@ -334,7 +354,7 @@ namespace Baikal
     {
         ImGuiIO& io = ImGui::GetIO();
         Application* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
-        
+
         const bool press_or_repeat = action == GLFW_PRESS || action == GLFW_REPEAT;
 
         if (action == GLFW_PRESS)
@@ -555,9 +575,9 @@ namespace Baikal
         {
             std::swap_ranges(data + channels * w * i, data + channels * w * (i + 1) - 1, data + channels * w * (h - (i + 1)));
         }
-        
+
         const auto filename = m_settings.path + "/" + m_settings.base_image_file_name + "-" + std::to_string(time.time_since_epoch().count()) + "." + m_settings.image_file_format;
-        
+
         auto out = ImageOutput::create(filename);
         if (out)
         {
@@ -571,7 +591,7 @@ namespace Baikal
         {
             std::cout << "Wrong file format\n";
         }
-        
+
         delete[] data;
     }
 
@@ -716,9 +736,10 @@ namespace Baikal
         if (!m_settings.cmd_line_mode)
         {
             // Add outputs selectable in UI
-            m_cl->AddOutput(Renderer::OutputType::kAlbedo);
-            m_cl->AddOutput(Renderer::OutputType::kViewShadingNormal);
-            m_cl->AddOutput(Renderer::OutputType::kDepth);
+            for (auto& output : kBaikalOutputs)
+            {
+                m_cl->AddOutput(output.first);
+            }
 
             try
             {
@@ -785,15 +806,6 @@ namespace Baikal
         static float focal_length = 35.f;
         static float focus_distance = 1.f;
         static int num_bounces = m_settings.num_bounces;
-
-        static const std::vector<std::pair<Baikal::Renderer::OutputType, char const*>> kBaikalOutputs =
-        {
-                // TODO: extend this list after SIGGRAPH
-            { Renderer::OutputType::kColor, "Color" },
-            { Renderer::OutputType::kAlbedo, "Albedo" },
-            { Renderer::OutputType::kViewShadingNormal, "View Shading Normal" },
-            { Renderer::OutputType::kDepth, "View Shading Depth" }
-        };
 
         static int output = 0;
         bool update = false;
