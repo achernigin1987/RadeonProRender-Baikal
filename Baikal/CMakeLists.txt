@@ -14,16 +14,16 @@ set(OUTPUT_SOURCES
     Output/clwoutput.h
     Output/output.h)
 
-set(ML_DENOISER_SOURCES
-    PostEffects/ML/model.h
-    PostEffects/ML/model_holder.h
-    PostEffects/ML/model_holder.cpp
-    PostEffects/ML/tensor.h
+set(POSTEFFECT_ML_SOURCES
     PostEffects/ML/denoiser.h
     PostEffects/ML/denoiser.cpp
     PostEffects/ML/inference.h
     PostEffects/ML/inference_impl.h
     PostEffects/ML/inference_impl.cpp
+    PostEffects/ML/model.h
+    PostEffects/ML/model_holder.h
+    PostEffects/ML/model_holder.cpp
+    PostEffects/ML/tensor.h
 )
 
 set(POSTEFFECT_SOURCES
@@ -33,7 +33,7 @@ set(POSTEFFECT_SOURCES
     PostEffects/bilateral_denoiser.h
     PostEffects/wavelet_denoiser.h
     PostEffects/AreaMap33.h
-    ${ML_DENOISER_SOURCES})
+)
 
 set(RENDERERS_SOURCES
     Renderers/adaptive_renderer.cpp
@@ -140,6 +140,7 @@ set(SOURCES
     ${ESTIMATORS_SOURCES}
     ${OUTPUT_SOURCES}
     ${POSTEFFECT_SOURCES}
+    ${POSTEFFECT_ML_SOURCES}
     ${RENDERERS_SOURCES}
     ${RENDERFACTORY_SOURCES}
     ${UTILS_SOURCES}
@@ -153,7 +154,7 @@ source_group("Controllers" FILES ${CONTROLLERS_SOURCES})
 source_group("Estimators" FILES ${ESTIMATORS_SOURCES})
 source_group("Output" FILES ${OUTPUT_SOURCES})
 source_group("Posteffect" FILES ${POSTEFFECT_SOURCES})
-source_group("Posteffect\\ML" FILES ${MLDENOISER_SOURCES})
+source_group("Posteffect\\ML" FILES ${POSTEFFECT_ML_SOURCES})
 source_group("Renderers" FILES ${RENDERERS_SOURCES})
 source_group("RenderFactory" FILES ${RENDERFACTORY_SOURCES})
 source_group("Utils" FILES ${UTILS_SOURCES})
