@@ -104,7 +104,7 @@ namespace Baikal
         using RendererOutputs = std::map<Renderer::OutputType, std::unique_ptr<Output>>;
 
         void InitCl(AppSettings& settings, GLuint tex);
-        void LoadScene(AppSettings& settings);
+        void InitScene(AppSettings& settings);
         void RenderThread(ControlData& cd);
 
         Output* GetRendererOutput(size_t device_idx, Renderer::OutputType type);

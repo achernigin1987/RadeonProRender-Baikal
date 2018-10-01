@@ -94,6 +94,8 @@ namespace Baikal
 
         s.image_file_format = m_cmd_parser.GetOption("-iff", s.image_file_format);
 
+        s.light_file = m_cmd_parser.GetOption("-lights", s.light_file);
+
         s.gpu_mem_fraction = m_cmd_parser.GetOption("-gmf", s.gpu_mem_fraction);
 
         s.visible_devices = m_cmd_parser.GetOption("-vds", s.visible_devices);

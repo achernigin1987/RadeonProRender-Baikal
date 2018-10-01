@@ -20,9 +20,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 #include "OpenImageIO/imageio.h"
+#include "image_io.h"
 
 #include "Application/cl_render.h"
-
+#include "Application/scene_load_utils.h"
 #include "Application/gl_render.h"
 #include "Utils/output_accessor.h"
 
@@ -63,7 +64,7 @@ namespace Baikal
     {
         InitCl(settings, m_tex);
         InitPostEffect(settings);
-        LoadScene(settings);
+        InitScene(settings);
 
 #ifdef IMAGE_DUMP_PATH
         s_output_accessor = std::make_unique<RendererOutputAccessor>(
@@ -157,6 +158,7 @@ namespace Baikal
         m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
 
         m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
+        m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_outputs[m_primary].output);
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
     }
 
@@ -175,72 +177,29 @@ namespace Baikal
         return m_post_effect->GetParameter(name).GetFloat();
     }
 
-    void AppClRender::LoadScene(AppSettings& settings)
+    void AppClRender::InitScene(AppSettings& settings)
     {
         rand_init();
 
-        // Load obj file
-        std::string basepath = settings.path;
-        basepath += "/";
-        std::string filename = basepath + settings.modelname;
-
-        {
-            m_scene = Baikal::SceneIo::LoadScene(filename, basepath);
-
-            {
-            #ifdef WIN32
-            #undef LoadImage
-            #endif
-                auto image_io(ImageIo::CreateImageIo());
-                auto ibl_texture = image_io->LoadImage(settings.envmapname);
-
-                auto ibl = ImageBasedLight::Create();
-                ibl->SetTexture(ibl_texture);
-                ibl->SetMultiplier(settings.envmapmul);
-                m_scene->AttachLight(ibl);
-            }
-
-            // Enable this to generate new materal mapping for a model
-#if 0
-            auto material_io{Baikal::MaterialIo::CreateMaterialIoXML()};
-            material_io->SaveMaterialsFromScene(basepath + "materials.xml", *m_scene);
-            material_io->SaveIdentityMapping(basepath + "mapping.xml", *m_scene);
-#endif
-
-            // Check it we have material remapping
-            std::ifstream in_materials(basepath + "materials.xml");
-            std::ifstream in_mapping(basepath + "mapping.xml");
-
-            if (in_materials && in_mapping)
-            {
-                in_materials.close();
-                in_mapping.close();
-
-                auto material_io = Baikal::MaterialIo::CreateMaterialIoXML();
-                auto mats = material_io->LoadMaterials(basepath + "materials.xml");
-                auto mapping = material_io->LoadMaterialMapping(basepath + "mapping.xml");
-
-                material_io->ReplaceSceneMaterials(*m_scene, *mats, mapping);
-            }
-        }
+        m_scene = LoadScene(settings);
 
         switch (settings.camera_type)
         {
-        case CameraType::kPerspective:
-            m_camera = Baikal::PerspectiveCamera::Create(
-                settings.camera_pos
-                , settings.camera_at
-                , settings.camera_up);
+            case CameraType::kPerspective:
+                m_camera = Baikal::PerspectiveCamera::Create(
+                        settings.camera_pos
+                        , settings.camera_at
+                        , settings.camera_up);
 
-            break;
-        case CameraType::kOrthographic:
-            m_camera = Baikal::OrthographicCamera::Create(
-                settings.camera_pos
-                , settings.camera_at
-                , settings.camera_up);
-            break;
-        default:
-            throw std::runtime_error("AppClRender::InitCl(...): unsupported camera type");
+                break;
+            case CameraType::kOrthographic:
+                m_camera = Baikal::OrthographicCamera::Create(
+                        settings.camera_pos
+                        , settings.camera_at
+                        , settings.camera_up);
+                break;
+            default:
+                throw std::runtime_error("AppClRender::InitCl(...): unsupported camera type");
         }
 
         m_scene->SetCamera(m_camera);
