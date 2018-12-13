@@ -17,6 +17,8 @@ set(OUTPUT_SOURCES
 set(POSTEFFECT_ML_SOURCES
     PostEffects/ML/super_res.h
     PostEffects/ML/super_res.cpp
+    PostEffects/ML/super_res_infer_impl.h
+    PostEffects/ML/super_res_infer_impl.cpp
     PostEffects/ML/denoiser.h
     PostEffects/ML/denoiser.cpp
     PostEffects/ML/inference.h

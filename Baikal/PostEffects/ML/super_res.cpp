@@ -28,27 +28,42 @@ THE SOFTWARE.
 #include "embed_kernels.h"
 #endif
 
-
+#include <queue>
 
 namespace Baikal
 {
     namespace PostEffects
     {
+        using uint32_t = std::uint32_t;
         using float3 =  RadeonRays::float3;
+
+
+        ////////////////////////////////////////////////
+        // SuperRes implementation
+        ////////////////////////////////////////////////
 
         SuperRes::SuperRes(const CLWContext& context, const CLProgramManager *program_manager)
 #ifdef BAIKAL_EMBED_KERNELS
-        : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers)
+        : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
 #else
-        : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl")
+        : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl"),
 #endif
+          m_inference(nullptr)
         {
             m_context = std::make_unique<CLWContext>(context);
         }
 
         void SuperRes::Apply(InputSet const &input_set, Output &output)
         {
-            auto clw_input = dynamic_cast<ClwOutput*>(input_set.begin()->second);
+            auto color_aov = input_set.begin()->second;
+
+            if (m_inference == nullptr)
+            {
+                m_inference = std::make_unique<InferImpl>(
+                        new InferImpl(color_aov->width(), color_aov->height()));
+            }
+
+            auto clw_input = dynamic_cast<ClwOutput*>(color_aov);
 
             if (clw_input== nullptr)
             {
