@@ -41,7 +41,7 @@ enum class DeviceType
     kSecondary
 };
 
-enum class DenoiserType
+enum class PostProcessingType
 {
     kNone = 0,
     kBilateral,

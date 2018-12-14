@@ -162,7 +162,7 @@ namespace Baikal
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
     }
 
-    DenoiserType AppClRender::GetDenoiserType() const
+    PostProcessingType AppClRender::GetDenoiserType() const
     {
         return m_denoiser_type;
     }
@@ -731,19 +731,19 @@ namespace Baikal
     {
         switch (m_denoiser_type)
         {
-        case DenoiserType::kNone:
+        case PostProcessingType::kNone:
             break;
-        case DenoiserType::kBilateral:
+        case PostProcessingType::kBilateral:
             if (settings.camera_type != CameraType::kPerspective)
             {
                 throw std::logic_error("Bilateral denoiser requires perspective camera");
             }
             AddPostEffect(m_primary, PostEffectType::kBilateralDenoiser);
             break;
-        case DenoiserType::kWavelet:
+        case PostProcessingType::kWavelet:
             AddPostEffect(m_primary, PostEffectType::kWaveletDenoiser);
             break;
-        case DenoiserType::kML:
+        case PostProcessingType::kML:
             AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
             m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
             m_post_effect->SetParameter("visible_devices", settings.visible_devices);
@@ -758,7 +758,7 @@ namespace Baikal
     {
         switch (m_denoiser_type)
         {
-        case DenoiserType::kBilateral:
+        case PostProcessingType::kBilateral:
         {
             const auto radius = 10U - RadeonRays::clamp((sample_cnt / 16), 1U, 9U);
             m_post_effect->SetParameter("radius", static_cast<float>(radius));
@@ -768,7 +768,7 @@ namespace Baikal
             m_post_effect->SetParameter("albedo_sensitivity", 0.5f + (radius / 10.f) * 0.5f);
             break;
         }
-        case DenoiserType::kWavelet:
+        case PostProcessingType::kWavelet:
         {
             auto pCamera = dynamic_cast<PerspectiveCamera*>(m_camera.get());
             m_post_effect->SetParameter("camera_focal_length", pCamera->GetFocalLength());
@@ -781,8 +781,8 @@ namespace Baikal
             m_post_effect->SetParameter("camera_aspect_ratio", pCamera->GetAspectRatio());
             break;
         }
-        case DenoiserType::kML:
-        case DenoiserType::kNone:
+        case PostProcessingType::kML:
+        case PostProcessingType::kNone:
         default:
             break;
         }

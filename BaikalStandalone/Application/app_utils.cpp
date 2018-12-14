@@ -197,15 +197,15 @@ namespace Baikal
 
             if (denoiser_type == "bilateral")
             {
-                s.denoiser_type = DenoiserType::kBilateral;
+                s.denoiser_type = PostProcessingType::kBilateral;
             }
             else if (denoiser_type == "wavelet")
             {
-                s.denoiser_type = DenoiserType::kWavelet;
+                s.denoiser_type = PostProcessingType::kWavelet;
             }
             else if (denoiser_type == "ml")
             {
-                s.denoiser_type = DenoiserType::kML;
+                s.denoiser_type = PostProcessingType::kML;
             }
             else
             {

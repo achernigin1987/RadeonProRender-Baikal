@@ -94,7 +94,7 @@ namespace Baikal
         std::future<int> GetShapeId(std::uint32_t x, std::uint32_t y);
         Baikal::Shape::Ptr GetShapeById(int shape_id);
 
-        DenoiserType GetDenoiserType() const;
+        PostProcessingType GetDenoiserType() const;
         void SetDenoiserFloatParam(std::string const& name, float value);
         float GetDenoiserFloatParam(std::string const& name) const;
 
@@ -139,7 +139,7 @@ namespace Baikal
         GLuint m_tex;
         Renderer::OutputType m_output_type = Renderer::OutputType::kColor;
 
-        DenoiserType m_denoiser_type = DenoiserType::kNone;
+        PostProcessingType m_denoiser_type = PostProcessingType::kNone;
         std::unique_ptr<PostEffect> m_post_effect;
         PostEffect::InputSet m_post_effect_inputs;
         std::unique_ptr<Output> m_post_effect_output;

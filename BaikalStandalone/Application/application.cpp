@@ -78,6 +78,7 @@ using namespace RadeonRays;
 
 namespace Baikal
 {
+    static bool     g_is_window_resized = false;
     static bool     g_is_left_pressed = false;
     static bool     g_is_right_pressed = false;
     static bool     g_is_fwd_pressed = false;
@@ -926,6 +927,26 @@ namespace Baikal
                 {
                     m_settings.benchmark = true;
                 }
+
+                if (ImGui::Button("Resize window"))
+                {
+                    if (!g_is_window_resized)
+                    {
+                        m_window.reset(glfwCreateWindow(
+                                2 * m_settings.width,
+                                2 * m_settings.height,
+                                "Baikal standalone demo",
+                                nullptr, nullptr));
+                    }
+                    else
+                    {
+                        m_window.reset(glfwCreateWindow(
+                                m_settings.width,
+                                m_settings.height,
+                                "Baikal standalone demo",
+                                nullptr, nullptr));
+                    }
+                }
             }
 
             if (m_settings.time_benchmark && m_settings.samplecount > 511)
@@ -966,8 +987,8 @@ namespace Baikal
                 ImGui::Text("Shadow rays: %f Mrays/s", stats.shadow_throughput * 1e-6f);
             }
 
-            if (m_cl->GetDenoiserType() == DenoiserType::kBilateral ||
-                m_cl->GetDenoiserType() == DenoiserType::kWavelet)
+            if (m_cl->GetDenoiserType() == PostProcessingType::kBilateral ||
+                m_cl->GetDenoiserType() == PostProcessingType::kWavelet)
             {
                 ImGui::Separator();
 
@@ -990,7 +1011,7 @@ namespace Baikal
                 }
             }
 
-            if (m_cl->GetDenoiserType() != DenoiserType::kNone)
+            if (m_cl->GetDenoiserType() != PostProcessingType::kNone)
             {
                 ImGui::Separator();
                 ImGui::Checkbox("Split output", &m_settings.split_output);
