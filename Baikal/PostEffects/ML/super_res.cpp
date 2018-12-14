@@ -21,6 +21,7 @@ THE SOFTWARE.
 ********************************************************************/
 
 #include "super_res.h"
+#include "super_res_infer_impl.h"
 
 #include "Output/clwoutput.h"
 
@@ -59,8 +60,8 @@ namespace Baikal
 
             if (m_inference == nullptr)
             {
-                m_inference = std::make_unique<InferImpl>(
-                        new InferImpl(color_aov->width(), color_aov->height()));
+                m_inference = std::make_unique<SuperResInferImpl>(
+                        SuperResInferImpl(color_aov->width(), color_aov->height()));
             }
 
             auto clw_input = dynamic_cast<ClwOutput*>(color_aov);

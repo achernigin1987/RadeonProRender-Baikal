@@ -21,6 +21,7 @@ THE SOFTWARE.
 ********************************************************************/
 
 #include "super_res_infer_impl.h"
+#include <cassert>
 
 namespace Baikal
 {

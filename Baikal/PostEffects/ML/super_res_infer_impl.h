@@ -31,7 +31,7 @@ namespace Baikal
         class SuperResInferImpl : public Inference {
         public:
 
-            SuperResInferImpl(uint32_t width, uint32_t height);
+            SuperResInferImpl(std::uint32_t width, std::uint32_t height);
             Tensor::Shape GetInputShape() const override;
             Tensor::Shape GetOutputShape() const override;
             Tensor GetInputTensor() override;
@@ -39,7 +39,7 @@ namespace Baikal
             Tensor PopOutput() override;
 
         private:
-            uint32_t m_width, m_height;
+            std::uint32_t m_width, m_height;
             Tensor m_tensor;
             std::vector<float> m_cache;
         };
