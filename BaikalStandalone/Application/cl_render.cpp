@@ -750,6 +750,7 @@ namespace Baikal
             break;
         case PostProcessingType::kSISR:
             AddPostEffect(m_primary, PostEffectType::kSISR);
+            break;
         default:
             throw std::runtime_error("AppClRender(...): Unsupported denoiser type");
         }
