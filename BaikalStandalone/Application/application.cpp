@@ -927,26 +927,6 @@ namespace Baikal
                 {
                     m_settings.benchmark = true;
                 }
-
-                if (ImGui::Button("Resize window"))
-                {
-                    if (!g_is_window_resized)
-                    {
-                        m_window.reset(glfwCreateWindow(
-                                2 * m_settings.width,
-                                2 * m_settings.height,
-                                "Baikal standalone demo",
-                                nullptr, nullptr));
-                    }
-                    else
-                    {
-                        m_window.reset(glfwCreateWindow(
-                                m_settings.width,
-                                m_settings.height,
-                                "Baikal standalone demo",
-                                nullptr, nullptr));
-                    }
-                }
             }
 
             if (m_settings.time_benchmark && m_settings.samplecount > 511)
