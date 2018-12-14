@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 #include "super_res_infer_impl.h"
 #include <cassert>
+#include <cstring>
 
 namespace Baikal
 {
@@ -92,6 +93,8 @@ namespace Baikal
 
             src_row = m_cache.data();
             auto dst_row = m_tensor.data();
+
+            memcpy(dst_row, src_row, sizeof(float) * m_cache.size());
 
             for (uint32_t y = 0; y < m_height; y++) {
                 for (uint32_t x = 0; x < 2 * cnannels_num  * m_width; x++) {

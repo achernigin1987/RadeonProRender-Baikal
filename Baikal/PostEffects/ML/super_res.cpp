@@ -74,9 +74,6 @@ namespace Baikal
             auto device_mem = clw_input->data();
             auto tensor = m_inference->GetInputTensor();
 
-            // copy render output in device memory into host memory
-            std::cout << "device buffer, the number of float3 elements is " << device_mem.GetElementCount() << std::endl;
-            std::cout << "host buffer, the number of float elements is " << tensor.size() << std::endl;
 
             m_context->ReadBuffer<float3>(0,
                                           device_mem,

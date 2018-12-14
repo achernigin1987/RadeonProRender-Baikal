@@ -83,8 +83,8 @@ namespace Baikal
             settings.platform_index,
             settings.device_index);
 
-        m_width = (std::uint32_t)settings.width;
-        m_height = (std::uint32_t)settings.height;
+        m_width = (std::uint32_t)settings.width / 2;
+        m_height = (std::uint32_t)settings.height / 2;
 
         std::cout << "Running on devices: \n";
 
@@ -141,6 +141,8 @@ namespace Baikal
         m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
         m_copybuffer = m_cfgs[m_primary].context.CreateBuffer<RadeonRays::float3>(m_width * m_height, CL_MEM_READ_WRITE);
+
+
     }
 
     void AppClRender::AddPostEffect(size_t device_idx, PostEffectType type)
