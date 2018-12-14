@@ -158,7 +158,6 @@ namespace Baikal
         m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
 
         m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
-        m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_outputs[m_primary].output);
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
     }
 
