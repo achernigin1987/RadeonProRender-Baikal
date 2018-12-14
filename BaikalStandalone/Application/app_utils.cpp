@@ -191,21 +191,25 @@ namespace Baikal
             s.cmd_line_mode = true;
         }
 
-        if (m_cmd_parser.OptionExists("-denoiser_type"))
+        if (m_cmd_parser.OptionExists("-post_processing_type"))
         {
-            auto denoiser_type = m_cmd_parser.GetOption("-denoiser_type");
+            auto post_processing_type = m_cmd_parser.GetOption("-post_processing_type");
 
-            if (denoiser_type == "bilateral")
+            if (post_processing_type == "bilateral")
             {
-                s.denoiser_type = PostProcessingType::kBilateral;
+                s.post_processing_type = PostProcessingType::kBilateral;
             }
-            else if (denoiser_type == "wavelet")
+            else if (post_processing_type == "wavelet")
             {
-                s.denoiser_type = PostProcessingType::kWavelet;
+                s.post_processing_type = PostProcessingType::kWavelet;
             }
-            else if (denoiser_type == "ml")
+            else if (post_processing_type == "ml")
             {
-                s.denoiser_type = PostProcessingType::kML;
+                s.post_processing_type = PostProcessingType::kML;
+            }
+            else if (post_processing_type == "sisr")
+            {
+                s.post_processing_type = PostProcessingType::kSISR;
             }
             else
             {

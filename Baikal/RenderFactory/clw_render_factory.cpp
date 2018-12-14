@@ -9,6 +9,7 @@
 #include "PostEffects/bilateral_denoiser.h"
 #include "PostEffects/wavelet_denoiser.h"
 #include "PostEffects/ML/denoiser.h"
+#include "PostEffects/ML/super_res.h"
 
 #include <memory>
 
@@ -65,6 +66,8 @@ namespace Baikal
                 return std::make_unique<WaveletDenoiser>(m_context, &m_program_manager);
             case PostEffectType::kMLDenoiser:
                 return std::make_unique<PostEffects::MLDenoiser>(m_context, &m_program_manager);
+            case PostEffectType ::kSISR:
+                return std::make_unique<PostEffects::SuperRes>(m_context, &m_program_manager);
             default:
                 throw std::runtime_error("PostEffect is not supported");
         }

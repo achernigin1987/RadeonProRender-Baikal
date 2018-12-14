@@ -60,7 +60,7 @@ namespace Baikal
 
     AppClRender::AppClRender(AppSettings& settings, GLuint tex)
     : m_tex(tex)
-    , m_denoiser_type(settings.denoiser_type)
+    , m_post_processing_type(settings.post_processing_type)
     {
         InitCl(settings, m_tex);
         InitPostEffect(settings);
@@ -164,7 +164,7 @@ namespace Baikal
 
     PostProcessingType AppClRender::GetDenoiserType() const
     {
-        return m_denoiser_type;
+        return m_post_processing_type;
     }
 
     void AppClRender::SetDenoiserFloatParam(std::string const& name, float value)
@@ -729,7 +729,7 @@ namespace Baikal
 
     void AppClRender::InitPostEffect(AppSettings const& settings)
     {
-        switch (m_denoiser_type)
+        switch (m_post_processing_type)
         {
         case PostProcessingType::kNone:
             break;
@@ -749,6 +749,8 @@ namespace Baikal
             m_post_effect->SetParameter("visible_devices", settings.visible_devices);
             m_post_effect->SetParameter("start_spp", settings.denoiser_start_spp);
             break;
+        case PostProcessingType::kSISR:
+            AddPostEffect(m_primary, PostEffectType::kSISR);
         default:
             throw std::runtime_error("AppClRender(...): Unsupported denoiser type");
         }
@@ -756,7 +758,7 @@ namespace Baikal
 
     void AppClRender::SetPostEffectParams(int sample_cnt)
     {
-        switch (m_denoiser_type)
+        switch (m_post_processing_type)
         {
         case PostProcessingType::kBilateral:
         {
@@ -782,6 +784,7 @@ namespace Baikal
             break;
         }
         case PostProcessingType::kML:
+        case PostProcessingType::kSISR:
         case PostProcessingType::kNone:
         default:
             break;

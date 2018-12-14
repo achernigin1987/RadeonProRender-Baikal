@@ -78,7 +78,6 @@ using namespace RadeonRays;
 
 namespace Baikal
 {
-    static bool     g_is_window_resized = false;
     static bool     g_is_left_pressed = false;
     static bool     g_is_right_pressed = false;
     static bool     g_is_fwd_pressed = false;

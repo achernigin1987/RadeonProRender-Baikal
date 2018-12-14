@@ -139,7 +139,7 @@ namespace Baikal
         GLuint m_tex;
         Renderer::OutputType m_output_type = Renderer::OutputType::kColor;
 
-        PostProcessingType m_denoiser_type = PostProcessingType::kNone;
+        PostProcessingType m_post_processing_type = PostProcessingType::kNone;
         std::unique_ptr<PostEffect> m_post_effect;
         PostEffect::InputSet m_post_effect_inputs;
         std::unique_ptr<Output> m_post_effect_output;

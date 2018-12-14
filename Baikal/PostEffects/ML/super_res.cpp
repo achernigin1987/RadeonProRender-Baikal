@@ -108,5 +108,10 @@ namespace Baikal
                                            reinterpret_cast<float3*>(res.data()),
                                            output_device_mem.GetElementCount());
         }
+
+        PostEffect::InputTypes SuperRes::GetInputTypes() const
+        {
+            return std::set<Renderer::OutputType>({Renderer::OutputType::kColor});
+        }
     }
 }

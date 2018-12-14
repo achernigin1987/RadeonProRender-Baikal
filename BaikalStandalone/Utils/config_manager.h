@@ -46,7 +46,8 @@ enum class PostProcessingType
     kNone = 0,
     kBilateral,
     kWavelet,
-    kML
+    kML,
+    kSISR
 };
 
 enum class Mode

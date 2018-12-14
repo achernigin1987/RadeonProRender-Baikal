@@ -41,6 +41,7 @@ namespace Baikal
 
             void Apply(InputSet const &input_set, Output &output) override;
 
+            InputTypes GetInputTypes() const override;
         private:
             std::unique_ptr<CLWContext> m_context;
             Inference::Ptr m_inference;

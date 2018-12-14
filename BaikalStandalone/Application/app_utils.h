@@ -106,7 +106,7 @@ namespace Baikal
         std::string visible_devices;
 
         // denoiser settings
-        PostProcessingType denoiser_type = PostProcessingType::kNone;
+        PostProcessingType post_processing_type = PostProcessingType::kNone;
         std::uint32_t denoiser_start_spp = 8;
     };
 
