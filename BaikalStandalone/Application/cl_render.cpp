@@ -83,8 +83,14 @@ namespace Baikal
             settings.platform_index,
             settings.device_index);
 
-        m_width = (std::uint32_t)settings.width / 2;
-        m_height = (std::uint32_t)settings.height / 2;
+        m_width = (std::uint32_t)settings.width;
+        m_height = (std::uint32_t)settings.height;
+
+        auto width = (m_post_processing_type == PostProcessingType::kSISR) ?
+            m_width / 2 : m_width;
+
+        auto height = (m_post_processing_type == PostProcessingType::kSISR) ?
+            m_height / 2 : m_height;
 
         std::cout << "Running on devices: \n";
 
@@ -132,17 +138,15 @@ namespace Baikal
         for (std::size_t i = 0; i < m_cfgs.size(); ++i)
         {
             AddRendererOutput(i, Renderer::OutputType::kColor);
-            m_outputs[i].dummy_output = m_cfgs[i].factory->CreateOutput(m_width, m_height); // TODO: mldenoiser, clear?
+            m_outputs[i].dummy_output = m_cfgs[i].factory->CreateOutput(width, height); // TODO: mldenoiser, clear?
 
-            m_outputs[i].fdata.resize(settings.width * settings.height);
-            m_outputs[i].udata.resize(settings.width * settings.height * 4);
+            m_outputs[i].fdata.resize(width * height);
+            m_outputs[i].udata.resize(4 * width * height);
         }
 
-        m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
+        m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(width, height);
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
-        m_copybuffer = m_cfgs[m_primary].context.CreateBuffer<RadeonRays::float3>(m_width * m_height, CL_MEM_READ_WRITE);
-
-
+        m_copybuffer = m_cfgs[m_primary].context.CreateBuffer<RadeonRays::float3>(width * height, CL_MEM_READ_WRITE);
     }
 
     void AppClRender::AddPostEffect(size_t device_idx, PostEffectType type)
@@ -287,7 +291,7 @@ namespace Baikal
 
                 int argc = 0;
                 acckernel.SetArg(argc++, m_copybuffer);
-                acckernel.SetArg(argc++, settings.width * settings.width);
+                acckernel.SetArg(argc++, settings.width * settings.height);
                 acckernel.SetArg(argc++,
                         static_cast<Baikal::ClwOutput*>(GetRendererOutput(
                                 m_primary, Renderer::OutputType::kColor))->data());
@@ -656,7 +660,7 @@ namespace Baikal
         if (it == m_outputs[device_idx].render_outputs.end())
         {
             const auto& config = m_cfgs.at(device_idx);
-            auto output = config.factory->CreateOutput(m_width, m_height);
+            auto output = config.factory->CreateOutput(m_width / 2, m_height / 2);
             config.renderer->SetOutput(type, output.get());
             config.renderer->Clear(RadeonRays::float3(0, 0, 0), *output);
 

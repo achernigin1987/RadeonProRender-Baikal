@@ -191,9 +191,9 @@ namespace Baikal
             s.cmd_line_mode = true;
         }
 
-        if (m_cmd_parser.OptionExists("-post_processing_type"))
+        if (m_cmd_parser.OptionExists("-postproc"))
         {
-            auto post_processing_type = m_cmd_parser.GetOption("-post_processing_type");
+            auto post_processing_type = m_cmd_parser.GetOption("-postproc");
 
             if (post_processing_type == "bilateral")
             {

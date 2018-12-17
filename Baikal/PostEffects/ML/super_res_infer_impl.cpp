@@ -21,6 +21,7 @@ THE SOFTWARE.
 ********************************************************************/
 
 #include "super_res_infer_impl.h"
+#include <iostream>
 #include <cassert>
 #include <cstring>
 
@@ -28,7 +29,7 @@ namespace Baikal
 {
     namespace PostEffects
     {
-
+        static int count = 1;
         using uint32_t = std::uint32_t;
         const uint32_t cnannels_num = 4;
 
@@ -78,9 +79,10 @@ namespace Baikal
                     tmp_row[dst_x] = tmp_row[dst_x + cnannels_num ] = src_row[src_x];
                     tmp_row[dst_x + 1] = tmp_row[dst_x + cnannels_num + 1] = src_row[src_x + 1];
                     tmp_row[dst_x + 2] = tmp_row[dst_x + cnannels_num + 2] = src_row[src_x + 2];
+                    tmp_row[dst_x + 3] = tmp_row[dst_x + cnannels_num + 3] = src_row[src_x + 3];
                 }
-                src_row += cnannels_num  * m_width;
-                tmp_row += 2 * cnannels_num  * m_width;
+                src_row += cnannels_num * m_width;
+                tmp_row += 2 * cnannels_num * m_width;
             }
 
             // upscale in y dimension
@@ -94,15 +96,15 @@ namespace Baikal
             src_row = m_cache.data();
             auto dst_row = m_tensor.data();
 
-            memcpy(dst_row, src_row, sizeof(float) * m_cache.size());
-
             for (uint32_t y = 0; y < m_height; y++) {
                 for (uint32_t x = 0; x < 2 * cnannels_num  * m_width; x++) {
-                    dst_row[x + 2 * cnannels_num * m_width] = dst_row[x] = src_row[x];
+                    dst_row[x + 2 * cnannels_num * m_width]  = dst_row[x] = src_row[x];
                 }
                 src_row += 2 * cnannels_num * m_width;
                 dst_row += 4 * cnannels_num * m_width;
             }
+
+            ++count;
         }
 
         Tensor SuperResInferImpl::PopOutput()
