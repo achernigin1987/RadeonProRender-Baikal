@@ -37,8 +37,12 @@ namespace Baikal
                                              std::size_t height,
                                              std::size_t input_channels)
         : Inference(model_path,
+                    "",
+                    "",
                     gpu_memory_fraction,
                     visible_devices,
+                    width,
+                    height,
                     width,
                     height,
                     input_channels)
@@ -61,11 +65,11 @@ namespace Baikal
                     continue;
                 }
 
-                Tensor output_tensor = AllocTensor(m_output_channels);
+                Tensor output_tensor = AllocTensor(m_in_width, m_out_width, m_output_channels);
                 m_model->infer(
                     input_tensor.data(),
-                    m_width,
-                    m_height,
+                    m_in_width,
+                    m_in_height,
                     m_input_channels,
                     output_tensor.data());
 

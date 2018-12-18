@@ -42,10 +42,14 @@ namespace Baikal
             using Ptr = std::unique_ptr<Inference>;
 
             Inference(std::string const& model_path,
+                      std::string const& input_node,
+                      std::string const& output_node,
                       float gpu_memory_fraction,
                       std::string const& visible_devices,
-                      std::size_t width,
-                      std::size_t height,
+                      std::size_t in_width,
+                      std::size_t in_height,
+                      std::size_t out_width,
+                      std::size_t out_height,
                       std::size_t input_channels);
 
             Tensor::Shape GetInputShape() const;
@@ -58,15 +62,20 @@ namespace Baikal
 
         protected:
             virtual void DoInference() = 0;
-            Tensor AllocTensor(std::size_t channels);
+
+            Tensor AllocTensor(std::size_t width,
+                               std::size_t height,
+                               std::size_t channels);
 
             RadeonRays::thread_safe_queue<Tensor> m_input_queue;
             RadeonRays::thread_safe_queue<Tensor> m_output_queue;
 
             ModelHolder m_model;
 
-            std::size_t m_width;
-            std::size_t m_height;
+            std::size_t m_in_width;
+            std::size_t m_in_height;
+            std::size_t m_out_width;
+            std::size_t m_out_height;
 
             std::size_t m_input_channels;
 

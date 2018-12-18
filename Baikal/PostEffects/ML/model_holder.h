@@ -40,10 +40,14 @@ namespace Baikal
             ModelHolder();
 
             ModelHolder(std::string const& model_path,
+                        std::string const& input_node,
+                        std::string const& output_node,
                         float gpu_memory_fraction,
                         std::string const& visible_devices);
 
             void Reset(std::string const& model_path,
+                       std::string const& input_node,
+                       std::string const& output_node,
                        float gpu_memory_fraction,
                        std::string const& visible_devices);
 

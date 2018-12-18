@@ -37,17 +37,46 @@ namespace Baikal
                                              std::size_t width,
                                              std::size_t height)
         : Inference(model_path,
+                    "Generator/inputs",
+                    "Generator/outputs",
                     gpu_memory_fraction,
                     visible_devices,
                     width,
                     height,
+                    2 * width,
+                    2 * height,
                     3)
         { }
 
 
         void SuperResInference::DoInference()
         {
+            for (;;)
+            {
+                Tensor input_tensor;
+                m_input_queue.wait_and_pop(input_tensor);
+                if (input_tensor.empty())
+                {
+                    break;
+                }
 
+                if (m_input_queue.size() > 0)
+                {
+                    continue;
+                }
+
+                Tensor output_tensor = AllocTensor(m_out_width, m_out_height, 3);
+
+                m_model->infer(
+                        input_tensor.data(),
+                        m_in_width,
+                        m_in_height,
+                        m_input_channels,
+                        output_tensor.data());
+
+                output_tensor.tag = input_tensor.tag;
+                m_output_queue.push(std::move(output_tensor));
+            }
         }
     }
 }

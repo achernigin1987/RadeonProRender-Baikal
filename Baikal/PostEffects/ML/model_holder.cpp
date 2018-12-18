@@ -100,19 +100,29 @@ namespace Baikal
         }
 
         ModelHolder::ModelHolder(std::string const& model_path,
+                                 std::string const& input_node,
+                                 std::string const& output_node,
                                  float gpu_memory_fraction,
                                  std::string const& visible_devices)
         : ModelHolder()
         {
-            Reset(model_path, gpu_memory_fraction, visible_devices);
+            Reset(model_path,
+                  input_node,
+                  output_node,
+                  gpu_memory_fraction,
+                  visible_devices);
         }
 
         void ModelHolder::Reset(std::string const& model_path,
+                                std::string const& input_node,
+                                std::string const& output_node,
                                 float gpu_memory_fraction,
                                 std::string const& visible_devices)
         {
             ModelParams params = {};
             params.model_path = model_path.c_str();
+            params.input_node = (!input_node.empty()) ? input_node.c_str() : nullptr;
+            params.output_node = (!output_node.empty()) ? output_node.c_str() : nullptr;
             params.gpu_memory_fraction = gpu_memory_fraction;
             params.visible_devices = visible_devices.c_str();
             m_model.reset(g_load_model(&params));

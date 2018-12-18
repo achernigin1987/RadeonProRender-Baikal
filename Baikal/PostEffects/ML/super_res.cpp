@@ -64,9 +64,12 @@ namespace Baikal
 #else
         : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl"),
 #endif
-          m_inference(nullptr)
+         m_inference(nullptr)
         {
             m_context = std::make_unique<CLWContext>(context);
+
+            RegisterParameter("gpu_memory_fraction", .1f);
+            RegisterParameter("visible_devices", std::string());
         }
 
         void SuperRes::Apply(InputSet const &input_set, Output &output)

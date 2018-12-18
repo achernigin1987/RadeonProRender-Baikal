@@ -29,14 +29,20 @@ namespace Baikal
     namespace PostEffects
     {
         Inference::Inference(std::string const& model_path,
+                             std::string const& input_node,
+                             std::string const& output_node,
                              float gpu_memory_fraction,
                              std::string const& visible_devices,
-                             std::size_t width,
-                             std::size_t height,
+                             std::size_t in_width,
+                             std::size_t in_height,
+                             std::size_t out_width,
+                             std::size_t out_height,
                              std::size_t input_channels)
-                : m_model(model_path, gpu_memory_fraction, visible_devices)
-                , m_width(width)
-                , m_height(height)
+                : m_model(model_path, input_node, output_node, gpu_memory_fraction, visible_devices)
+                , m_in_width(in_width)
+                , m_in_height(in_height)
+                , m_out_width(out_width)
+                , m_out_height(out_height)
                 , m_input_channels(input_channels)
                 , m_worker(&Inference::DoInference, this)
         { }
@@ -48,17 +54,17 @@ namespace Baikal
 
         Tensor::Shape Inference::GetInputShape() const
         {
-            return { m_width, m_height, m_input_channels };
+            return { m_in_width, m_in_height, m_input_channels };
         }
 
         Tensor::Shape Inference::GetOutputShape() const
         {
-            return { m_width, m_height, m_output_channels };
+            return { m_out_width, m_out_height, m_output_channels };
         }
 
         Tensor Inference::GetInputTensor()
         {
-            return AllocTensor(m_input_channels);
+            return AllocTensor(m_in_width, m_in_height, m_input_channels);
         }
 
         void Inference::PushInput(Tensor&& tensor)
@@ -74,15 +80,15 @@ namespace Baikal
             return output_tensor;
         }
 
-        Tensor Inference::AllocTensor(std::size_t channels)
+        Tensor Inference::AllocTensor(std::size_t width, std::size_t height, std::size_t channels)
         {
             auto deleter = [](Tensor::ValueType* data)
             {
                 delete[] data;
             };
-            size_t size = m_width * m_height * channels;
+            size_t size = width * height * channels;
             return Tensor(Tensor::Data(new Tensor::ValueType[size], deleter),
-                          { m_width, m_height, channels });
+                          { width, height, channels });
         }
 
         void Inference::Shutdown()
