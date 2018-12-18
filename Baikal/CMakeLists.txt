@@ -17,13 +17,14 @@ set(OUTPUT_SOURCES
 set(POSTEFFECT_ML_SOURCES
     PostEffects/ML/super_res.h
     PostEffects/ML/super_res.cpp
-    PostEffects/ML/super_res_infer_impl.h
-    PostEffects/ML/super_res_infer_impl.cpp
     PostEffects/ML/denoiser.h
     PostEffects/ML/denoiser.cpp
     PostEffects/ML/inference.h
-    PostEffects/ML/inference_impl.h
-    PostEffects/ML/inference_impl.cpp
+    PostEffects/ML/inference.cpp
+    PostEffects/ML/denoiser_inference.h
+    PostEffects/ML/denoiser_inference.cpp
+    PostEffects/ML/super_res_inference.h
+    PostEffects/ML/super_res_inference.cpp
     PostEffects/ML/model.h
     PostEffects/ML/model_holder.h
     PostEffects/ML/model_holder.cpp

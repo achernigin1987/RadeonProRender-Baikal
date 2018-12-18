@@ -20,46 +20,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 
-#pragma once
-
-#include "PostEffects/ML/model.h"
-
-#include <memory>
-#include <string>
-
+#include <vector>
+#include "PostEffects/ML/inference.h"
+#include "PostEffects/ML/model_holder.h"
 
 namespace Baikal
 {
     namespace PostEffects
     {
-        class SharedObject;
 
-        class ModelHolder
-        {
+        class SuperResInference : public Inference {
         public:
-            ModelHolder();
 
-            ModelHolder(std::string const& model_path,
-                        float gpu_memory_fraction,
-                        std::string const& visible_devices);
+            SuperResInference(std::string const& model_path,
+                              float gpu_memory_fraction,
+                              std::string const& visible_devices,
+                              std::size_t width,
+                              std::size_t height);
 
-            void Reset(std::string const& model_path,
-                       float gpu_memory_fraction,
-                       std::string const& visible_devices);
-
-            ML::Model* operator ->() const
-            {
-                return m_model.get();
-            }
-
-            ML::Model& operator *() const
-            {
-                return *m_model;
-            }
-
-        private:
-            std::shared_ptr<SharedObject> m_shared_object;
-            std::unique_ptr<ML::Model> m_model;
+        protected:
+            void DoInference() override;
         };
     }
 }

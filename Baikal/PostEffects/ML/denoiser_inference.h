@@ -20,28 +20,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 
-#include <vector>
 #include "PostEffects/ML/inference.h"
+#include "PostEffects/ML/model_holder.h"
+#include "../RadeonRays/RadeonRays/src/async/thread_pool.h"
+
+#include <cstddef>
+#include <string>
+#include <thread>
 
 namespace Baikal
 {
     namespace PostEffects
     {
-
-        class SuperResInferImpl : public Inference {
+        class DenoiserInference : public Inference
+        {
         public:
+            DenoiserInference(std::string const& model_path,
+                              float gpu_memory_fraction,
+                              std::string const& visible_devices,
+                              std::size_t width,
+                              std::size_t height,
+                              std::size_t input_channels);
 
-            SuperResInferImpl(std::uint32_t width, std::uint32_t height);
-            Tensor::Shape GetInputShape() const override;
-            Tensor::Shape GetOutputShape() const override;
-            Tensor GetInputTensor() override;
-            void PushInput(Tensor&& tensor) override;
-            Tensor PopOutput() override;
-
-        private:
-            std::uint32_t m_width, m_height;
-            Tensor m_tensor;
-            std::vector<float> m_cache;
+        protected:
+            void DoInference() override;
         };
     }
 }

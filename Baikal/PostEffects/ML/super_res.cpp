@@ -21,15 +21,13 @@ THE SOFTWARE.
 ********************************************************************/
 
 #include "super_res.h"
-#include "super_res_infer_impl.h"
+#include "super_res_inference.h"
 
 #include "Output/clwoutput.h"
 
 #ifdef BAIKAL_EMBED_KERNELS
 #include "embed_kernels.h"
 #endif
-
-#include <queue>
 
 namespace Baikal
 {
@@ -38,6 +36,23 @@ namespace Baikal
         using uint32_t = std::uint32_t;
         using float3 =  RadeonRays::float3;
 
+        namespace
+        {
+            std::unique_ptr<Inference> CreateInference(
+                    float gpu_memory_fraction,
+                    std::string const &visible_devices,
+                    std::size_t width,
+                    std::size_t height)
+            {
+                auto model_path = "models/esrgan-05x3x32-198135.pb";
+
+                return std::make_unique<SuperResInference>(model_path,
+                                                           gpu_memory_fraction,
+                                                           visible_devices,
+                                                           width,
+                                                           height);
+            }
+        }
 
         ////////////////////////////////////////////////
         // SuperRes implementation
@@ -58,10 +73,15 @@ namespace Baikal
         {
             auto color_aov = input_set.begin()->second;
 
+            auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
+            auto visible_devices = GetParameter("visible_devices").GetString();
+
             if (m_inference == nullptr)
             {
-                m_inference = std::make_unique<SuperResInferImpl>(
-                        SuperResInferImpl(color_aov->width(), color_aov->height()));
+                m_inference = CreateInference(gpu_memory_fraction,
+                                              visible_devices,
+                                              color_aov->width(),
+                                              color_aov->height());
             }
 
             auto clw_input = dynamic_cast<ClwOutput*>(color_aov);

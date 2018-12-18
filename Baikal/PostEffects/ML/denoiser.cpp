@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 
 #include "PostEffects/ML/denoiser.h"
-#include "PostEffects/ML/inference_impl.h"
+#include "PostEffects/ML/denoiser_inference.h"
 
 #include "CLWContext.h"
 #include "CLWParallelPrimitives.h"
@@ -85,12 +85,12 @@ namespace Baikal
                         break;
                 }
 
-                return std::make_unique<InferenceImpl>(model_path,
-                                                       gpu_memory_fraction,
-                                                       visible_devices,
-                                                       width,
-                                                       height,
-                                                       input_channels);
+                return std::make_unique<DenoiserInference>(model_path,
+                                                           gpu_memory_fraction,
+                                                           visible_devices,
+                                                           width,
+                                                           height,
+                                                           input_channels);
             }
         }
 
