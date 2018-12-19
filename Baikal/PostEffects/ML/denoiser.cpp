@@ -85,12 +85,12 @@ namespace Baikal
                         break;
                 }
 
-                return std::make_unique<DenoiserInference>(model_path,
-                                                           gpu_memory_fraction,
-                                                           visible_devices,
-                                                           width,
-                                                           height,
-                                                           input_channels);
+                return std::make_unique<Inference>(model_path,
+                                                   gpu_memory_fraction,
+                                                   visible_devices,
+                                                   width,
+                                                   height,
+                                                   input_channels);
             }
         }
 

@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 #pragma once
 
-#include "PostEffects/ML/model.h"
+#include <ml.h>
 
 #include <memory>
 #include <string>
@@ -34,36 +34,37 @@ namespace Baikal
     {
         class SharedObject;
 
+        // non copyable/movable
         class ModelHolder
         {
         public:
-            ModelHolder();
-
             ModelHolder(std::string const& model_path,
                         std::string const& input_node,
                         std::string const& output_node,
                         float gpu_memory_fraction,
                         std::string const& visible_devices);
 
-            void Reset(std::string const& model_path,
-                       std::string const& input_node,
-                       std::string const& output_node,
-                       float gpu_memory_fraction,
-                       std::string const& visible_devices);
 
-            ML::Model* operator ->() const
+            ml_model GetModel()
             {
-                return m_model.get();
+                return m_model;
             }
 
-            ML::Model& operator *() const
-            {
-                return *m_model;
-            }
+            ml_image CreateImage(ml_image_info const& info);
+
+            ~ModelHolder();
+
+
+            ModelHolder(const ModelHolder&) = delete;
+            ModelHolder(ModelHolder&&) = delete;
+            ModelHolder& operator = (const ModelHolder&) = delete;
+            ModelHolder& operator = (ModelHolder&&) = delete;
 
         private:
-            std::shared_ptr<SharedObject> m_shared_object;
-            std::unique_ptr<ML::Model> m_model;
+            void ShutDown();
+
+            ml_model m_model;
+            ml_context m_context;
         };
     }
 }

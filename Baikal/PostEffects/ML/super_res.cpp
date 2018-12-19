@@ -46,11 +46,11 @@ namespace Baikal
             {
                 auto model_path = "models/esrgan-05x3x32-198135.pb";
 
-                return std::make_unique<SuperResInference>(model_path,
-                                                           gpu_memory_fraction,
-                                                           visible_devices,
-                                                           width,
-                                                           height);
+                return std::make_unique<Inference>(model_path,
+                                                   gpu_memory_fraction,
+                                                   visible_devices,
+                                                   width,
+                                                   height);
             }
         }
 
@@ -62,13 +62,13 @@ namespace Baikal
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
 #else
-        : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl"),
+        :ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl"),
 #endif
          m_inference(nullptr)
         {
             m_context = std::make_unique<CLWContext>(context);
 
-            RegisterParameter("gpu_memory_fraction", .1f);
+            RegisterParameter("gpu_memory_fraction", .7f);
             RegisterParameter("visible_devices", std::string());
         }
 
@@ -95,19 +95,17 @@ namespace Baikal
             }
 
             auto device_mem = clw_input->data();
-            auto tensor = m_inference->GetInputTensor();
+            auto tensor = m_inference->GetInputData();
 
 
             m_context->ReadBuffer<float3>(0,
                                           device_mem,
-                                          reinterpret_cast<float3*>(tensor.data()),
+                                          reinterpret_cast<float3*>(tensor.cpu_data),
                                           device_mem.GetElementCount()).Wait();
 
             // push tensor in model queue
             m_inference->PushInput(std::move(tensor));
-
             auto clw_output = dynamic_cast<ClwOutput*>(&output);
-
             if (clw_output == nullptr)
             {
                 throw std::runtime_error("SuperRes::Apply(..): incorrect output");
@@ -118,18 +116,17 @@ namespace Baikal
             // get another tensor from model queue
             auto res = m_inference->PopOutput();
 
-            if (res.empty())
+            if (!res.is_empty)
             {
                 // if returned tensor is empty return black image
-                memset(res.data(), 0, output_device_mem.GetElementCount());
+                m_context->WriteBuffer<float3>(0,
+                                               output_device_mem,
+                                               reinterpret_cast<float3*>(res.cpu_data),
+                                               output_device_mem.GetElementCount()).Wait();
             }
-
             // if we get upscaled image from tensor
             // than copy it into output device buffer
-            m_context->WriteBuffer<float3>(0,
-                                           output_device_mem,
-                                           reinterpret_cast<float3*>(res.data()),
-                                           output_device_mem.GetElementCount());
+
         }
 
         PostEffect::InputTypes SuperRes::GetInputTypes() const

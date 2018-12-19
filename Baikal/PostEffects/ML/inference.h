@@ -23,63 +23,65 @@ THE SOFTWARE.
 
 #pragma once
 
-#include "PostEffects/ML/tensor.h"
 #include "PostEffects/ML/model_holder.h"
 
 #include "../RadeonRays/RadeonRays/src/async/thread_pool.h"
+#include "tensor.h"
 
 #include <memory>
 #include <string>
 #include <thread>
 
+
 namespace Baikal
 {
     namespace PostEffects
     {
+        struct Data
+        {
+            bool is_empty = false;
+            void* cpu_data;
+            ml_image gpu_data;
+        };
+
         class Inference
         {
         public:
             using Ptr = std::unique_ptr<Inference>;
 
             Inference(std::string const& model_path,
-                      std::string const& input_node,
-                      std::string const& output_node,
+                      // input shapes
+                      Tensor::Shape const& input_shape,
+                      Tensor::Shape const& output_shape,
+                      // model params
                       float gpu_memory_fraction,
                       std::string const& visible_devices,
-                      std::size_t in_width,
-                      std::size_t in_height,
-                      std::size_t out_width,
-                      std::size_t out_height,
-                      std::size_t input_channels);
+                      std::string const& input_node = "",
+                      std::string const& output_node = "");
 
             Tensor::Shape GetInputShape() const;
             Tensor::Shape GetOutputShape() const;
-            Tensor GetInputTensor();
-            void PushInput(Tensor&& tensor);
-            Tensor PopOutput();
+
+            Data GetInputData();
+            void PushInput(Data&& tensor);
+
+            Data PopOutput();
             virtual ~Inference();
 
 
         protected:
-            virtual void DoInference() = 0;
+            void DoInference();
 
-            Tensor AllocTensor(std::size_t width,
-                               std::size_t height,
-                               std::size_t channels);
+            std::atomic_bool m_go_flag;
+            Data AllocData(ml_image_info const& info);
 
-            RadeonRays::thread_safe_queue<Tensor> m_input_queue;
-            RadeonRays::thread_safe_queue<Tensor> m_output_queue;
+            RadeonRays::thread_safe_queue<Data> m_input_queue;
+            RadeonRays::thread_safe_queue<Data> m_output_queue;
 
             ModelHolder m_model;
 
-            std::size_t m_in_width;
-            std::size_t m_in_height;
-            std::size_t m_out_width;
-            std::size_t m_out_height;
-
-            std::size_t m_input_channels;
-
-            const std::size_t m_output_channels = 3;
+            ml_image_info m_input_desc;
+            ml_image_info m_output_desc;
 
         private:
             void Shutdown();

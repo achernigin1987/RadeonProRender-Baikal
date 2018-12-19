@@ -23,29 +23,58 @@ THE SOFTWARE.
 
 #include "inference.h"
 #include <cassert>
+#include <ml.h>
 
 namespace Baikal
 {
     namespace PostEffects
     {
         Inference::Inference(std::string const& model_path,
-                             std::string const& input_node,
-                             std::string const& output_node,
+                             // input shapes
+                             Tensor::Shape const& input_shape,
+                             Tensor::Shape const& output_shape,
+                             // model params
                              float gpu_memory_fraction,
                              std::string const& visible_devices,
-                             std::size_t in_width,
-                             std::size_t in_height,
-                             std::size_t out_width,
-                             std::size_t out_height,
-                             std::size_t input_channels)
-                : m_model(model_path, input_node, output_node, gpu_memory_fraction, visible_devices)
-                , m_in_width(in_width)
-                , m_in_height(in_height)
-                , m_out_width(out_width)
-                , m_out_height(out_height)
-                , m_input_channels(input_channels)
-                , m_worker(&Inference::DoInference, this)
-        { }
+                             std::string const& input_node,
+                             std::string const& output_node)
+                : m_go_flag(true),
+                  m_model(model_path,
+                          input_node,
+                          output_node,
+                          gpu_memory_fraction,
+                          visible_devices)
+        {
+            // specify input tensor shape for model
+            if (mlGetModelInfo(m_model.GetModel(), &m_input_desc, NULL) != ML_OK)
+            {
+                throw std::runtime_error("can not get input shape");
+            }
+
+            if (m_input_desc.channels != input_shape.channels)
+            {
+                throw std::runtime_error(
+                        "passed input channels number doesn't correspond"
+                        " to model input channels number");
+            }
+
+            m_input_desc.width = input_shape.width;
+            m_input_desc.height = input_shape.height;
+
+            if (mlSetModelInputInfo(m_model.GetModel(), &m_input_desc) != ML_OK)
+            {
+                throw std::runtime_error(
+                        "can not set input shape to model due to unknown reason");
+            }
+
+            // get output tensor shape for out model
+            if (mlGetModelInfo(m_model.GetModel(), NULL, &m_output_desc) != ML_OK)
+            {
+                throw std::runtime_error("can not get input shape");
+            }
+
+            m_worker = std::thread(&Inference::DoInference, this);
+        }
 
         Inference::~Inference()
         {
@@ -54,46 +83,86 @@ namespace Baikal
 
         Tensor::Shape Inference::GetInputShape() const
         {
-            return { m_in_width, m_in_height, m_input_channels };
+            return { m_input_desc.width, m_input_desc.height, m_input_desc.channels };
         }
 
         Tensor::Shape Inference::GetOutputShape() const
         {
-            return { m_out_width, m_out_height, m_output_channels };
+            return { m_output_desc.width, m_output_desc.height, m_output_desc.channels };
         }
 
-        Tensor Inference::GetInputTensor()
+        Data Inference::GetInputData()
         {
-            return AllocTensor(m_in_width, m_in_height, m_input_channels);
+            return AllocData(m_input_desc);
         }
 
-        void Inference::PushInput(Tensor&& tensor)
+        Data Inference::AllocData(ml_image_info const &info)
         {
-            assert(tensor.shape() == GetInputShape());
+            auto input_image = m_model.CreateImage(info);
+
+            if (input_image == ML_INVALID_HANDLE)
+            {
+                throw std::runtime_error("can not create input image");
+            }
+
+            size_t size;
+            auto input_data = mlMapImage(input_image, &size);
+
+            if (input_data == NULL)
+            {
+                throw std::runtime_error("can not map image");
+            }
+
+            return {input_data, input_image};
+        }
+
+        void Inference::PushInput(Data&& tensor)
+        {
             m_input_queue.push(std::move(tensor));
         }
 
-        Tensor Inference::PopOutput()
+        Data Inference::PopOutput()
         {
-            Tensor output_tensor;
+            Data output_tensor;
             m_output_queue.try_pop(output_tensor);
             return output_tensor;
         }
 
-        Tensor Inference::AllocTensor(std::size_t width, std::size_t height, std::size_t channels)
+
+        void Inference::DoInference()
         {
-            auto deleter = [](Tensor::ValueType* data)
+            for (;;)
             {
-                delete[] data;
-            };
-            size_t size = width * height * channels;
-            return Tensor(Tensor::Data(new Tensor::ValueType[size], deleter),
-                          { width, height, channels });
+                Data input;
+                m_input_queue.wait_and_pop(input);
+
+                if (input.is_empty)
+                {
+                    break;
+                }
+
+                if (m_input_queue.size() > 0)
+                {
+                    continue;
+                }
+
+                Data output = AllocData(m_output_desc);
+
+                mlUnmapImage(output.gpu_data, output.cpu_data);
+
+                if (mlInfer(m_model.GetModel(), input.gpu_data, output.gpu_data) != ML_OK)
+                {
+                    std::cerr << "Can't perform inference"
+                    continue;
+                }
+
+                m_output_queue.push(std::move(output));
+            }
         }
 
         void Inference::Shutdown()
         {
-            m_input_queue.push(Tensor());
+            m_input_queue.push({true, nullptr, nullptr});
             m_worker.join();
         }
     }

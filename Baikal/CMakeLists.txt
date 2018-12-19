@@ -21,14 +21,8 @@ set(POSTEFFECT_ML_SOURCES
     PostEffects/ML/denoiser.cpp
     PostEffects/ML/inference.h
     PostEffects/ML/inference.cpp
-    PostEffects/ML/denoiser_inference.h
-    PostEffects/ML/denoiser_inference.cpp
-    PostEffects/ML/super_res_inference.h
-    PostEffects/ML/super_res_inference.cpp
-    PostEffects/ML/model.h
     PostEffects/ML/model_holder.h
     PostEffects/ML/model_holder.cpp
-    PostEffects/ML/tensor.h
 )
 
 set(POSTEFFECT_SOURCES
@@ -204,6 +198,7 @@ endif (BAIKAL_EMBED_KERNELS)
 
 target_compile_features(Baikal PRIVATE cxx_std_14)
 target_include_directories(Baikal PUBLIC "${Baikal_SOURCE_DIR}/Baikal")
+target_include_directories(Baikal PUBLIC "${Baikal_SOURCE_DIR}/Baikal")
 target_link_libraries(Baikal PUBLIC RadeonRays)
 
 # Add 'treat warnings as errors' flag and 'Wall' flag on Unix
@@ -237,6 +232,11 @@ if (WIN32)
 else ()
     install(TARGETS Baikal LIBRARY DESTINATION lib)
 endif ()
+
+# add ml libs
+target_include_directories(Baikal PRIVATE "${Baikal_SOURCE_DIR}/3rdparty/RadeonProML")
+target_link_directories(Baikal PRIVATE "${Baikal_SOURCE_DIR}/3rdparty/RadeonProML")
+target_link_libraries(Baikal PRIVATE libRadeonProML.so)
 
 file(TO_CMAKE_PATH ${BAIKAL_KERNELS_SRC} BAIKAL_KERNELS_SRC_CMAKE)
 install(DIRECTORY ${BAIKAL_KERNELS_SRC_CMAKE} DESTINATION Baikal)
