@@ -47,7 +47,7 @@ namespace Baikal
                 auto model_path = "models/esrgan-05x3x32-198135.pb";
 
                 ml_image_info image_info = {ML_FLOAT32, width, height, 3};
-                ml_image_info output_info = {ML_FLOAT32, width, height, 3};
+                ml_image_info output_info = {ML_FLOAT32, 2 * width, 2 * height, 3};
 
                 return std::make_unique<Inference>(model_path,
                                                    image_info,
