@@ -104,7 +104,7 @@ namespace Baikal
 
         ml_image Inference::AllocImage(ml_image_info info)
         {
-            auto image = m_model.CreateImage(m_input_desc);
+            auto image = m_model.CreateImage(info);
 
             if (image == ML_INVALID_HANDLE)
             {
@@ -135,7 +135,10 @@ namespace Baikal
 
                 if (mlInfer(m_model.GetModel(), input.image, output.image) != ML_OK)
                 {
-                    std::cerr << "Can't perform inference" << std::endl;
+                    const size_t size = 1024;
+                    char buffer[size];
+                    mlGetModelError(m_model.GetModel(), buffer, size);
+                    std::cerr << "Can't perform inference: " << buffer << std::endl;
                     continue;
                 }
 

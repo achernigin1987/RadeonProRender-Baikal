@@ -90,7 +90,7 @@ namespace Baikal
                                               visible_devices,
                                               m_width,
                                               m_height);
-                m_cache.resize(4 * m_width * m_height);
+                m_cache.resize(4 * output.width() * output.height());
             }
 
             auto clw_input = dynamic_cast<ClwOutput*>(color_aov);

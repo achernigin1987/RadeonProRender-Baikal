@@ -56,11 +56,12 @@ namespace Baikal
             ModelHolder& operator = (const ModelHolder&) = delete;
             ModelHolder& operator = (ModelHolder&&) = delete;
 
+            ml_context m_context;
         private:
             void ShutDown();
 
             ml_model m_model;
-            ml_context m_context;
+
         };
     }
 }
