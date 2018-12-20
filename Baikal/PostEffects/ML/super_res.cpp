@@ -81,10 +81,13 @@ namespace Baikal
 
             if (m_inference == nullptr)
             {
+                m_width = color_aov->width();
+                m_height = color_aov->height();
                 m_inference = CreateInference(gpu_memory_fraction,
                                               visible_devices,
-                                              color_aov->width(),
-                                              color_aov->height());
+                                              m_width,
+                                              m_height);
+                m_cache.resize(4 * m_width * m_height);
             }
 
             auto clw_input = dynamic_cast<ClwOutput*>(color_aov);
@@ -95,16 +98,24 @@ namespace Baikal
             }
 
             auto device_mem = clw_input->data();
-            auto tensor = m_inference->GetInputData();
-
+            auto input = m_inference->GetInputData();
 
             m_context->ReadBuffer<float3>(0,
                                           device_mem,
-                                          reinterpret_cast<float3*>(tensor.cpu_data),
+                                          reinterpret_cast<float3*>(m_cache.data()),
                                           device_mem.GetElementCount()).Wait();
 
+            auto f_data = static_cast<float*>(input.cpu_data);
+            for (auto i = 0u; i < device_mem.GetElementCount(); i++)
+            {
+                f_data[i] = m_cache[i];
+                f_data[i + 1] = m_cache[i + 1];
+                f_data[i + 2] = m_cache[i + 2];
+            }
+
             // push tensor in model queue
-            m_inference->PushInput(std::move(tensor));
+            m_inference->PushInput(std::move(input));
+
             auto clw_output = dynamic_cast<ClwOutput*>(&output);
             if (clw_output == nullptr)
             {
@@ -114,19 +125,26 @@ namespace Baikal
             auto output_device_mem = clw_output->data();
 
             // get another tensor from model queue
-            auto res = m_inference->PopOutput();
+            auto model_output = m_inference->PopOutput();
 
-            if (!res.is_empty)
+            if (!model_output.is_empty)
             {
+                f_data = static_cast<float *>(model_output.cpu_data);
+                for (auto i = 0u; i < device_mem.GetElementCount(); i++)
+                {
+                    // 4th component (w) is not written here because
+                    // it is saved from the previous reading
+                    m_cache[i] = f_data[i];
+                    m_cache[i + 1] = f_data[i + 1];
+                    m_cache[i + 2] = f_data[i + 2];
+                }
+
                 // if returned tensor is empty return black image
                 m_context->WriteBuffer<float3>(0,
                                                output_device_mem,
-                                               reinterpret_cast<float3*>(res.cpu_data),
+                                               reinterpret_cast<float3 *>(m_cache.data()),
                                                output_device_mem.GetElementCount()).Wait();
             }
-            // if we get upscaled image from tensor
-            // than copy it into output device buffer
-
         }
 
         PostEffect::InputTypes SuperRes::GetInputTypes() const

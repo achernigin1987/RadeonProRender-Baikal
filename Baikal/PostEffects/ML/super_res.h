@@ -43,10 +43,12 @@ namespace Baikal
 
             InputTypes GetInputTypes() const override;
         private:
+
             std::unique_ptr<CLWContext> m_context;
             Inference::Ptr m_inference;
             std::uint32_t m_width = 0;
             std::uint32_t m_height = 0;
+            std::vector<float> m_cache;
         };
     }
 }
