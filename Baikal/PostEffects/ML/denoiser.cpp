@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 
 #include "PostEffects/ML/denoiser.h"
-#include "PostEffects/ML/denoiser_inference.h"
+#include "PostEffects/ML/inference.h"
 
 #include "CLWContext.h"
 #include "CLWParallelPrimitives.h"
@@ -148,7 +148,7 @@ namespace Baikal
             // Realloc cache if needed
             auto shape = m_inference->GetInputShape();
 
-            size_t bytes_count = sizeof(Tensor::ValueType) * shape.width * shape.height * shape.channels;
+            size_t bytes_count = sizeof(float) * shape.width * shape.height * shape.channels;
 
             if (m_host_cache.size() != bytes_count)
             {
@@ -373,7 +373,7 @@ namespace Baikal
             }
             else
             {
-                auto tensor = m_inference->GetInputTensor();
+                auto tensor = m_inference->GetInputData();
 
                 m_context->ReadBuffer<float>(0,
                                              *m_device_tensor,

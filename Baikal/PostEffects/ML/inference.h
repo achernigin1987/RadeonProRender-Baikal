@@ -26,7 +26,6 @@ THE SOFTWARE.
 #include "PostEffects/ML/model_holder.h"
 
 #include "../RadeonRays/RadeonRays/src/async/thread_pool.h"
-#include "tensor.h"
 
 #include <memory>
 #include <string>
@@ -37,11 +36,10 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        struct Data
+        struct Image
         {
-            bool is_empty = false;
-            void* cpu_data;
-            ml_image gpu_data;
+            int img_count;
+            ml_image image;
         };
 
         class Inference
@@ -51,35 +49,32 @@ namespace Baikal
 
             Inference(std::string const& model_path,
                       // input shapes
-                      Tensor::Shape const& input_shape,
-                      Tensor::Shape const& output_shape,
+                      ml_image_info const& input_desc,
+                      ml_image_info const& output_desc,
                       // model params
                       float gpu_memory_fraction,
                       std::string const& visible_devices,
                       std::string const& input_node = "",
                       std::string const& output_node = "");
 
-            Tensor::Shape GetInputShape() const;
-            Tensor::Shape GetOutputShape() const;
+            ml_image_info GetInputShape() const;
+            ml_image_info GetOutputShape() const;
 
-            Data GetInputData();
-            void PushInput(Data&& tensor);
+            Image GetInputData();
+            void PushInput(Image&& image);
 
-            Data PopOutput();
+            Image PopOutput();
             virtual ~Inference();
 
 
         protected:
             void DoInference();
+            ml_image AllocImage(ml_image_info info);
 
-            std::atomic_bool m_go_flag;
-            Data AllocData(ml_image_info const& info);
-
-            RadeonRays::thread_safe_queue<Data> m_input_queue;
-            RadeonRays::thread_safe_queue<Data> m_output_queue;
+            RadeonRays::thread_safe_queue<Image> m_input_queue;
+            RadeonRays::thread_safe_queue<Image> m_output_queue;
 
             ModelHolder m_model;
-
             ml_image_info m_input_desc;
             ml_image_info m_output_desc;
 

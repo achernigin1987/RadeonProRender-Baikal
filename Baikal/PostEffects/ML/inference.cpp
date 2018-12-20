@@ -31,36 +31,34 @@ namespace Baikal
     {
         Inference::Inference(std::string const& model_path,
                              // input shapes
-                             Tensor::Shape const& input_shape,
-                             Tensor::Shape const& output_shape,
+                             ml_image_info const& input_desc,
+                             ml_image_info const& output_desc,
                              // model params
                              float gpu_memory_fraction,
                              std::string const& visible_devices,
                              std::string const& input_node,
                              std::string const& output_node)
-                : m_go_flag(true),
-                  m_model(model_path,
+                : m_model(model_path,
                           input_node,
                           output_node,
                           gpu_memory_fraction,
-                          visible_devices)
+                          visible_devices),
+                  m_input_desc(input_desc),
+                  m_output_desc(output_desc)
         {
+            ml_image_info image_info;
             // specify input tensor shape for model
-            if (mlGetModelInfo(m_model.GetModel(), &m_input_desc, NULL) != ML_OK)
+            if (mlGetModelInfo(m_model.GetModel(), &image_info, NULL) != ML_OK)
             {
                 throw std::runtime_error("can not get input shape");
             }
 
-            if (m_input_desc.channels != input_shape.channels)
+            if (image_info.channels != input_desc.channels)
             {
-                throw std::runtime_error(
-                        "passed input channels number doesn't correspond"
-                        " to model input channels number");
+                throw std::runtime_error("input channels number is incorrect");
             }
 
-            m_input_desc.width = input_shape.width;
-            m_input_desc.height = input_shape.height;
-
+            m_input_desc.dtype = image_info.dtype;
             if (mlSetModelInputInfo(m_model.GetModel(), &m_input_desc) != ML_OK)
             {
                 throw std::runtime_error(
@@ -81,62 +79,53 @@ namespace Baikal
             Shutdown();
         }
 
-        Tensor::Shape Inference::GetInputShape() const
+        ml_image_info Inference::GetInputShape() const
         {
-            return { m_input_desc.width, m_input_desc.height, m_input_desc.channels };
+            return m_input_desc;
         }
 
-        Tensor::Shape Inference::GetOutputShape() const
+        ml_image_info Inference::GetOutputShape() const
         {
-            return { m_output_desc.width, m_output_desc.height, m_output_desc.channels };
+            return m_output_desc;
         }
 
-        Data Inference::GetInputData()
+        Image Inference::GetInputData()
         {
-            return AllocData(m_input_desc);
+            return {0, AllocImage(m_input_desc)};
         }
 
-        Data Inference::AllocData(ml_image_info const &info)
+        void Inference::PushInput(Image&& image)
         {
-            auto input_image = m_model.CreateImage(info);
-
-            if (input_image == ML_INVALID_HANDLE)
-            {
-                throw std::runtime_error("can not create input image");
-            }
-
-            size_t size;
-            auto input_data = mlMapImage(input_image, &size);
-
-            if (input_data == NULL)
-            {
-                throw std::runtime_error("can not map image");
-            }
-
-            return {input_data, input_image};
+            m_input_queue.push(std::move(image));
         }
 
-        void Inference::PushInput(Data&& tensor)
+        Image Inference::PopOutput()
         {
-            m_input_queue.push(std::move(tensor));
-        }
-
-        Data Inference::PopOutput()
-        {
-            Data output_tensor;
+            Image output_tensor;
             m_output_queue.try_pop(output_tensor);
             return output_tensor;
         }
 
+        ml_image Inference::AllocImage(ml_image_info info)
+        {
+            auto image = m_model.CreateImage(m_input_desc);
+
+            if (image == ML_INVALID_HANDLE)
+            {
+                throw std::runtime_error("can not create input image");
+            }
+
+            return image;
+        }
 
         void Inference::DoInference()
         {
             for (;;)
             {
-                Data input;
+                Image input;
                 m_input_queue.wait_and_pop(input);
 
-                if (input.is_empty)
+                if (input.image == ML_INVALID_HANDLE)
                 {
                     break;
                 }
@@ -146,13 +135,11 @@ namespace Baikal
                     continue;
                 }
 
-                Data output = AllocData(m_output_desc);
+                Image output = { input.img_count, AllocImage(m_output_desc) };
 
-                mlUnmapImage(output.gpu_data, output.cpu_data);
-
-                if (mlInfer(m_model.GetModel(), input.gpu_data, output.gpu_data) != ML_OK)
+                if (mlInfer(m_model.GetModel(), input.image, output.image) != ML_OK)
                 {
-                    std::cerr << "Can't perform inference"
+                    std::cerr << "Can't perform inference" << std::endl;
                     continue;
                 }
 
@@ -162,7 +149,7 @@ namespace Baikal
 
         void Inference::Shutdown()
         {
-            m_input_queue.push({true, nullptr, nullptr});
+            m_input_queue.push({0, ML_INVALID_HANDLE});
             m_worker.join();
         }
     }
