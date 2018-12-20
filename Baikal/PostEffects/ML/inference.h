@@ -38,7 +38,7 @@ namespace Baikal
     {
         struct Image
         {
-            int img_count;
+            std::uint32_t tag;
             ml_image image;
         };
 

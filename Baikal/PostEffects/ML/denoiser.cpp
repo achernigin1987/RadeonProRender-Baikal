@@ -373,15 +373,24 @@ namespace Baikal
             }
             else
             {
-                auto tensor = m_inference->GetInputData();
+                size_t input_size;
+                auto input = m_inference->GetInputData();
+                auto input_data = static_cast<float*>(mlMapImage(input.image, &input_size));
+
+                if (input_data == nullptr)
+                {
+                    throw std::runtime_error("map input image is failed");
+                }
 
                 m_context->ReadBuffer<float>(0,
                                              *m_device_tensor,
-                                             tensor.data(),
+                                             input_data,
                                              m_device_tensor->GetElementCount()).Wait();
 
-                tensor.tag = ++m_last_seq_num;
-                m_inference->PushInput(std::move(tensor));
+                input.tag = ++m_last_seq_num;
+                mlUnmapImage(input.image, input_data);
+
+                m_inference->PushInput(std::move(input));
             }
 
             auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
@@ -393,13 +402,22 @@ namespace Baikal
 
             auto inference_res = m_inference->PopOutput();
 
-            if (!inference_res.empty() && inference_res.tag >= m_start_seq_num)
+            if (inference_res.image != ML_INVALID_HANDLE && inference_res.tag >= m_start_seq_num)
             {
+                size_t res_size;
+                auto res_data = static_cast<float*>(mlMapImage(inference_res.image, &res_size));
+
+                if (res_data == nullptr)
+                {
+                    throw std::runtime_error("map input image is failed");
+                }
+
 #ifdef ML_DENOISER_IMAGES_DIR
-                //SaveImage("output", inference_res.data(), inference_res.size(), inference_res.tag);
+                //SaveImage("output", res_data, res_size / sizeof(float), inference_res.tag);
 #endif
+
                 auto dest = m_host_cache.data();
-                auto source = inference_res.data();
+                auto source = res_data;
                 for (auto i = 0u; i < shape.width * shape.height; ++i)
                 {
                     dest->x = *source++;
@@ -409,10 +427,12 @@ namespace Baikal
                     ++dest;
                 }
 
+                mlUnmapImage(inference_res.image, res_data);
+
                 m_context->WriteBuffer<float3>(0,
                                                *m_last_denoised_image,
                                                m_host_cache.data(),
-                                               inference_res.size() / 3);
+                                               res_size / (3 * sizeof(float)));
                 m_has_denoised_image = true;
 
 
