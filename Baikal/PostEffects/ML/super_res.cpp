@@ -21,7 +21,7 @@ THE SOFTWARE.
 ********************************************************************/
 
 #include "super_res.h"
-#include "super_res_inference.h"
+#include "inference.h"
 
 #include "Output/clwoutput.h"
 
@@ -46,11 +46,14 @@ namespace Baikal
             {
                 auto model_path = "models/esrgan-05x3x32-198135.pb";
 
+                ml_image_info image_info = {ML_FLOAT32, width, height, 3};
+                ml_image_info output_info = {ML_FLOAT32, width, height, 3};
+
                 return std::make_unique<Inference>(model_path,
+                                                   image_info,
+                                                   output_info,
                                                    gpu_memory_fraction,
-                                                   visible_devices,
-                                                   width,
-                                                   height);
+                                                   visible_devices);
             }
         }
 
@@ -105,13 +108,22 @@ namespace Baikal
                                           reinterpret_cast<float3*>(m_cache.data()),
                                           device_mem.GetElementCount()).Wait();
 
-            auto f_data = static_cast<float*>(input.cpu_data);
+            size_t input_size;
+            auto input_data = static_cast<float*>(mlMapImage(input.image, &input_size));
+
+            if (input_data == nullptr)
+            {
+                throw std::runtime_error("ml buffer map operation failed");
+            }
+
             for (auto i = 0u; i < device_mem.GetElementCount(); i++)
             {
-                f_data[i] = m_cache[i];
-                f_data[i + 1] = m_cache[i + 1];
-                f_data[i + 2] = m_cache[i + 2];
+                input_data[i] = m_cache[i];
+                input_data[i + 1] = m_cache[i + 1];
+                input_data[i + 2] = m_cache[i + 2];
             }
+
+            mlUnmapImage(input.image, input_data);
 
             // push tensor in model queue
             m_inference->PushInput(std::move(input));
@@ -127,17 +139,22 @@ namespace Baikal
             // get another tensor from model queue
             auto model_output = m_inference->PopOutput();
 
-            if (!model_output.is_empty)
+            if (model_output.image != ML_INVALID_HANDLE)
             {
-                f_data = static_cast<float *>(model_output.cpu_data);
+                size_t output_size;
+                auto output_data = static_cast<float*>(
+                        mlMapImage(model_output.image, &output_size));
+
                 for (auto i = 0u; i < device_mem.GetElementCount(); i++)
                 {
                     // 4th component (w) is not written here because
                     // it is saved from the previous reading
-                    m_cache[i] = f_data[i];
-                    m_cache[i + 1] = f_data[i + 1];
-                    m_cache[i + 2] = f_data[i + 2];
+                    m_cache[i] = output_data[i];
+                    m_cache[i + 1] = output_data[i + 1];
+                    m_cache[i + 2] = output_data[i + 2];
                 }
+
+                mlUnmapImage(model_output.image, output_data);
 
                 // if returned tensor is empty return black image
                 m_context->WriteBuffer<float3>(0,

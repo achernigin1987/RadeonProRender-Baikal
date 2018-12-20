@@ -85,12 +85,14 @@ namespace Baikal
                         break;
                 }
 
+                ml_image_info image_info = {ML_FLOAT32, width, height, input_channels};
+                ml_image_info output_info = {ML_FLOAT32, width, height, 3};
+
                 return std::make_unique<Inference>(model_path,
+                                                   image_info,
+                                                   output_info,
                                                    gpu_memory_fraction,
-                                                   visible_devices,
-                                                   width,
-                                                   height,
-                                                   input_channels);
+                                                   visible_devices);
             }
         }
 

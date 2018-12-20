@@ -32,15 +32,11 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        class SharedObject;
-
         // non copyable/movable
         class ModelHolder
         {
         public:
             ModelHolder(std::string const& model_path,
-                        std::string const& input_node,
-                        std::string const& output_node,
                         float gpu_memory_fraction,
                         std::string const& visible_devices);
 

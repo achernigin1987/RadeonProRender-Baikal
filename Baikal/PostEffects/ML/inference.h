@@ -53,9 +53,7 @@ namespace Baikal
                       ml_image_info const& output_desc,
                       // model params
                       float gpu_memory_fraction,
-                      std::string const& visible_devices,
-                      std::string const& input_node = "",
-                      std::string const& output_node = "");
+                      std::string const& visible_devices);
 
             ml_image_info GetInputShape() const;
             ml_image_info GetOutputShape() const;

@@ -35,12 +35,8 @@ namespace Baikal
                              ml_image_info const& output_desc,
                              // model params
                              float gpu_memory_fraction,
-                             std::string const& visible_devices,
-                             std::string const& input_node,
-                             std::string const& output_node)
+                             std::string const& visible_devices)
                 : m_model(model_path,
-                          input_node,
-                          output_node,
                           gpu_memory_fraction,
                           visible_devices),
                   m_input_desc(input_desc),
@@ -135,7 +131,7 @@ namespace Baikal
                     continue;
                 }
 
-                Image output = { input.img_count, AllocImage(m_output_desc) };
+                Image output = { input.tag, AllocImage(m_output_desc) };
 
                 if (mlInfer(m_model.GetModel(), input.image, output.image) != ML_OK)
                 {

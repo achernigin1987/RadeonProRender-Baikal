@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 
-#include "PostEffects/ML/model_holder.h"
+#include "model_holder.h"
 
 #include <stdexcept>
 #include <sstream>
@@ -30,8 +30,6 @@ namespace Baikal
     namespace PostEffects
     {
         ModelHolder::ModelHolder(std::string const& model_path,
-                                 std::string const& input_node,
-                                 std::string const& output_node,
                                  float gpu_memory_fraction,
                                  std::string const& visible_devices)
         {
@@ -47,8 +45,6 @@ namespace Baikal
                 ml_model_params params = {};
                 params.model_path = model_path.c_str();
                 params.gpu_memory_fraction = gpu_memory_fraction;
-                params.input_node = !input_node.empty() ? input_node.c_str() : nullptr;
-                params.output_node = !output_node.empty() ? output_node.c_str() : nullptr;
                 params.visible_devices = !visible_devices.empty() ?
                                          visible_devices.c_str() : nullptr;
 

@@ -74,17 +74,17 @@ struct ml_model_params
 /**
  * Context handle.
  */
-typedef struct {}* ml_context;
+typedef struct ml_context_t {}* ml_context;
 
 /**
  * Model handle.
  */
-typedef struct {}* ml_model;
+typedef struct ml_model_t {}* ml_model;
 
 /**
  * Image handle.
  */
-typedef struct {}* ml_image;
+typedef struct ml_image_t {}* ml_image;
 
 #define ML_INVALID_HANDLE NULL
 
