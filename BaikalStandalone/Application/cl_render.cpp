@@ -158,7 +158,13 @@ namespace Baikal
         }
 
         // create buffer for post-effect output
-        m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
+        if (m_post_processing_type != PostProcessingType::kSISR)
+        {
+            m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
+        } else
+        {
+            m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(2 * m_width, 2 * m_height);
+        }
 
         m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
         m_cfgs[m_primary].renderer->Clear(RadeonRays::float3(0, 0, 0), *m_shape_id_data.output);
@@ -282,18 +288,18 @@ namespace Baikal
                 m_cfgs[m_primary].context.WriteBuffer(
                         0, m_copybuffer,
                         &m_outputs[i].fdata[0],
-                        settings.width * settings.height);
+                        m_width * m_height);
 
                 auto acckernel = static_cast<MonteCarloRenderer*>(m_cfgs[m_primary].renderer.get())->GetAccumulateKernel();
 
                 int argc = 0;
                 acckernel.SetArg(argc++, m_copybuffer);
-                acckernel.SetArg(argc++, settings.width * settings.height);
+                acckernel.SetArg(argc++, m_width * m_height);
                 acckernel.SetArg(argc++,
                         static_cast<Baikal::ClwOutput*>(GetRendererOutput(
                                 m_primary, Renderer::OutputType::kColor))->data());
 
-                int globalsize = settings.width * settings.height;
+                int globalsize = m_width * m_height;
                 m_cfgs[m_primary].context.Launch1D(0, ((globalsize + 63) / 64) * 64, 64, acckernel);
                 settings.samplecount += m_ctrl[i].new_samples_count;
             }

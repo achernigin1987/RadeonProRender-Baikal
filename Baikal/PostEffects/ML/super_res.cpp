@@ -145,7 +145,7 @@ namespace Baikal
                 auto output_data = static_cast<float*>(
                         mlMapImage(model_output.image, &output_size));
 
-                for (auto i = 0u; i < device_mem.GetElementCount(); i++)
+                for (auto i = 0u; i < output_device_mem.GetElementCount(); i++)
                 {
                     // 4th component (w) is not written here because
                     // it is saved from the previous reading
