@@ -128,7 +128,7 @@ void TonemapExponential(GLOBAL float4* restrict dst,
     if (src[id].w != 0.0f)
     {
         dst[id].xyz = 1.f - exp(-1.2f * src[id].xyz / src[id].w);
-git     }
+    }
     else
     {
         dst[id] = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
