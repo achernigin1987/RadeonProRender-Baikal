@@ -25,6 +25,21 @@ THE SOFTWARE.
 #include <cassert>
 #include <ml.h>
 
+
+namespace {
+
+void CheckModelStatus(ml_model model, bool status)
+{
+    if (!status)
+    {
+        std::vector<char> buffer(1024);
+        throw std::runtime_error(mlGetModelError(model, buffer.data(), buffer.size()));
+    }
+}
+
+} // namespace
+
+
 namespace Baikal
 {
     namespace PostEffects
@@ -44,10 +59,8 @@ namespace Baikal
         {
             ml_image_info image_info;
             // specify input tensor shape for model
-            if (mlGetModelInfo(m_model.GetModel(), &image_info, NULL) != ML_OK)
-            {
-                throw std::runtime_error("can not get input shape");
-            }
+            CheckModelStatus(m_model.GetModel(),
+                             mlGetModelInfo(m_model.GetModel(), &image_info, NULL) == ML_OK);
 
             if (image_info.channels != input_desc.channels)
             {

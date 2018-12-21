@@ -69,7 +69,7 @@ namespace Baikal
                     std::size_t width,
                     std::size_t height) {
                 std::string model_path;
-                std::size_t input_channels;
+                std::size_t input_channels = 0;
                 switch (inputs) {
                     case MLDenoiserInputs::kColorDepthNormalGloss7:
                         model_path = "models/color_depth_normal_gloss_7_v3.pb";
@@ -226,7 +226,6 @@ namespace Baikal
                                 64,
                                 division_kernel);
         }
-
 
         void MLDenoiser::WriteToInputs(CLWBuffer<RadeonRays::float3> src_buffer,
                                        int dst_channels_offset,

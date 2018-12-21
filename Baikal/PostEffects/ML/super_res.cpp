@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include "embed_kernels.h"
 #endif
 
+
 namespace Baikal
 {
     namespace PostEffects
@@ -90,6 +91,18 @@ namespace Baikal
                                               visible_devices,
                                               m_width,
                                               m_height);
+
+                m_device_cache.reset();
+                m_device_cache = std::make_unique<CLWBuffer<float3>>(
+                    CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE,
+                                              m_width * m_height));
+
+                m_input_cache.reset();
+                m_input_cache = std::make_unique<CLWBuffer<float>>(
+                    CLWBuffer<float>::Create(*m_context,
+                                             CL_MEM_READ_WRITE,
+                                             3 * m_width * m_height));
+
                 m_cache.resize(4 * output.width() * output.height());
 
                 m_last_denoised_image.reset();
@@ -110,13 +123,34 @@ namespace Baikal
                 throw std::runtime_error("SuperRes::Apply(..): incorrect input");
             }
 
-            auto device_mem = clw_input->data();
-            auto input = m_inference->GetInputData();
+            Tonemap(*m_device_cache, clw_input->data());
 
-            m_context->ReadBuffer<float3>(0,
-                                          device_mem,
-                                          reinterpret_cast<float3*>(m_cache.data()),
-                                          device_mem.GetElementCount()).Wait();
+            auto copy_kernel = GetKernel("CopyInterleaved");
+
+            int argc = 0;
+            copy_kernel.SetArg(argc++, *m_input_cache); // dst
+            copy_kernel.SetArg(argc++, *m_device_cache); // src
+            copy_kernel.SetArg(argc++, m_width); // dst_width
+            copy_kernel.SetArg(argc++, m_height); // dst_height
+            copy_kernel.SetArg(argc++, 0); // dst_channels_offset
+            copy_kernel.SetArg(argc++, 3); // dst_channels_num
+            // input and output buffers have the same width in pixels
+            copy_kernel.SetArg(argc++, m_width); // src_width
+            // input and output buffers have the same height in pixels
+            copy_kernel.SetArg(argc++, m_height); // src_height
+            copy_kernel.SetArg(argc++, 0); // src_channels_offset
+            copy_kernel.SetArg(argc++, 4); // src_channels_num
+            copy_kernel.SetArg(argc++, 3); // channels_to_copy
+            copy_kernel.SetArg(argc++, nullptr); // out_sample_count
+
+            // run copy_kernel
+            auto thread_num = ((m_width * m_height + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                copy_kernel);
+
+            auto input = m_inference->GetInputData();
 
             size_t input_size;
             auto input_data = static_cast<float*>(mlMapImage(input.image, &input_size));
@@ -126,14 +160,10 @@ namespace Baikal
                 throw std::runtime_error("ml buffer map operation failed");
             }
 
-            auto w = std::max(m_cache[3], 1.f);
-
-            for (auto i = 0u; i < device_mem.GetElementCount(); i++)
-            {
-                input_data[3 * i] = std::max(m_cache[4 * i] / w, 0.f);
-                input_data[3 * i + 1] = std::max(m_cache[4 * i + 1] / w, 0.f);
-                input_data[3 * i + 2] = std::max(m_cache[4 * i + 2] / w, 0.f);
-            }
+            m_context->ReadBuffer<float>(0,
+                                         *m_input_cache,
+                                         input_data,
+                                         input_size / sizeof(float)).Wait();
 
             mlUnmapImage(input.image, input_data);
 
@@ -183,7 +213,8 @@ namespace Baikal
                                               m_last_denoised_image->GetElementCount()).Wait();
 
                 m_has_denoised_image = true;
-            } else if (m_has_denoised_image)
+            }
+            else if (m_has_denoised_image)
             {
                 m_context->CopyBuffer<float3>(0,
                                               *m_last_denoised_image,
@@ -197,6 +228,26 @@ namespace Baikal
         PostEffect::InputTypes SuperRes::GetInputTypes() const
         {
             return std::set<Renderer::OutputType>({Renderer::OutputType::kColor});
+        }
+
+        void SuperRes::Tonemap(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+        {
+            assert (dst.GetElementCount() >= src.GetElementCount());
+
+            auto tonemapping = GetKernel("TonemapExponential");
+
+            // Set kernel parameters
+            int argc = 0;
+            tonemapping.SetArg(argc++, dst);
+            tonemapping.SetArg(argc++, src);
+            tonemapping.SetArg(argc++, (int)src.GetElementCount());
+
+            // run DivideBySampleCount kernel
+            auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                tonemapping);
         }
     }
 }

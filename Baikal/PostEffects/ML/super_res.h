@@ -45,13 +45,18 @@ namespace Baikal
             void Apply(InputSet const &input_set, Output &output) override;
 
             InputTypes GetInputTypes() const override;
+
         private:
+            void Tonemap(CLWBuffer<RadeonRays::float3> dst,
+                         CLWBuffer<RadeonRays::float3> src);
 
             std::unique_ptr<CLWContext> m_context;
             Inference::Ptr m_inference;
             std::uint32_t m_width = 0;
             std::uint32_t m_height = 0;
             bool m_has_denoised_image;
+            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
+            std::unique_ptr<CLWBuffer<float>> m_input_cache;
             std::vector<float> m_cache;
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_last_denoised_image;
         };

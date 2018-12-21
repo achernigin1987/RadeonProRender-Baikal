@@ -113,6 +113,29 @@ void BilateralDenoise_main(
     }
 }
 
+KERNEL
+void TonemapExponential(GLOBAL float4* restrict dst,
+                        GLOBAL float4 const* restrict src,
+                        int elems_num)
+{
+    int id = get_global_id(0);
+
+    if (id >= elems_num)
+    {
+        return;
+    }
+
+    if (src[id].w != 0.0f)
+    {
+        dst[id].xyz = 1.f - exp(-1.2f * src[id].xyz / src[id].w);
+git     }
+    else
+    {
+        dst[id] = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+}
+
+
 // perform division on w component
 KERNEL
 void DivideBySampleCount(GLOBAL float4* restrict dst,
@@ -173,7 +196,7 @@ void CopyInterleaved(GLOBAL float4* restrict dst,
         dst_pixel[i] = src_pixel[i];
     }
 
-    if (global_id == 0)
+    if (out_sample_count != NULL && global_id == 0)
     {
         *out_sample_count = src[0].w;
     }
