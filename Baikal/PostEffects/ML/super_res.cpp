@@ -91,6 +91,16 @@ namespace Baikal
                                               m_width,
                                               m_height);
                 m_cache.resize(4 * output.width() * output.height());
+
+                m_last_denoised_image.reset();
+
+                m_last_denoised_image = std::make_unique<CLWBuffer<float3>>(
+                        CLWBuffer<float3>::Create(
+                                *m_context,
+                                CL_MEM_READ_WRITE,
+                                4 * m_width * m_height));
+
+                m_has_denoised_image = false;
             }
 
             auto clw_input = dynamic_cast<ClwOutput*>(color_aov);
@@ -116,11 +126,13 @@ namespace Baikal
                 throw std::runtime_error("ml buffer map operation failed");
             }
 
+            auto w = std::max(m_cache[3], 1.f);
+
             for (auto i = 0u; i < device_mem.GetElementCount(); i++)
             {
-                input_data[i] = m_cache[i];
-                input_data[i + 1] = m_cache[i + 1];
-                input_data[i + 2] = m_cache[i + 2];
+                input_data[3 * i] = std::max(m_cache[4 * i] / w, 0.f);
+                input_data[3 * i + 1] = std::max(m_cache[4 * i + 1] / w, 0.f);
+                input_data[3 * i + 2] = std::max(m_cache[4 * i + 2] / w, 0.f);
             }
 
             mlUnmapImage(input.image, input_data);
@@ -149,18 +161,36 @@ namespace Baikal
                 {
                     // 4th component (w) is not written here because
                     // it is saved from the previous reading
-                    m_cache[i] = output_data[i];
-                    m_cache[i + 1] = output_data[i + 1];
-                    m_cache[i + 2] = output_data[i + 2];
+                    m_cache[4 * i] = std::max(output_data[3 * i], 0.f);
+                    m_cache[4 * i + 1] = std::max(output_data[3 * i + 1], 0.f);
+                    m_cache[4 * i + 2] = std::max(output_data[3 * i + 2], 0.f);
+                    m_cache[4 * i + 3] = 1;
                 }
 
                 mlUnmapImage(model_output.image, output_data);
 
                 // if returned tensor is empty return black image
                 m_context->WriteBuffer<float3>(0,
-                                               output_device_mem,
+                                               *m_last_denoised_image,
                                                reinterpret_cast<float3 *>(m_cache.data()),
                                                output_device_mem.GetElementCount()).Wait();
+
+                m_context->CopyBuffer<float3>(0,
+                                              *m_last_denoised_image,
+                                              output_device_mem,
+                                              0 /* srcOffset */,
+                                              0 /* destOffset */,
+                                              m_last_denoised_image->GetElementCount()).Wait();
+
+                m_has_denoised_image = true;
+            } else if (m_has_denoised_image)
+            {
+                m_context->CopyBuffer<float3>(0,
+                                              *m_last_denoised_image,
+                                              output_device_mem,
+                                              0 /* srcOffset */,
+                                              0 /* destOffset */,
+                                              m_last_denoised_image->GetElementCount()).Wait();
             }
         }
 

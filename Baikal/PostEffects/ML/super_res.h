@@ -29,6 +29,9 @@ THE SOFTWARE.
 #include "inference.h"
 #include "PostEffects/clw_post_effect.h"
 
+template <class T>
+class CLWBuffer;
+
 namespace Baikal
 {
     namespace PostEffects
@@ -48,7 +51,9 @@ namespace Baikal
             Inference::Ptr m_inference;
             std::uint32_t m_width = 0;
             std::uint32_t m_height = 0;
+            bool m_has_denoised_image;
             std::vector<float> m_cache;
+            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_last_denoised_image;
         };
     }
 }

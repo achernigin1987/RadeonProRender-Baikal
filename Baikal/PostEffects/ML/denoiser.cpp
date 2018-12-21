@@ -437,7 +437,6 @@ namespace Baikal
                                                res_size / (3 * sizeof(float)));
                 m_has_denoised_image = true;
 
-
                 m_context->CopyBuffer<float3>(0,
                                               *m_last_denoised_image,
                                               clw_inference_output->data(),

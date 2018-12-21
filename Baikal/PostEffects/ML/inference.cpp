@@ -97,7 +97,7 @@ namespace Baikal
 
         Image Inference::PopOutput()
         {
-            Image output_tensor;
+            Image output_tensor = {0, ML_INVALID_HANDLE};
             m_output_queue.try_pop(output_tensor);
             return output_tensor;
         }
