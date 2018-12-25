@@ -56,6 +56,7 @@ namespace Baikal
             std::uint32_t m_height = 0;
             bool m_has_denoised_image;
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
+            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_resizer_cache;
             std::unique_ptr<CLWBuffer<float>> m_input_cache;
             std::vector<float> m_cache;
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_last_denoised_image;

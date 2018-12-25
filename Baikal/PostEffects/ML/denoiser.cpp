@@ -259,8 +259,6 @@ namespace Baikal
                                 thread_num,
                                 64,
                                 copy_kernel);
-
-
         }
 
         void MLDenoiser::Apply(InputSet const& input_set, Output& output)
