@@ -224,6 +224,8 @@ void BicubicUpScaleX_x2(// size of the dst buffer should be enough
     int idx = get_global_id(0);
     int src_idx = idx / 2;
 
+    dst[idx].w = src[0].w;
+
     if (idx % 2 == 0 || (idx + 1) % (2 * width) == 0)
     {
         dst[idx].xyz = src[idx / 2].xyz;
@@ -254,7 +256,7 @@ void BicubicUpScaleY_x2(// size of the dst buffer should be enough to store
     int src_y = dst_y / 2;
     int src_idx = src_y * width + x_coord;
 
-    dst[idx].w = 1.0f;
+    dst[idx].w = src[0].w;
 
     if (dst_y % 2 == 0 || dst_y == 1 || dst_y > height - 2)
     {

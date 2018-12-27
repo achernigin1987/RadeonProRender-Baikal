@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 #pragma once
 
-#include <ml.h>
+#include <RadeonProML.h>
 
 #include <memory>
 #include <string>

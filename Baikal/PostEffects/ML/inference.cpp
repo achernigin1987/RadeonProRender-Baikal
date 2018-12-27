@@ -23,7 +23,7 @@ THE SOFTWARE.
 
 #include "inference.h"
 #include <cassert>
-#include <ml.h>
+#include <RadeonProML.h>
 
 
 namespace {

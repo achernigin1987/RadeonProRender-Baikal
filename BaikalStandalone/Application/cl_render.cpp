@@ -45,6 +45,8 @@ THE SOFTWARE.
 #include <chrono>
 #include <cmath>
 
+#include "PostEffects/ML/super_res.h"
+
 namespace Baikal
 {
 
@@ -164,6 +166,7 @@ namespace Baikal
         } else
         {
             m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(2 * m_width, 2 * m_height);
+            m_upscaled_img = m_cfgs[device_idx].factory->CreateOutput(2 * m_width, 2 * m_height);
         }
 
         m_shape_id_data.output = m_cfgs[m_primary].factory->CreateOutput(m_width, m_height);
@@ -335,8 +338,22 @@ namespace Baikal
                 {
                     if (settings.split_output)
                     {
-                        CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor),
-                                 m_post_effect_output.get());
+                        if (m_post_processing_type != PostProcessingType::kSISR)
+                        {
+                            CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor),
+                                     m_post_effect_output.get());
+                        }
+                        else
+                        {
+                            auto super_res = dynamic_cast<PostEffects::SuperRes*>(m_post_effect.get());
+
+                            super_res->Resize_x2(dynamic_cast<ClwOutput*>(m_upscaled_img.get())->data(),
+                                                 dynamic_cast<ClwOutput*>(GetRendererOutput(
+                                                         m_primary,
+                                                         Renderer::OutputType::kColor))->data());
+
+                            CopyToGL(m_upscaled_img.get(), m_post_effect_output.get());
+                        }
                     }
                     else
                     {

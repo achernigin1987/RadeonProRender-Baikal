@@ -143,5 +143,6 @@ namespace Baikal
         std::unique_ptr<PostEffect> m_post_effect;
         PostEffect::InputSet m_post_effect_inputs;
         std::unique_ptr<Output> m_post_effect_output;
+        std::unique_ptr<Output> m_upscaled_img;
     };
 }

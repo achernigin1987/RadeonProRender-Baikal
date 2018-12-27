@@ -238,7 +238,7 @@ namespace Baikal
             }
             else
             {
-                  Resize_x2(output_device_mem, *m_device_cache);
+                  Resize_x2(output_device_mem, clw_input->data());
             }
         }
 
