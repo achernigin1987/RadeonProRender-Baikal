@@ -52,6 +52,8 @@ namespace Baikal
 
             std::unique_ptr<CLWContext> m_context;
             Inference::Ptr m_inference;
+            std::uint32_t m_start_seq_num = 0;
+            std::uint32_t m_last_seq_num = 0;
             std::uint32_t m_width = 0;
             std::uint32_t m_height = 0;
             bool m_has_denoised_image;

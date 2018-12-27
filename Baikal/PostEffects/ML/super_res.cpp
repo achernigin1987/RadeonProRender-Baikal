@@ -163,10 +163,13 @@ namespace Baikal
             // reset denoised image if
             if (sample_count == 1)
             {
+                m_start_seq_num = m_last_seq_num + 1;
                 m_has_denoised_image = false;
             }
 
             auto input = m_inference->GetInputData();
+
+            input.tag = ++m_last_seq_num;
 
             size_t input_size;
             auto input_data = static_cast<float*>(mlMapImage(input.image, &input_size));
@@ -197,7 +200,7 @@ namespace Baikal
             // get another tensor from model queue
             auto model_output = m_inference->PopOutput();
 
-            if (model_output.image != ML_INVALID_HANDLE)
+            if (model_output.image != ML_INVALID_HANDLE && model_output.tag >= m_start_seq_num)
             {
                 size_t output_size;
                 auto output_data = static_cast<float*>(
