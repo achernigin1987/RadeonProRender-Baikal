@@ -164,5 +164,35 @@ namespace Baikal
             m_input_queue.push({0, ML_INVALID_HANDLE});
             m_worker.join();
         }
+
+        Image::Image()
+        : tag(0), image(nullptr)
+        {}
+
+        Image::Image(std::uint32_t tag, ml_image image)
+        : tag(tag), image(image)
+        {}
+
+        Image::Image(Image&& img)
+        : tag(img.tag), image(img.image)
+        {
+            img.image = nullptr;
+        }
+
+        Image& Image::operator=(Image&& img)
+        {
+            tag = img.tag;
+            image = img.image;
+            img.image = nullptr;
+            return *this;
+        }
+
+        Image::~Image()
+        {
+            if (image != nullptr)
+            {
+                mlReleaseImage(image);
+            }
+        }
     }
 }

@@ -38,6 +38,14 @@ namespace Baikal
     {
         struct Image
         {
+            Image();
+            Image(std::uint32_t tag, ml_image image);
+            Image(Image&&);
+
+            ~Image();
+
+            Image& operator=(Image&& image);
+
             std::uint32_t tag;
             ml_image image;
         };
