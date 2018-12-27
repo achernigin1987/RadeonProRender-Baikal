@@ -21,6 +21,8 @@ set(POSTEFFECT_ML_SOURCES
     PostEffects/ML/denoiser.cpp
     PostEffects/ML/inference.h
     PostEffects/ML/inference.cpp
+    PostEffects/ML/ml_post_effect.h
+    PostEffects/ML/ml_post_effect.cpp
     PostEffects/ML/model_holder.h
     PostEffects/ML/model_holder.cpp
 )
