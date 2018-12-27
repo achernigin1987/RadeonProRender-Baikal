@@ -97,12 +97,6 @@ namespace Baikal
                     CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE,
                                               m_width * m_height));
 
-                m_resizer_cache.reset();
-                m_resizer_cache = std::make_unique<CLWBuffer<float3>>(
-                        CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE,
-                                                  2 * m_width * m_height)
-                        );
-
                 m_input_cache.reset();
                 m_input_cache = std::make_unique<CLWBuffer<float>>(
                     CLWBuffer<float>::Create(*m_context,
@@ -244,41 +238,56 @@ namespace Baikal
             }
             else
             {
-                auto scale_x = GetKernel("BicubicUpScaleX_x2");
-
-                int argc = 0;
-                scale_x.SetArg(argc++, *m_resizer_cache);
-                scale_x.SetArg(argc++, *m_device_cache);
-                scale_x.SetArg(argc++, m_width);
-                scale_x.SetArg(argc++, m_height);
-
-                // run BicubicUpScaleX_x2 kernel
-                auto thread_num = ((2 * m_width * m_height + 63) / 64) * 64;
-                m_context->Launch1D(0,
-                                    thread_num,
-                                    64,
-                                    scale_x);
-
-                auto scale_y = GetKernel("BicubicUpScaleY_x2");
-
-                argc = 0;
-                scale_y.SetArg(argc++, output_device_mem);
-                scale_y.SetArg(argc++, *m_resizer_cache);
-                scale_y.SetArg(argc++, 2 * m_width);
-                scale_y.SetArg(argc++, m_height);
-
-                // run BicubicUpScaleY_x2 kernel
-                thread_num = ((4 * m_width * m_height + 63) / 64) * 64;
-                m_context->Launch1D(0,
-                                    thread_num,
-                                    64,
-                                    scale_y).Wait();
+                  Resize_x2(output_device_mem, *m_device_cache);
             }
         }
 
         PostEffect::InputTypes SuperRes::GetInputTypes() const
         {
             return std::set<Renderer::OutputType>({Renderer::OutputType::kColor});
+        }
+
+        void SuperRes::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+        {
+            if (m_resizer_cache == nullptr ||
+                m_resizer_cache->GetElementCount() < 2 * src.GetElementCount())
+            {
+                m_resizer_cache.reset();
+                m_resizer_cache = std::make_unique<CLWBuffer<float3>>(
+                        CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE,
+                                                  2 * src.GetElementCount())
+                );
+            }
+
+            auto scale_x = GetKernel("BicubicUpScaleX_x2");
+
+            int argc = 0;
+            scale_x.SetArg(argc++, *m_resizer_cache);
+            scale_x.SetArg(argc++, src);
+            scale_x.SetArg(argc++, m_width);
+            scale_x.SetArg(argc++, m_height);
+
+            // run BicubicUpScaleX_x2 kernel
+            auto thread_num = ((2 * m_width * m_height + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                scale_x);
+
+            auto scale_y = GetKernel("BicubicUpScaleY_x2");
+
+            argc = 0;
+            scale_y.SetArg(argc++, dst);
+            scale_y.SetArg(argc++, *m_resizer_cache);
+            scale_y.SetArg(argc++, 2 * m_width);
+            scale_y.SetArg(argc++, m_height);
+
+            // run BicubicUpScaleY_x2 kernel
+            thread_num = ((4 * m_width * m_height + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                scale_y).Wait();
         }
 
         void SuperRes::Tonemap(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)

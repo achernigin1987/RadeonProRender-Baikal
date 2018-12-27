@@ -46,6 +46,7 @@ namespace Baikal
 
             InputTypes GetInputTypes() const override;
 
+            void Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
         private:
             void Tonemap(CLWBuffer<RadeonRays::float3> dst,
                          CLWBuffer<RadeonRays::float3> src);
