@@ -248,7 +248,7 @@ namespace Baikal
 
                 int argc = 0;
                 scale_x.SetArg(argc++, *m_resizer_cache);
-                scale_x.SetArg(argc++, clw_input->data());
+                scale_x.SetArg(argc++, *m_device_cache);
                 scale_x.SetArg(argc++, m_width);
                 scale_x.SetArg(argc++, m_height);
 
