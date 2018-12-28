@@ -172,8 +172,7 @@ void CopyInterleaved(GLOBAL float4* restrict dst,
                      int src_height,
                      int src_channels_offset, // offset inside pixel in channels (not bytes)
                      int src_channels_num,
-                     int channels_to_copy,
-                     GLOBAL float* restrict out_sample_count)
+                     int channels_to_copy)
 {
     int global_id = get_global_id(0);
 
@@ -194,11 +193,6 @@ void CopyInterleaved(GLOBAL float4* restrict dst,
     for (int i = 0; i < channels_to_copy; i++)
     {
         dst_pixel[i] = src_pixel[i];
-    }
-
-    if (out_sample_count != NULL && global_id == 0)
-    {
-        *out_sample_count = src[0].w;
     }
 }
 

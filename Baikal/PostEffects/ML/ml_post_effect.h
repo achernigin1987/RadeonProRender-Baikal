@@ -37,6 +37,7 @@ namespace Baikal
         class MlPostEffect : public ClwPostEffect
         {
         public:
+            using BufferPtr = std::unique_ptr<CLWBuffer<RadeonRays::float3>>;
 
             MlPostEffect(const CLWContext& context, const CLProgramManager *program_manager);
 
@@ -46,17 +47,17 @@ namespace Baikal
 
             void SetParameter(std::string const& name, Param value) override;
 
-        private:
+        protected:
+            virtual bool PrepeareInput(BufferPtr device_buffer, InputSet const& input_set) = 0;
+            virtual void PrepeareOutput(Image const& inference_res, Output& output) = 0;
 
             void Init(InputSet const& input_set, Output& output);
 
-            virtual CLWBuffer<float> GetInput(InputSet const& input_set) = 0;
-            virtual void UpdateOutput(Output& output) = 0;
 
-
-            bool m_is_dirty;
-            Inference::Ptr m_inference;
             std::unique_ptr<CLWContext> m_context;
+            Inference::Ptr m_inference;
+            bool m_is_dirty;
+            BufferPtr m_device_buf;
             std::uint32_t m_width, m_height;
             std::uint32_t m_start_seq, m_last_seq;
         };

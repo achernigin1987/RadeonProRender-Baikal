@@ -61,6 +61,13 @@ namespace Baikal
                                           visible_devices,
                                           m_width,
                                           m_height);
+
+            auto shape = m_inference->GetInputShape();
+
+            m_device_buf = std::make_unique<CLWBuffer<float>>(
+                    CLWBuffer<float>::Create(*m_context,
+                                             CL_MEM_READ_WRITE,
+                                             shape.channels * shape.width * shape.height));
         }
 
 
@@ -90,10 +97,41 @@ namespace Baikal
             // Get input buffer using custom user specified function
             auto device_buffer = GetInput(input_set);
 
-            // Make map/unmap for input
+            if (PrepeareInput(m_device_buf, input_set))
+            {
+                m_start_seq_num = m_last_seq_num + 1;
+            }
+            else
+            {
+                size_t input_size;
+                auto input = m_inference->GetInputData();
+                auto input_data = static_cast<float*>(mlMapImage(input.image, &input_size));
+
+                if (input_data == nullptr)
+                {
+                    throw std::runtime_error("map input image has failed");
+                }
+
+                m_context->ReadBuffer<float>(0,
+                                             *m_device_buf,
+                                             input_data,
+                                             m_device_tensor->GetElementCount()).Wait();
+
+                input.tag = ++m_last_seq_num;
+                mlUnmapImage(input.image, input_data);
+
+                m_inference->PushInput(std::move(input));
+            }
 
             // process output
+            auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
 
+            if (!clw_inference_output)
+            {
+                throw std::runtime_error("MLDenoiser::Apply(...): can not cast output");
+            }
+
+            SetOutput(m_inference->PopOutput(), output);
         }
 
 

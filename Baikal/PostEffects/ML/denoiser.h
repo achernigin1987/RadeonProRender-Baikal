@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 #pragma once
 
+#include "PostEffects/ML/ml_post_effect.h"
 #include "PostEffects/ML/inference.h"
 
 #include "PostEffects/post_effect.h"
@@ -49,7 +50,7 @@ namespace Baikal
             kColorAlbedoDepthNormal9
         };
 
-        class MLDenoiser : public ClwPostEffect
+        class MLDenoiser : public MlPostEffect
         {
         public:
 
@@ -57,42 +58,32 @@ namespace Baikal
 
             InputTypes GetInputTypes() const override;
 
-            void Apply(InputSet const& input_set, Output& output) override;
-
-            void SetParameter(std::string const& name, Param value) override;
-
         private:
-            using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
+            bool PrepeareInput(BufferPtr device_buffer, InputSet const& input_set) override;
+            void PrepeareOutput(Image const& inference_res, Output& output) override;
 
-            void InitInference();
+            using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
             void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
                                        CLWBuffer<RadeonRays::float3> src);
 
-            void WriteToInputs(CLWBuffer<RadeonRays::float3> src_buffer,
+            void WriteToInputs(CLWBuffer<RadeonRays::float3> dst_buffer,
+                               CLWBuffer<RadeonRays::float3> src_buffer,
                                int dst_channels_offset,
                                int src_channels_offset,
                                int src_channels_num,
                                int channels_to_copy);
 
             MLDenoiserInputs m_inputs;
-            Inference::Ptr m_inference;
             MemoryLayout m_layout;
-            std::unique_ptr<CLWContext> m_context;
             std::unique_ptr<CLWParallelPrimitives> m_primitives;
             // GPU cache
             std::unique_ptr<CLWBuffer<float>> m_inputs_cache;
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
-            std::unique_ptr<CLWBuffer<float>> m_device_tensor;
             // CPU cache
             std::vector<RadeonRays::float3> m_host_cache;
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_last_denoised_image;
             bool m_has_denoised_image = false;
-            std::uint32_t m_start_seq_num = 0;
-            std::uint32_t m_last_seq_num = 0;
-            std::uint32_t m_width = 0;
-            std::uint32_t m_height = 0;
-            bool m_is_dirty = true;
         };
     }
 }

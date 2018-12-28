@@ -31,10 +31,6 @@ THE SOFTWARE.
 #include "CLWBuffer.h"
 #include "math/mathutils.h"
 
-#ifdef BAIKAL_EMBED_KERNELS
-#include "embed_kernels.h"
-#endif
-
 // E.g. #define ML_DENOISER_IMAGES_DIR "/images/dir"
 #ifdef ML_DENOISER_IMAGES_DIR
 #include <fstream>
@@ -97,12 +93,8 @@ namespace Baikal
         }
 
         MLDenoiser::MLDenoiser(const CLWContext& context, const CLProgramManager *program_manager)
-#ifdef BAIKAL_EMBED_KERNELS
-                : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
-#else
-                : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl"),
-#endif
-                 m_inputs(MLDenoiserInputs::kColorAlbedoDepthNormal9)
+        : MlPostEffect(context, program_manager),
+          m_inputs(MLDenoiserInputs::kColorAlbedoDepthNormal9)
         {
             RegisterParameter("gpu_memory_fraction", .1f);
             RegisterParameter("start_spp", 8u);
@@ -137,42 +129,6 @@ namespace Baikal
                     m_context->CreateBuffer<float>(1, CL_MEM_READ_WRITE));
         }
 
-        void MLDenoiser::InitInference()
-        {
-            auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
-            auto visible_devices = GetParameter("visible_devices").GetString();
-
-            m_inference = CreateInference(m_inputs,
-                                          gpu_memory_fraction,
-                                          visible_devices,
-                                          m_width, m_height);
-
-            // Realloc cache if needed
-            auto shape = m_inference->GetInputShape();
-
-            size_t bytes_count = sizeof(float) * shape.width * shape.height * shape.channels;
-
-            if (m_host_cache.size() != bytes_count)
-            {
-                m_host_cache.resize(shape.width * shape.height);
-
-                m_device_cache.reset();
-                m_device_cache = std::make_unique<CLWBuffer<float3>>(
-                        CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE, shape.width * shape.height));
-
-                m_last_denoised_image.reset();
-                m_last_denoised_image = std::make_unique<CLWBuffer<float3>>(
-                        CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE, shape.width * shape.height));
-                m_has_denoised_image = false;
-
-                m_device_tensor = std::make_unique<CLWBuffer<float>>(
-                        CLWBuffer<float>::Create(*m_context,
-                                                 CL_MEM_READ_WRITE,
-                                                 shape.channels * shape.width * shape.height));
-
-                m_host_cache.resize(shape.width * shape.height);
-            }
-        }
 
         PostEffect::InputTypes MLDenoiser::GetInputTypes() const
         {
@@ -206,81 +162,10 @@ namespace Baikal
             }
         }
 
-        void MLDenoiser::DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
-                                               CLWBuffer<RadeonRays::float3> src)
-        {
-            assert (dst.GetElementCount() >= src.GetElementCount());
-
-            auto division_kernel = GetKernel("DivideBySampleCount");
-
-            // Set kernel parameters
-            int argc = 0;
-            division_kernel.SetArg(argc++, dst);
-            division_kernel.SetArg(argc++, src);
-            division_kernel.SetArg(argc++, (int)src.GetElementCount());
-
-            // run DivideBySampleCount kernel
-            auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
-            m_context->Launch1D(0,
-                                thread_num,
-                                64,
-                                division_kernel);
-        }
-
-        void MLDenoiser::WriteToInputs(CLWBuffer<RadeonRays::float3> src_buffer,
-                                       int dst_channels_offset,
-                                       int src_channels_offset,
-                                       int src_channels_num,
-                                       int channels_to_copy)
-        {
-            auto shape = m_inference->GetInputShape();
-
-            auto copy_kernel = GetKernel("CopyInterleaved");
-
-            int argc = 0;
-            copy_kernel.SetArg(argc++, *m_device_tensor);
-            copy_kernel.SetArg(argc++, src_buffer);
-            copy_kernel.SetArg(argc++, m_width);
-            copy_kernel.SetArg(argc++, m_height);
-            copy_kernel.SetArg(argc++, dst_channels_offset);
-            copy_kernel.SetArg(argc++, static_cast<int>(shape.channels));
-            // input and output buffers have the same width in pixels
-            copy_kernel.SetArg(argc++, m_width);
-            // input and output buffers have the same height in pixels
-            copy_kernel.SetArg(argc++, m_height);
-            copy_kernel.SetArg(argc++, src_channels_offset);
-            copy_kernel.SetArg(argc++, src_channels_num);
-            copy_kernel.SetArg(argc++, channels_to_copy);
-            copy_kernel.SetArg(argc++, *m_inputs_cache);
-
-            // run copy_kernel
-            auto thread_num = ((m_width * m_height + 63) / 64) * 64;
-            m_context->Launch1D(0,
-                                thread_num,
-                                64,
-                                copy_kernel);
-        }
-
-        void MLDenoiser::Apply(InputSet const& input_set, Output& output)
+        bool MLDenoiser::PrepeareInput(BufferPtr device_buffer, InputSet const& input_set)
         {
             auto start_spp = GetParameter("start_spp").GetUint();
-
-            if (m_width != input_set.begin()->second->width() ||
-                m_height != input_set.begin()->second->height())
-            {
-                m_width = input_set.begin()->second->width();
-                m_height = input_set.begin()->second->height();
-                m_is_dirty = true;
-            }
-
-            if (m_is_dirty)
-            {
-                InitInference();
-                m_is_dirty = false;
-            }
-
             auto shape = m_inference->GetInputShape();
-
 
             unsigned sample_count = 0;
             unsigned channels_count = 0u;
@@ -301,96 +186,76 @@ namespace Baikal
 
                 switch (type)
                 {
-                case OutputType::kColor:
-                {
-                    float real_sample_count = 0.f;
-                    DivideBySampleCount(*m_device_cache, device_mem);
-                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
-                    m_context->ReadBuffer<float>(0, *m_inputs_cache, &real_sample_count, 1).Wait();
-                    sample_count = static_cast<unsigned>(real_sample_count);
-                    channels_count += 3;
-                    if (sample_count < start_spp)
+                    case OutputType::kColor:
                     {
-                        too_few_samples = true;
+                        float real_sample_count = 0.f;
+                        DivideBySampleCount(*m_device_cache, device_mem);
+                        WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
+                        m_context->ReadBuffer<float>(0, *m_inputs_cache, &real_sample_count, 1).Wait();
+                        sample_count = static_cast<unsigned>(real_sample_count);
+                        channels_count += 3;
+                        if (sample_count < start_spp)
+                        {
+                            too_few_samples = true;
+                            break;
+                        }
                         break;
                     }
-                    break;
-                }
-                case OutputType::kDepth:
-                {
-                    auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_cache);
+                    case OutputType::kDepth:
+                    {
+                        auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_cache);
 
-                    m_primitives->Normalize(0,
-                                            CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem),
-                                            normalized_buf,
-                                            (int)device_mem.GetElementCount());
+                        m_primitives->Normalize(0,
+                                                CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem),
+                                                normalized_buf,
+                                                (int)device_mem.GetElementCount());
 
-                    WriteToInputs(CLWBuffer<float3>::CreateFromClBuffer(normalized_buf),
-                                  channels_count,
-                                  0,
-                                  4,
-                                  1);
+                        WriteToInputs(device_buffer,
+                                      CLWBuffer<float3>::CreateFromClBuffer(normalized_buf),
+                                      channels_count,
+                                      0,
+                                      4,
+                                      1);
 
-                    channels_count += 1;
-                    break;
-                }
-                case OutputType::kViewShadingNormal:
-                {
-                    DivideBySampleCount(*m_device_cache, device_mem);
-                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 2);
-                    channels_count += 2;
-                    break;
-                }
-                case OutputType::kGloss:
-                {
-                    DivideBySampleCount(*m_device_cache, device_mem);
-                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 1);
-                    channels_count += 1;
-                    break;
-                }
-                case OutputType::kAlbedo:
-                {
-                    DivideBySampleCount(*m_device_cache, device_mem);
-                    WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
-                    channels_count += 3;
-                    break;
-                }
-                default:
-                    break;
+                        channels_count += 1;
+                        break;
+                    }
+                    case OutputType::kViewShadingNormal:
+                    {
+                        DivideBySampleCount(*m_device_cache, device_mem);
+                        WriteToInputs(*m_device_cache, channels_count, 0, 4, 2);
+                        channels_count += 2;
+                        break;
+                    }
+                    case OutputType::kGloss:
+                    {
+                        DivideBySampleCount(*m_device_cache, device_mem);
+                        WriteToInputs(*m_device_cache, channels_count, 0, 4, 1);
+                        channels_count += 1;
+                        break;
+                    }
+                    case OutputType::kAlbedo:
+                    {
+                        DivideBySampleCount(*m_device_cache, device_mem);
+                        WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
+                        channels_count += 3;
+                        break;
+                    }
+                    default:
+                        break;
                 }
             }
-
-#ifdef ML_DENOISER_IMAGES_DIR
-            static unsigned input_index = 0;
-            SaveImage("input", tensor.data(), tensor.size(), input_index++);
-#endif
 
             if (too_few_samples)
             {
-                m_start_seq_num = m_last_seq_num + 1;
-                m_has_denoised_image = false;
+                return false;
             }
-            else
-            {
-                size_t input_size;
-                auto input = m_inference->GetInputData();
-                auto input_data = static_cast<float*>(mlMapImage(input.image, &input_size));
+        }
 
-                if (input_data == nullptr)
-                {
-                    throw std::runtime_error("map input image is failed");
-                }
 
-                m_context->ReadBuffer<float>(0,
-                                             *m_device_tensor,
-                                             input_data,
-                                             m_device_tensor->GetElementCount()).Wait();
-
-                input.tag = ++m_last_seq_num;
-                mlUnmapImage(input.image, input_data);
-
-                m_inference->PushInput(std::move(input));
-            }
+        void MLDenoiser::PrepeareOutput(Image const& inference_res, Output& output)
+        {
+            auto shape = m_inference->GetOutputShape();
 
             auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
 
@@ -401,7 +266,7 @@ namespace Baikal
 
             auto inference_res = m_inference->PopOutput();
 
-            if (inference_res.image != ML_INVALID_HANDLE && inference_res.tag >= m_start_seq_num)
+            if (inference_res.image != ML_INVALID_HANDLE && inference_res.tag >= m_start_seq)
             {
                 size_t res_size;
                 auto res_data = static_cast<float*>(mlMapImage(inference_res.image, &res_size));
@@ -461,11 +326,59 @@ namespace Baikal
             }
         }
 
-        void MLDenoiser::SetParameter(std::string const& name, Param value)
+        void MLDenoiser::DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
+                                               CLWBuffer<RadeonRays::float3> src)
         {
-            auto param = GetParameter(name);
-            PostEffect::SetParameter(name, value);
-            m_is_dirty = true;
+            assert (dst.GetElementCount() >= src.GetElementCount());
+
+            auto division_kernel = GetKernel("DivideBySampleCount");
+
+            // Set kernel parameters
+            int argc = 0;
+            division_kernel.SetArg(argc++, dst);
+            division_kernel.SetArg(argc++, src);
+            division_kernel.SetArg(argc++, (int)src.GetElementCount());
+
+            // run DivideBySampleCount kernel
+            auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                division_kernel);
+        }
+
+        void MLDenoiser::WriteToInputs(CLWBuffer<RadeonRays::float3> dst_buffer,
+                                       CLWBuffer<RadeonRays::float3> src_buffer,
+                                       int dst_channels_offset,
+                                       int src_channels_offset,
+                                       int src_channels_num,
+                                       int channels_to_copy)
+        {
+            auto shape = m_inference->GetInputShape();
+
+            auto copy_kernel = GetKernel("CopyInterleaved");
+
+            int argc = 0;
+            copy_kernel.SetArg(argc++, *dst_buffer);
+            copy_kernel.SetArg(argc++, src_buffer);
+            copy_kernel.SetArg(argc++, m_width);
+            copy_kernel.SetArg(argc++, m_height);
+            copy_kernel.SetArg(argc++, dst_channels_offset);
+            copy_kernel.SetArg(argc++, static_cast<int>(shape.channels));
+            // input and output buffers have the same width in pixels
+            copy_kernel.SetArg(argc++, m_width);
+            // input and output buffers have the same height in pixels
+            copy_kernel.SetArg(argc++, m_height);
+            copy_kernel.SetArg(argc++, src_channels_offset);
+            copy_kernel.SetArg(argc++, src_channels_num);
+            copy_kernel.SetArg(argc++, channels_to_copy);
+
+            // run copy_kernel
+            auto thread_num = ((m_width * m_height + 63) / 64) * 64;
+            m_context->Launch1D(0,
+                                thread_num,
+                                64,
+                                copy_kernel);
         }
     }
 }
