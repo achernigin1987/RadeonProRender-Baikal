@@ -26,15 +26,12 @@ THE SOFTWARE.
 #include "Utils/clw_class.h"
 #include "data_preprocess.h"
 
-//#include "PostEffects/ML/ml_post_effect.h"
-//#include "PostEffects/ML/inference.h"
-//
-//#include "PostEffects/post_effect.h"
-//#include "PostEffects/clw_post_effect.h"
+#ifdef BAIKAL_EMBED_KERNELS
+#include "embed_kernels.h"
+#endif
 
 #include <cstddef>
 #include <memory>
-#include <string>
 #include <vector>
 
 

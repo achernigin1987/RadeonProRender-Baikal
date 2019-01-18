@@ -26,33 +26,33 @@ THE SOFTWARE.
 #include "embed_kernels.h"
 #endif
 
-#include "inference.h"
-#include "ml_post_effect.h"
-#include "PostEffects/clw_post_effect.h"
+#include "data_preprocess.h"
 
-template <class T>
-class CLWBuffer;
+#include "Utils/clw_class.h"
 
 namespace Baikal
 {
     namespace PostEffects
     {
-        class SuperRes : public MlPostEffect
+
+
+        class SuperResPreprocess : public DataPreprocess, public ClwClass
         {
         public:
 
-            SuperRes(const CLWContext& context, const CLProgramManager *program_manager);
+            SuperResPreprocess(CLWContext context,
+                               Baikal::CLProgramManager const *program_manager,
+                               std::uint32_t width,
+                               std::uint32_t height);
 
-            InputTypes GetInputTypes() const override;
 
             void Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
         private:
 
-            bool PrepeareInput(BufferPtr device_buffer, InputSet const& input_set) override;
-            void PrepeareOutput(Image const& inference_res, Output& output) override;
-
             void Tonemap(CLWBuffer<RadeonRays::float3> dst,
                          CLWBuffer<RadeonRays::float3> src);
+
+            std::uint32_t  m_width, m_height;
 
             bool m_has_denoised_image;
             std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
