@@ -1,53 +1,33 @@
 /**********************************************************************
-Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+ Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
 ********************************************************************/
 
 
 #include "PostEffects/ML/denoiser.h"
-#include "PostEffects/ML/inference.h"
-
-#include "CLWContext.h"
-#include "CLWParallelPrimitives.h"
-#include "Output/clwoutput.h"
 
 #include "CLWBuffer.h"
+#include "Output/clwoutput.h"
 #include "math/mathutils.h"
 
-// E.g. #define ML_DENOISER_IMAGES_DIR "/images/dir"
-#ifdef ML_DENOISER_IMAGES_DIR
-#include <fstream>
-#include <sstream>
-
-namespace
-{
-    void SaveImage(char const* name, float const* buffer, std::size_t size, unsigned index)
-    {
-        std::ostringstream path;
-        path << ML_DENOISER_IMAGES_DIR << "/" << name << "_" << index << ".bin";
-        std::ofstream out(path.str(), std::ios_base::binary);
-        out.write(reinterpret_cast<char const*>(buffer), size * sizeof(float));
-        std::cerr << "Written: " << path.str() << "\n";
-    }
-}
-#endif
+#include <RadeonProML.h>
 
 namespace Baikal
 {
@@ -56,68 +36,37 @@ namespace Baikal
         using float3 =  RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        namespace
+        DenoiserPreprocess::DenoiserPreprocess(CLWContext context,
+                                               Baikal::CLProgramManager const *program_manager,
+                                               std::uint32_t width,
+                                               std::uint32_t height,
+                                               std::uint32_t start_spp)
+#ifdef BAIKAL_EMBED_KERNELS
+        : ClwClass(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers)
+#else
+        : ClwClass(context, program_manager, "../Baikal/Kernels/CL/denoise.cl")
+#endif
+        , m_primitives(CLWParallelPrimitives(context))
+        , m_start_spp(start_spp)
+        , m_width(width)
+        , m_height(height)
+        , m_model(ModelType::kColorAlbedoDepthNormal9)
+        , m_context(mlCreateContext())
         {
-            std::unique_ptr<Inference> CreateInference(
-                    MLDenoiserInputs inputs,
-                    float gpu_memory_fraction,
-                    std::string const &visible_devices,
-                    std::size_t width,
-                    std::size_t height) {
-                std::string model_path;
-                std::size_t input_channels = 0;
-                switch (inputs) {
-                    case MLDenoiserInputs::kColorDepthNormalGloss7:
-                        model_path = "models/color_depth_normal_gloss_7_v3.pb";
-                        input_channels = 7;
-                        break;
-                    case MLDenoiserInputs::kColorAlbedoNormal8:
-                        model_path = "models/color_albedo_normal_8_v3.pb";
-                        input_channels = 8;
-                        break;
-                    case MLDenoiserInputs::kColorAlbedoDepthNormal9:
-                        model_path = "models/color_albedo_depth_normal_9_v3.pb";
-                        input_channels = 9;
-                        break;
-                }
-
-                ml_image_info image_info = {ML_FLOAT32, width, height, input_channels};
-                ml_image_info output_info = {ML_FLOAT32, width, height, 3};
-
-                return std::make_unique<Inference>(model_path,
-                                                   image_info,
-                                                   output_info,
-                                                   gpu_memory_fraction,
-                                                   visible_devices);
-            }
-        }
-
-        MLDenoiser::MLDenoiser(const CLWContext& context, const CLProgramManager *program_manager)
-        : MlPostEffect(context, program_manager),
-          m_inputs(MLDenoiserInputs::kColorAlbedoDepthNormal9)
-        {
-            RegisterParameter("gpu_memory_fraction", .1f);
-            RegisterParameter("start_spp", 8u);
-            RegisterParameter("visible_devices", std::string());
-
-            m_context = std::make_unique<CLWContext>(context);
-            m_primitives = std::make_unique<CLWParallelPrimitives>(context);
-
-            // compute memory layout
-            switch (m_inputs)
+            switch (m_model)
             {
-                case MLDenoiserInputs::kColorDepthNormalGloss7:
+                case ModelType::kColorDepthNormalGloss7:
                     m_layout.emplace_back(OutputType::kColor, 3);
                     m_layout.emplace_back(OutputType::kDepth, 1);
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     m_layout.emplace_back(OutputType::kGloss, 1);
                     break;
-                case MLDenoiserInputs::kColorAlbedoNormal8:
+                case ModelType::kColorAlbedoNormal8:
                     m_layout.emplace_back(OutputType::kColor, 3 );
                     m_layout.emplace_back(OutputType::kAlbedo, 3);
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     break;
-                case MLDenoiserInputs::kColorAlbedoDepthNormal9:
+                case ModelType::kColorAlbedoDepthNormal9:
                     m_layout.emplace_back(OutputType::kColor, 3 );
                     m_layout.emplace_back(OutputType::kAlbedo, 3);
                     m_layout.emplace_back(OutputType::kDepth, 1);
@@ -125,94 +74,84 @@ namespace Baikal
                     break;
             }
 
-            m_inputs_cache = std::make_unique<CLWBuffer<float>>(
-                    m_context->CreateBuffer<float>(1, CL_MEM_READ_WRITE));
-        }
+            m_cache = CLWBuffer<float>::Create(
+                    context,
+                    CL_MEM_READ_WRITE,
+                    width * height);
 
+            m_channels = 0;
+            for (const auto& layer: m_layout)
+            {
+                m_channels += layer.second;
+            }
 
-        PostEffect::InputTypes MLDenoiser::GetInputTypes() const
-        {
-            switch (m_inputs) {
-                case MLDenoiserInputs::kColorDepthNormalGloss7:
-                    return std::set<Renderer::OutputType>(
-                            {
-                                    Renderer::OutputType::kColor,
-                                    Renderer::OutputType::kDepth,
-                                    Renderer::OutputType::kViewShadingNormal,
-                                    Renderer::OutputType::kGloss,
-                            });
+            m_input = CLWBuffer<float>::Create(
+                    context,
+                    CL_MEM_READ_WRITE,
+                    m_channels * width * height);
 
-                case MLDenoiserInputs::kColorAlbedoNormal8:
-                    return std::set<Renderer::OutputType>(
-                            {
-                                    Renderer::OutputType::kColor,
-                                    Renderer::OutputType::kAlbedo,
-                                    Renderer::OutputType::kViewShadingNormal,
-                            });
-                case MLDenoiserInputs::kColorAlbedoDepthNormal9:
-                    return std::set<Renderer::OutputType>(
-                            {
-                                    Renderer::OutputType::kColor,
-                                    Renderer::OutputType::kAlbedo,
-                                    Renderer::OutputType::kDepth,
-                                    Renderer::OutputType::kViewShadingNormal,
-                            });
-                default:
-                    throw std::runtime_error("Model is not supported");
+            ml_image_info image_info = {ML_FLOAT32, m_width, m_height, m_channels};
+            m_image = mlCreateImage(m_context, &image_info);
+
+            if (!m_image)
+            {
+                throw std::runtime_error("can not create ml_image");
             }
         }
 
-        bool MLDenoiser::PrepeareInput(BufferPtr device_buffer, InputSet const& input_set)
-        {
-            auto start_spp = GetParameter("start_spp").GetUint();
-            auto shape = m_inference->GetInputShape();
 
-            unsigned sample_count = 0;
+        ml_image DenoiserPreprocess::MakeInput(PostEffect::InputSet const& inputs)
+        {
+            auto context = GetContext();
             unsigned channels_count = 0u;
             bool too_few_samples = false;
 
-            for (const auto& input_desc : m_layout)
+            for (const auto& desc : m_layout)
             {
                 if (too_few_samples)
                 {
-                    break;
+                    return nullptr;
                 }
 
-                auto type = input_desc.first;
-                auto input = input_set.at(type);
+                auto type = desc.first;
+                auto input = inputs.at(type);
 
                 auto clw_output = dynamic_cast<ClwOutput*>(input);
                 auto device_mem = clw_output->data();
 
+                unsigned channels_to_copy = 0;
                 switch (type)
                 {
                     case OutputType::kColor:
                     {
                         float real_sample_count = 0.f;
-                        DivideBySampleCount(*m_device_cache, device_mem);
-                        WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
-                        m_context->ReadBuffer<float>(0, *m_inputs_cache, &real_sample_count, 1).Wait();
-                        sample_count = static_cast<unsigned>(real_sample_count);
+
+                        DivideBySampleCount(CLWBuffer<float3>::CreateFromClBuffer(m_cache),
+                                            CLWBuffer<float3>::CreateFromClBuffer(device_mem));
+
                         channels_count += 3;
-                        if (sample_count < start_spp)
+                        WriteToInputs(m_input, m_cache, channels_count, m_channels, 0, 4, 3);
+                        context.ReadBuffer<float>(0, m_cache, &real_sample_count, 3, 1).Wait();
+
+                        if (real_sample_count < m_start_spp)
                         {
                             too_few_samples = true;
-                            break;
                         }
                         break;
                     }
                     case OutputType::kDepth:
                     {
-                        auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(*m_device_cache);
+                        auto normalized_buf = CLWBuffer<cl_float3>::CreateFromClBuffer(m_cache);
 
-                        m_primitives->Normalize(0,
-                                                CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem),
-                                                normalized_buf,
-                                                (int)device_mem.GetElementCount());
+                        m_primitives.Normalize(0,
+                                               CLWBuffer<cl_float3>::CreateFromClBuffer(device_mem),
+                                               normalized_buf,
+                                               (int)device_mem.GetElementCount() / sizeof(cl_float3));
 
-                        WriteToInputs(device_buffer,
-                                      CLWBuffer<float3>::CreateFromClBuffer(normalized_buf),
+                        WriteToInputs(m_input,
+                                      CLWBuffer<float>::CreateFromClBuffer(normalized_buf),
                                       channels_count,
+                                      m_channels,
                                       0,
                                       4,
                                       1);
@@ -222,112 +161,57 @@ namespace Baikal
                     }
                     case OutputType::kViewShadingNormal:
                     {
-                        DivideBySampleCount(*m_device_cache, device_mem);
-                        WriteToInputs(*m_device_cache, channels_count, 0, 4, 2);
-                        channels_count += 2;
+                        channels_to_copy = 2;
                         break;
                     }
                     case OutputType::kGloss:
                     {
-                        DivideBySampleCount(*m_device_cache, device_mem);
-                        WriteToInputs(*m_device_cache, channels_count, 0, 4, 1);
-                        channels_count += 1;
+                        channels_to_copy = 1;
                         break;
                     }
                     case OutputType::kAlbedo:
                     {
-                        DivideBySampleCount(*m_device_cache, device_mem);
-                        WriteToInputs(*m_device_cache, channels_count, 0, 4, 3);
-                        channels_count += 3;
+                        channels_to_copy = 3;
                         break;
                     }
                     default:
                         break;
                 }
+
+                if (channels_to_copy)
+                {
+                    DivideBySampleCount(CLWBuffer<float3>::CreateFromClBuffer(m_cache),
+                                        CLWBuffer<float3>::CreateFromClBuffer(device_mem));
+
+                    WriteToInputs(m_input, m_cache, channels_count, m_channels, 0, 4, channels_to_copy);
+                    channels_count += channels_to_copy;
+                }
             }
 
-            if (too_few_samples)
+            size_t image_size = m_width * m_height * m_channels;
+            auto host_buffer = mlMapImage(m_image, &image_size);
+
+            if (!host_buffer)
             {
-                return false;
+                throw std::runtime_error("map operation failed");
             }
+
+            context.ReadBuffer<float>(0,
+                    m_input,
+                    static_cast<float*>(host_buffer),
+                    m_input.GetElementCount()).Wait();
+
+            if (mlUnmapImage(m_image, host_buffer) != ML_OK)
+            {
+                throw std::runtime_error("unmap operation failed");
+            }
+
+            return m_image;
         }
 
 
-        void MLDenoiser::PrepeareOutput(Image const& inference_res, Output& output)
-        {
-            auto shape = m_inference->GetOutputShape();
-
-            auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
-
-            if (!clw_inference_output)
-            {
-                throw std::runtime_error("MLDenoiser::Apply(...): can not cast output");
-            }
-
-            auto inference_res = m_inference->PopOutput();
-
-            if (inference_res.image != ML_INVALID_HANDLE && inference_res.tag >= m_start_seq)
-            {
-                size_t res_size;
-                auto res_data = static_cast<float*>(mlMapImage(inference_res.image, &res_size));
-
-                if (res_data == nullptr)
-                {
-                    throw std::runtime_error("map input image is failed");
-                }
-
-#ifdef ML_DENOISER_IMAGES_DIR
-                //SaveImage("output", res_data, res_size / sizeof(float), inference_res.tag);
-#endif
-
-                auto dest = m_host_cache.data();
-                auto source = res_data;
-                for (auto i = 0u; i < shape.width * shape.height; ++i)
-                {
-                    dest->x = *source++;
-                    dest->y = *source++;
-                    dest->z = *source++;
-                    dest->w = 1;
-                    ++dest;
-                }
-
-                mlUnmapImage(inference_res.image, res_data);
-
-                m_context->WriteBuffer<float3>(0,
-                                               *m_last_denoised_image,
-                                               m_host_cache.data(),
-                                               res_size / (3 * sizeof(float)));
-                m_has_denoised_image = true;
-
-                m_context->CopyBuffer<float3>(0,
-                                              *m_last_denoised_image,
-                                              clw_inference_output->data(),
-                                              0 /* srcOffset */,
-                                              0 /* destOffset */,
-                                              m_last_denoised_image->GetElementCount()).Wait();
-            }
-            else if (m_has_denoised_image)
-            {
-                m_context->CopyBuffer<float3>(0,
-                                              *m_last_denoised_image,
-                                              clw_inference_output->data(),
-                                              0 /* srcOffset */,
-                                              0 /* destOffset */,
-                                              m_last_denoised_image->GetElementCount()).Wait();
-            }
-            else
-            {
-                m_context->CopyBuffer<float3>(0,
-                                              dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data(),
-                                              clw_inference_output->data(),
-                                              0 /* srcOffset */,
-                                              0 /* destOffset */,
-                                              shape.width * shape.height).Wait();
-            }
-        }
-
-        void MLDenoiser::DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
-                                               CLWBuffer<RadeonRays::float3> src)
+        void DenoiserPreprocess::DivideBySampleCount(CLWBuffer<float3> dst,
+                                                     CLWBuffer<float3> src)
         {
             assert (dst.GetElementCount() >= src.GetElementCount());
 
@@ -341,30 +225,29 @@ namespace Baikal
 
             // run DivideBySampleCount kernel
             auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
-            m_context->Launch1D(0,
-                                thread_num,
-                                64,
-                                division_kernel);
+            GetContext().Launch1D(0,
+                                  thread_num,
+                                  64,
+                                  division_kernel);
         }
 
-        void MLDenoiser::WriteToInputs(CLWBuffer<RadeonRays::float3> dst_buffer,
-                                       CLWBuffer<RadeonRays::float3> src_buffer,
-                                       int dst_channels_offset,
-                                       int src_channels_offset,
-                                       int src_channels_num,
-                                       int channels_to_copy)
+        void DenoiserPreprocess::WriteToInputs(CLWBuffer<float> dst_buffer,
+                                               CLWBuffer<float> src_buffer,
+                                               int dst_channels_offset,
+                                               int dst_channels_num,
+                                               int src_channels_offset,
+                                               int src_channels_num,
+                                               int channels_to_copy)
         {
-            auto shape = m_inference->GetInputShape();
-
             auto copy_kernel = GetKernel("CopyInterleaved");
 
             int argc = 0;
-            copy_kernel.SetArg(argc++, *dst_buffer);
+            copy_kernel.SetArg(argc++, dst_buffer);
             copy_kernel.SetArg(argc++, src_buffer);
             copy_kernel.SetArg(argc++, m_width);
             copy_kernel.SetArg(argc++, m_height);
             copy_kernel.SetArg(argc++, dst_channels_offset);
-            copy_kernel.SetArg(argc++, static_cast<int>(shape.channels));
+            copy_kernel.SetArg(argc++, dst_channels_num);
             // input and output buffers have the same width in pixels
             copy_kernel.SetArg(argc++, m_width);
             // input and output buffers have the same height in pixels
@@ -375,10 +258,10 @@ namespace Baikal
 
             // run copy_kernel
             auto thread_num = ((m_width * m_height + 63) / 64) * 64;
-            m_context->Launch1D(0,
-                                thread_num,
-                                64,
-                                copy_kernel);
+            GetContext().Launch1D(0,
+                                  thread_num,
+                                  64,
+                                  copy_kernel);
         }
     }
 }

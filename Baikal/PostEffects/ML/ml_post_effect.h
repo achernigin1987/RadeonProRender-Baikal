@@ -41,8 +41,6 @@ namespace Baikal
 
             MlPostEffect(const CLWContext& context, const CLProgramManager *program_manager);
 
-            virtual InputTypes GetInputTypes() const = 0;
-
             void Apply(InputSet const& input_set, Output& output) override;
 
             void SetParameter(std::string const& name, Param value) override;

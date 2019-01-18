@@ -22,68 +22,68 @@ THE SOFTWARE.
 
 #pragma once
 
-#include "PostEffects/ML/ml_post_effect.h"
-#include "PostEffects/ML/inference.h"
+#include "CLW.h"
+#include "Utils/clw_class.h"
+#include "data_preprocess.h"
 
-#include "PostEffects/post_effect.h"
-#include "PostEffects/clw_post_effect.h"
+//#include "PostEffects/ML/ml_post_effect.h"
+//#include "PostEffects/ML/inference.h"
+//
+//#include "PostEffects/post_effect.h"
+//#include "PostEffects/clw_post_effect.h"
 
 #include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
 
-class CLWContext;
-class CLWParallelPrimitives;
-
-template <class T>
-class CLWBuffer;
 
 namespace Baikal
 {
     namespace PostEffects
     {
-        enum class MLDenoiserInputs
+        enum class ModelType
         {
             kColorDepthNormalGloss7,
             kColorAlbedoNormal8,
             kColorAlbedoDepthNormal9
         };
 
-        class MLDenoiser : public MlPostEffect
+        class DenoiserPreprocess: public DataPreprocess, public ClwClass
         {
         public:
+            DenoiserPreprocess(CLWContext context,
+                               CLProgramManager const* program_manager,
+                               std::uint32_t width,
+                               std::uint32_t height,
+                               std::uint32_t start_spp = 8);
 
-            MLDenoiser(const CLWContext& context, const CLProgramManager *program_manager);
-
-            InputTypes GetInputTypes() const override;
+            ml_image MakeInput(PostEffect::InputSet const& inputs) override;
 
         private:
-            bool PrepeareInput(BufferPtr device_buffer, InputSet const& input_set) override;
-            void PrepeareOutput(Image const& inference_res, Output& output) override;
-
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
             void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
-                                       CLWBuffer<RadeonRays::float3> src);
+                                     CLWBuffer<RadeonRays::float3> src);
 
-            void WriteToInputs(CLWBuffer<RadeonRays::float3> dst_buffer,
-                               CLWBuffer<RadeonRays::float3> src_buffer,
+            void WriteToInputs(CLWBuffer<float> dst_buffer,
+                               CLWBuffer<float> src_buffer,
                                int dst_channels_offset,
+                               int dst_channels_num,
                                int src_channels_offset,
                                int src_channels_num,
                                int channels_to_copy);
 
-            MLDenoiserInputs m_inputs;
+            CLWParallelPrimitives m_primitives;
+            std::uint32_t m_start_spp;
+            std::uint32_t m_width, m_height;
+            std::uint32_t m_channels;
+            ModelType m_model;
             MemoryLayout m_layout;
-            std::unique_ptr<CLWParallelPrimitives> m_primitives;
-            // GPU cache
-            std::unique_ptr<CLWBuffer<float>> m_inputs_cache;
-            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
-            // CPU cache
-            std::vector<RadeonRays::float3> m_host_cache;
-            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_last_denoised_image;
-            bool m_has_denoised_image = false;
+            CLWBuffer<float> m_cache;
+            CLWBuffer<float> m_input;
+            ml_context m_context;
+            ml_image m_image;
         };
     }
 }
