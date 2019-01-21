@@ -46,7 +46,7 @@ namespace Baikal
             kColorAlbedoDepthNormal9
         };
 
-        class DenoiserPreprocess: public DataPreprocess, public ClwClass
+        class DenoiserPreprocess: public DataPreprocess
         {
         public:
             DenoiserPreprocess(CLWContext context,

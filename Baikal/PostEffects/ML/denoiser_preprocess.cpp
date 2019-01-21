@@ -37,15 +37,11 @@ namespace Baikal
         using OutputType = Renderer::OutputType;
 
         DenoiserPreprocess::DenoiserPreprocess(CLWContext context,
-                                               Baikal::CLProgramManager const *program_manager,
+                                               CLProgramManager const *program_manager,
                                                std::uint32_t width,
                                                std::uint32_t height,
                                                std::uint32_t start_spp)
-#ifdef BAIKAL_EMBED_KERNELS
-        : ClwClass(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers)
-#else
-        : ClwClass(context, program_manager, "../Baikal/Kernels/CL/denoise.cl")
-#endif
+        : DataPreprocess(context, program_manager)
         , m_primitives(CLWParallelPrimitives(context))
         , m_start_spp(start_spp)
         , m_width(width)

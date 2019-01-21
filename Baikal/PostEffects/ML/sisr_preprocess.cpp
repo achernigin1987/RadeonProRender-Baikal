@@ -21,15 +21,8 @@ THE SOFTWARE.
 ********************************************************************/
 
 #include "sisr_preprocess.h"
-#include "inference.h"
-
 #include "Output/clwoutput.h"
-#include <CLW.h>
-
-#ifdef BAIKAL_EMBED_KERNELS
-#include "embed_kernels.h"
-#endif
-
+#include "CLWBuffer.h"
 
 namespace Baikal
 {
@@ -39,22 +32,16 @@ namespace Baikal
         using float3 =  RadeonRays::float3;
 
         SisrPreprocess::SisrPreprocess(CLWContext context,
-                                               Baikal::CLProgramManager const *program_manager,
-                                               std::uint32_t width,
-                                               std::uint32_t height,
-                                               std::uint32_t start_spp)
-#ifdef BAIKAL_EMBED_KERNELS
-        : ClwClass(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers)
-#else
-        : ClwClass(context, program_manager, "../Baikal/Kernels/CL/denoise.cl")
-#endif
-        , m_width(width),
+                                       Baikal::CLProgramManager const *program_manager,
+                                       std::uint32_t width,
+                                       std::uint32_t height,
+                                       std::uint32_t start_spp)
+        : DataPreprocess(context, program_manager)
+        , m_width(width)
         , m_height(height)
-        , m_spp(start_spp)
+        , m_start_spp(start_spp)
         , m_context(mlCreateContext())
         {
-            auto context = GetContext();
-
             m_cache = CLWBuffer::Create<float3>(context,
                                                 CL_MEM_READ_WRITE,
                                                 width * height);
@@ -73,7 +60,7 @@ namespace Baikal
         }
 
         ml_image SisrPreprocess::MakeInput(PostEffect::InputSet const& inputs) {
-            auto color_aov = input_set.begin()->second;
+            auto color_aov = inputs.begin()->second;
 
             auto clw_input = dynamic_cast<ClwOutput *>(color_aov);
 
@@ -81,10 +68,12 @@ namespace Baikal
                 throw std::runtime_error("SisrPreprocess::MakeInput(..): incorrect input");
             }
 
+            auto context = GetContext();
+
             // read spp from first pixel as 4th channel
             RadeonRays::float3 pixel = .0f;
-            m_context->ReadBuffer<float3>(0, clw_input->data(), &pixel, 1).Wait();
-            auto sample_count = static_cast<unsigned>(real_sample_count.w);
+            context.ReadBuffer<float3>(0, clw_input->data(), &pixel, 1).Wait();
+            auto sample_count = static_cast<unsigned>(pixel.w);
 
             if (m_start_spp > sample_count)
             {
@@ -95,7 +84,7 @@ namespace Baikal
 
             // delete 4th channel
             WriteToInputs(m_input,
-                          m_cache,
+                          CLWBuffer<float>::CreateFromClBuffer(m_cache),
                           m_width,
                           m_height,
                           0,  // dst channels offset

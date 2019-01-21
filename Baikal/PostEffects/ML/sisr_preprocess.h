@@ -28,21 +28,19 @@ THE SOFTWARE.
 
 #include "data_preprocess.h"
 
-#include "Utils/clw_class.h"
 
 namespace Baikal
 {
     namespace PostEffects
     {
-        class SisrPreprocess : public DataPreprocess, public ClwClass
+        class SisrPreprocess : public DataPreprocess
         {
         public:
-
             SisrPreprocess(CLWContext context,
-                               Baikal::CLProgramManager const *program_manager,
-                               std::uint32_t width,
-                               std::uint32_t height,
-                               std::uint32_t spp = 0);
+                           Baikal::CLProgramManager const *program_manager,
+                           std::uint32_t width,
+                           std::uint32_t height,
+                           std::uint32_t spp = 0);
 
 
             ml_image MakeInput(PostEffect::InputSet const& inputs) override;

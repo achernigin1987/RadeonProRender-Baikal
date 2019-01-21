@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 #pragma once
 
+#include "data_preprocess.h"
 #include "PostEffects/ML/inference.h"
 #include "PostEffects/clw_post_effect.h"
 
@@ -29,17 +30,17 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        template<class T>
-        class CLWBuffer;
 
-        class CLWContext;
+        enum class PostEffectType
+        {
+            kDenoiser = 0,
+            kSisr
+        };
 
         class MlPostEffect : public ClwPostEffect
         {
         public:
-            using BufferPtr = std::unique_ptr<CLWBuffer<RadeonRays::float3>>;
-
-            MlPostEffect(const CLWContext& context, const CLProgramManager *program_manager);
+            MlPostEffect(CLWContext context, CLProgramManager* program_manager, PostEffectType type);
 
             void Apply(InputSet const& input_set, Output& output) override;
 
@@ -49,15 +50,18 @@ namespace Baikal
             virtual bool PrepeareInput(BufferPtr device_buffer, InputSet const& input_set) = 0;
             virtual void PrepeareOutput(Image const& inference_res, Output& output) = 0;
 
+        private:
+            Inference::Ptr CreateInference(std::uint32_t width, std::uint32_t height);
             void Init(InputSet const& input_set, Output& output);
 
-
-            std::unique_ptr<CLWContext> m_context;
             Inference::Ptr m_inference;
+            PostEffectType m_type;
             bool m_is_dirty;
-            BufferPtr m_device_buf;
+            CLWBuffer<RadeonRays::float3> m_device_buf;
+            std::unique_ptr<DataPreprocess> m_preproc;
             std::uint32_t m_width, m_height;
             std::uint32_t m_start_seq, m_last_seq;
+            CLProgramManager *m_program;
         };
     }
 }
