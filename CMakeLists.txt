@@ -11,6 +11,7 @@ option(BAIKAL_ENABLE_IO "Enable IO library build" ON)
 option(BAIKAL_ENABLE_FBX "Enable FBX import in BaikalIO. Requires BaikalIO to be turned ON" OFF)
 option(BAIKAL_ENABLE_MATERIAL_CONVERTER "Enable materials.xml converter from old to uberv2 version" OFF)
 option(BAIKAL_EMBED_KERNELS "Embed CL kernels into binary module" OFF)
+option(BAIKAL_USE_RIF "Use RIF filters for ML based denoising" ON)
 
 #Sanity checks
 if (BAIKAL_ENABLE_GLTF AND NOT BAIKAL_ENABLE_RPR)

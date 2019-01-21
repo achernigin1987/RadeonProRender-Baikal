@@ -205,6 +205,10 @@ namespace Baikal
             {
                 s.denoiser_type = DenoiserType::kML;
             }
+            else if (denoiser_type == "rif")
+            {
+                s.denoiser_type = DenoiserType::kRIF;
+            }
             else
             {
                 std::cerr << "WARNING: unknown denoiser mode\n";

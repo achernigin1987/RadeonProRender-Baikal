@@ -17,12 +17,16 @@ set(OUTPUT_SOURCES
 set(POSTEFFECT_ML_SOURCES
     PostEffects/ML/denoiser.h
     PostEffects/ML/denoiser.cpp
+    PostEffects/ML/exception.h
     PostEffects/ML/inference.h
     PostEffects/ML/inference_impl.h
     PostEffects/ML/inference_impl.cpp
     PostEffects/ML/model.h
     PostEffects/ML/model_holder.h
     PostEffects/ML/model_holder.cpp
+    PostEffects/ML/operations.h
+    PostEffects/ML/rif_denoiser.h
+    PostEffects/ML/rif_denoiser.cpp
     PostEffects/ML/tensor.h
 )
 
@@ -200,6 +204,12 @@ endif (BAIKAL_EMBED_KERNELS)
 target_compile_features(Baikal PRIVATE cxx_std_14)
 target_include_directories(Baikal PUBLIC "${Baikal_SOURCE_DIR}/Baikal")
 target_link_libraries(Baikal PUBLIC RadeonRays)
+
+if (BAIKAL_USE_RIF)
+    target_include_directories(Baikal PRIVATE ${Baikal_SOURCE_DIR}/3rdparty/RadeonImageFilters/include)
+    target_link_directories(Baikal PRIVATE ${Baikal_SOURCE_DIR}/3rdparty/RadeonImageFilters/lib)
+    target_link_libraries(Baikal PRIVATE RadeonImageFilters64)
+endif ()
 
 # Add 'treat warnings as errors' flag and 'Wall' flag on Unix
 if (WIN32)

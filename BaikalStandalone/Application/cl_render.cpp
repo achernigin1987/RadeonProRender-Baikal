@@ -790,6 +790,11 @@ namespace Baikal
             m_post_effect->SetParameter("visible_devices", settings.visible_devices);
             m_post_effect->SetParameter("start_spp", settings.denoiser_start_spp);
             break;
+        case DenoiserType::kRIF:
+            AddPostEffect(m_primary, PostEffectType::kRIFDenoiser);
+            m_post_effect->SetParameter("visible_devices", settings.visible_devices);
+            m_post_effect->SetParameter("start_spp", settings.denoiser_start_spp);
+            break;
         default:
             throw std::runtime_error("AppClRender(...): Unsupported denoiser type");
         }
@@ -823,6 +828,7 @@ namespace Baikal
             break;
         }
         case DenoiserType::kML:
+        case DenoiserType::kRIF:
         case DenoiserType::kNone:
         default:
             break;

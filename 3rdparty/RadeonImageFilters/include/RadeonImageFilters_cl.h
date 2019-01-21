@@ -19,65 +19,24 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
-
 #pragma once
 
-#include "CLW.h"
-#include "RenderFactory/clw_render_factory.h"
-#include "Renderers/renderer.h"
-#include "SceneGraph/clwscene.h"
+#ifndef __RADEONIMAGEFILTERS_CL_H
+#define __RADEONIMAGEFILTERS_CL_H
 
-#include <vector>
-#include <memory>
+#include "RadeonImageFilters.h"
 
-namespace Baikal
-{
-    class Renderer;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern RIF_API_ENTRY rif_int rifCreateContextFromOpenClContext(rif_int api_version, void* context, void* device, void* queue, rif_char const * cache_path, rif_context * out_context);
+
+extern RIF_API_ENTRY rif_int rifContextCreateImageFromOpenClMemory(rif_context context, rif_image_desc const * image_desc, void* mem, bool isImage, rif_image * out_image);
+
+#ifdef __cplusplus
 }
+#endif
 
-enum class DeviceType
-{
-    kPrimary = 0,
-    kSecondary
-};
 
-enum class DenoiserType
-{
-    kNone = 0,
-    kBilateral,
-    kWavelet,
-    kML,
-    kRIF,
-};
-
-enum class Mode
-{
-    kUseAll = 0,
-    kUseGpus,
-    kUseSingleGpu,
-    kUseSingleCpu,
-    kUseCpus
-};
-
-struct Config
-{
-    DeviceType type;
-    std::unique_ptr<Baikal::Renderer> renderer;
-    std::unique_ptr<Baikal::SceneController<Baikal::ClwScene>> controller;
-    std::unique_ptr<Baikal::RenderFactory<Baikal::ClwScene>> factory;
-    CLWContext context;
-    bool caninterop;
-
-    Config() = default;
-    Config(Config&& cfg) = default;
-
-    ~Config();
-};
-
-void CreateConfigs(
-    Mode mode,
-    bool interop,
-    std::vector<Config>& configs,
-    int initial_num_bounces,
-    int req_platform_index = -1,
-    int req_device_index = -1);
+#endif // __RADEONIMAGEFILTERS_CL_H
