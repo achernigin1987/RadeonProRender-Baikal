@@ -119,7 +119,7 @@ namespace Baikal
                 auto clw_output = dynamic_cast<ClwOutput*>(input);
                 auto device_mem = clw_output->data();
 
-                unsigned channels_to_copy = 0;
+                unsigned channels_to_copy = 0u;
                 switch (type)
                 {
                     case OutputType::kColor:
@@ -130,7 +130,17 @@ namespace Baikal
                                             CLWBuffer<float3>::CreateFromClBuffer(device_mem));
 
                         channels_count += 3;
-                        WriteToInputs(m_input, m_cache, channels_count, m_channels, 0, 4, 3);
+
+                        WriteToInputs(m_input,
+                                      m_cache,
+                                      m_width,
+                                      m_height,
+                                      channels_count,
+                                      m_channels,
+                                      0,
+                                      4,
+                                      3);
+
                         context.ReadBuffer<float>(0, m_cache, &real_sample_count, 3, 1).Wait();
 
                         if (real_sample_count < m_start_spp)
@@ -150,11 +160,13 @@ namespace Baikal
 
                         WriteToInputs(m_input,
                                       CLWBuffer<float>::CreateFromClBuffer(normalized_buf),
+                                      m_width,
+                                      m_height,
                                       channels_count,
                                       m_channels,
                                       0,
                                       4,
-                                      1);
+                                      1).Wait();
 
                         channels_count += 1;
                         break;
@@ -183,15 +195,24 @@ namespace Baikal
                     DivideBySampleCount(CLWBuffer<float3>::CreateFromClBuffer(m_cache),
                                         CLWBuffer<float3>::CreateFromClBuffer(device_mem));
 
-                    WriteToInputs(m_input, m_cache, channels_count, m_channels, 0, 4, channels_to_copy);
+                    WriteToInputs(m_input,
+                                  m_cache,
+                                  m_width,
+                                  m_height,
+                                  channels_count,
+                                  m_channels,
+                                  0,
+                                  4,
+                                  channels_to_copy).Wait();
+
                     channels_count += channels_to_copy;
                 }
             }
 
-            size_t image_size = m_width * m_height * m_channels;
+            size_t image_size = 0;
             auto host_buffer = mlMapImage(m_image, &image_size);
 
-            if (!host_buffer)
+            if (!host_buffer || image_size == 0)
             {
                 throw std::runtime_error("map operation failed");
             }
@@ -229,39 +250,6 @@ namespace Baikal
                                   thread_num,
                                   64,
                                   division_kernel);
-        }
-
-        void DenoiserPreprocess::WriteToInputs(CLWBuffer<float> dst_buffer,
-                                               CLWBuffer<float> src_buffer,
-                                               int dst_channels_offset,
-                                               int dst_channels_num,
-                                               int src_channels_offset,
-                                               int src_channels_num,
-                                               int channels_to_copy)
-        {
-            auto copy_kernel = GetKernel("CopyInterleaved");
-
-            int argc = 0;
-            copy_kernel.SetArg(argc++, dst_buffer);
-            copy_kernel.SetArg(argc++, src_buffer);
-            copy_kernel.SetArg(argc++, m_width);
-            copy_kernel.SetArg(argc++, m_height);
-            copy_kernel.SetArg(argc++, dst_channels_offset);
-            copy_kernel.SetArg(argc++, dst_channels_num);
-            // input and output buffers have the same width in pixels
-            copy_kernel.SetArg(argc++, m_width);
-            // input and output buffers have the same height in pixels
-            copy_kernel.SetArg(argc++, m_height);
-            copy_kernel.SetArg(argc++, src_channels_offset);
-            copy_kernel.SetArg(argc++, src_channels_num);
-            copy_kernel.SetArg(argc++, channels_to_copy);
-
-            // run copy_kernel
-            auto thread_num = ((m_width * m_height + 63) / 64) * 64;
-            GetContext().Launch1D(0,
-                                  thread_num,
-                                  64,
-                                  copy_kernel);
         }
     }
 }

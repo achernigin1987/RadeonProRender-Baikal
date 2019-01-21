@@ -34,32 +34,29 @@ namespace Baikal
 {
     namespace PostEffects
     {
-
-
-        class SuperResPreprocess : public DataPreprocess, public ClwClass
+        class SisrPreprocess : public DataPreprocess, public ClwClass
         {
         public:
 
-            SuperResPreprocess(CLWContext context,
+            SisrPreprocess(CLWContext context,
                                Baikal::CLProgramManager const *program_manager,
                                std::uint32_t width,
-                               std::uint32_t height);
+                               std::uint32_t height,
+                               std::uint32_t spp = 0);
 
 
-            void Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
+            ml_image MakeInput(PostEffect::InputSet const& inputs) override;
         private:
 
             void Tonemap(CLWBuffer<RadeonRays::float3> dst,
                          CLWBuffer<RadeonRays::float3> src);
 
-            std::uint32_t  m_width, m_height;
-
-            bool m_has_denoised_image;
-            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_device_cache;
-            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_resizer_cache;
-            std::vector<float> m_cache;
-            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_last_denoised_image;
-            std::unique_ptr<CLWBuffer<RadeonRays::float3>> m_input_ref;
+            std::uint32_t m_width, m_height;
+            std::uint32_t m_start_spp;
+            CLWBuffer<float> m_input;
+            CLWBuffer<RadeonRays::float3> m_cache;
+            ml_context m_context;
+            ml_image m_image;
         };
     }
 }

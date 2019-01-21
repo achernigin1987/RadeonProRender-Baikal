@@ -22,6 +22,12 @@
 
 #pragma once
 
+#ifdef BAIKAL_EMBED_KERNELS
+#include "embed_kernels.h"
+#endif
+
+#include "CLW.h"
+#include "Utils/clw_class.h"
 #include "PostEffects/post_effect.h"
 #include "RadeonProML.h"
 
@@ -30,10 +36,24 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        class DataPreprocess
+        class DataPreprocess : public ClwClass
         {
         public:
+            DataPreprocess(CLWContext context, CLProgramManager const* program_manager);
+
             virtual ml_image MakeInput(PostEffect::InputSet const& inputs) = 0;
+
+        protected:
+
+            CLWEvent WriteToInputs(CLWBuffer<float> dst_buffer,
+                                   CLWBuffer<float> src_buffer,
+                                   int width,
+                                   int height,
+                                   int dst_channels_offset,
+                                   int dst_channels_num,
+                                   int src_channels_offset,
+                                   int src_channels_num,
+                                   int channels_to_copy);
         };
     }
 }

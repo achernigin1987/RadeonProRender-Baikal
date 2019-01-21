@@ -63,14 +63,6 @@ namespace Baikal
             void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
                                      CLWBuffer<RadeonRays::float3> src);
 
-            void WriteToInputs(CLWBuffer<float> dst_buffer,
-                               CLWBuffer<float> src_buffer,
-                               int dst_channels_offset,
-                               int dst_channels_num,
-                               int src_channels_offset,
-                               int src_channels_num,
-                               int channels_to_copy);
-
             CLWParallelPrimitives m_primitives;
             std::uint32_t m_start_spp;
             std::uint32_t m_width, m_height;

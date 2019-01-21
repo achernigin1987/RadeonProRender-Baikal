@@ -38,334 +38,136 @@ namespace Baikal
         using uint32_t = std::uint32_t;
         using float3 =  RadeonRays::float3;
 
-        namespace
-        {
-            std::unique_ptr<Inference> CreateInference(
-                    float gpu_memory_fraction,
-                    std::string const &visible_devices,
-                    std::size_t width,
-                    std::size_t height)
-            {
-                auto model_path = "models/esrgan-05x3x32-198135.pb";
-
-                ml_image_info image_info = {ML_FLOAT32, width, height, 3};
-                ml_image_info output_info = {ML_FLOAT32, 2 * width, 2 * height, 3};
-
-                return std::make_unique<Inference>(model_path,
-                                                   image_info,
-                                                   output_info,
-                                                   gpu_memory_fraction,
-                                                   visible_devices);
-            }
-        }
-
-        SuperResPreprocess::SuperResPreprocess(CLWContext context,
+        SisrPreprocess::SisrPreprocess(CLWContext context,
                                                Baikal::CLProgramManager const *program_manager,
                                                std::uint32_t width,
-                                               std::uint32_t height)
+                                               std::uint32_t height,
+                                               std::uint32_t start_spp)
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwClass(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers)
 #else
         : ClwClass(context, program_manager, "../Baikal/Kernels/CL/denoise.cl")
 #endif
-        {
-
-        }
-
-
-        void SuperResPreprocess::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+        , m_width(width),
+        , m_height(height)
+        , m_spp(start_spp)
+        , m_context(mlCreateContext())
         {
             auto context = GetContext();
 
-            if (m_resizer_cache == nullptr ||
-                m_resizer_cache->GetElementCount() < 2 * src.GetElementCount())
+            m_cache = CLWBuffer::Create<float3>(context,
+                                                CL_MEM_READ_WRITE,
+                                                width * height);
+
+            m_input = CLWBuffer::Create<float>(context,
+                                                   CL_MEM_READ_WRITE,
+                                                   3 * width * height);
+
+            ml_image_info image_info = {ML_FLOAT32, width, height, 3};
+            m_image = mlCreateImage(m_context, &image_info);
+
+            if (!m_image)
             {
-                m_resizer_cache.reset();
-                m_resizer_cache = std::make_unique<CLWBuffer<float3>>(
-                        CLWBuffer<float3>::Create(context, CL_MEM_READ_WRITE,
-                                                  2 * src.GetElementCount())
-                );
+                throw std::runtime_error("can not create ml_image");
             }
-
-            auto scale_x = GetKernel("BicubicUpScaleX_x2");
-
-            int argc = 0;
-            scale_x.SetArg(argc++, *m_resizer_cache);
-            scale_x.SetArg(argc++, src);
-            scale_x.SetArg(argc++, m_width);
-            scale_x.SetArg(argc++, m_height);
-
-            // run BicubicUpScaleX_x2 kernel
-            auto thread_num = ((2 * m_width * m_height + 63) / 64) * 64;
-            context.Launch1D(0,
-                             thread_num,
-                             64,
-                             scale_x);
-
-            auto scale_y = GetKernel("BicubicUpScaleY_x2");
-
-            argc = 0;
-            scale_y.SetArg(argc++, dst);
-            scale_y.SetArg(argc++, *m_resizer_cache);
-            scale_y.SetArg(argc++, 2 * m_width);
-            scale_y.SetArg(argc++, m_height);
-
-            // run BicubicUpScaleY_x2 kernel
-            thread_num = ((4 * m_width * m_height + 63) / 64) * 64;
-            context.Launch1D(0,
-                             thread_num,
-                             64,
-                             scale_y).Wait();
         }
 
-        ////////////////////////////////////////////////
-        // SuperRes implementation
-        ////////////////////////////////////////////////
-
-        SuperRes::SuperRes(const CLWContext& context, const CLProgramManager *program_manager)
-        : MlPostEffect(context, program_manager)
-        {
-            m_inference.reset(nullptr);
-            RegisterParameter("gpu_memory_fraction", .7f);
-            RegisterParameter("visible_devices", std::string());
-        }
-
-        bool SuperRes::PrepeareInput(BufferPtr device_buffer, InputSet const& input_set)
-        {
+        ml_image SisrPreprocess::MakeInput(PostEffect::InputSet const& inputs) {
             auto color_aov = input_set.begin()->second;
 
-            auto clw_input = dynamic_cast<ClwOutput*>(color_aov);
+            auto clw_input = dynamic_cast<ClwOutput *>(color_aov);
 
-            if (clw_input== nullptr)
-            {
-                throw std::runtime_error("SuperRes::Apply(..): incorrect input");
+            if (clw_input == nullptr) {
+                throw std::runtime_error("SisrPreprocess::MakeInput(..): incorrect input");
             }
 
-            Tonemap(*m_device_cache, clw_input->data());
-
-            auto copy_kernel = GetKernel("CopyInterleaved");
-
-            int argc = 0;
-            copy_kernel.SetArg(argc++, *device_buffer); // dst
-            copy_kernel.SetArg(argc++, *m_device_cache); // src
-            copy_kernel.SetArg(argc++, m_width); // dst_width
-            copy_kernel.SetArg(argc++, m_height); // dst_height
-            copy_kernel.SetArg(argc++, 0); // dst_channels_offset
-            copy_kernel.SetArg(argc++, 3); // dst_channels_num
-            // input and output buffers have the same width in pixels
-            copy_kernel.SetArg(argc++, m_width); // src_width
-            // input and output buffers have the same height in pixels
-            copy_kernel.SetArg(argc++, m_height); // src_height
-            copy_kernel.SetArg(argc++, 0); // src_channels_offset
-            copy_kernel.SetArg(argc++, 4); // src_channels_num
-            copy_kernel.SetArg(argc++, 3); // channels_to_copy
-
-            // run copy_kernel
-            auto thread_num = ((m_width * m_height + 63) / 64) * 64;
-            m_context->Launch1D(0,
-                                thread_num,
-                                64,
-                                copy_kernel);
-
-            RadeonRays::float3 real_sample_count = .0f;
-            m_context->ReadBuffer<float3>(0, clw_input->data(), &real_sample_count, 1).Wait();
+            // read spp from first pixel as 4th channel
+            RadeonRays::float3 pixel = .0f;
+            m_context->ReadBuffer<float3>(0, clw_input->data(), &pixel, 1).Wait();
             auto sample_count = static_cast<unsigned>(real_sample_count.w);
 
-            // reset denoised image if
-            if (sample_count == 1)
+            if (m_start_spp > sample_count)
             {
-                m_start_seq = m_last_seq + 1;
-                m_has_denoised_image = false;
+                return nullptr;
             }
 
+            Tonemap(m_cache, clw_input->data());
+
+            // delete 4th channel
+            WriteToInputs(m_input,
+                          m_cache,
+                          m_width,
+                          m_height,
+                          0,  // dst channels offset
+                          3,  // dst channels num
+                          0,  // src channels offset
+                          4,  // src channels num
+                          3); // channels to copy
+
+             size_t image_size = 0;
+             auto host_buffer = mlMapImage(m_image, &image_size);
+
+             if (!host_buffer || image_size == 0)
+             {
+                 throw std::runtime_error("map operation failed");
+             }
+
+             context.ReadBuffer<float>(0,
+                                       m_input,
+                                       static_cast<float*>(host_buffer),
+                                       m_input.GetElementCount()).Wait();
+
+            if (mlUnmapImage(m_image, host_buffer) != ML_OK)
+            {
+                throw std::runtime_error("unmap operation failed");
+            }
+
+            return m_image;
         }
-
-
-        void SuperRes::PrepeareOutput(Image const& inference_res, Output& output)
-        {
-            auto clw_output = dynamic_cast<ClwOutput*>(&output);
-            if (clw_output == nullptr)
-            {
-                throw std::runtime_error("SuperRes::Apply(..): incorrect output");
-            }
-
-            auto output_device_mem = clw_output->data();
-
-            // get another tensor from model queue
-            auto model_output = m_inference->PopOutput();
-
-            if (model_output.image != ML_INVALID_HANDLE && model_output.tag >= m_start_seq_num)
-            {
-                size_t output_size;
-                auto output_data = static_cast<float*>(
-                        mlMapImage(model_output.image, &output_size));
-
-                for (auto i = 0u; i < output_device_mem.GetElementCount(); i++)
-                {
-                    // 4th component (w) is not written here because
-                    // it is saved from the previous reading
-                    m_cache[4 * i] = std::max(output_data[3 * i], 0.f);
-                    m_cache[4 * i + 1] = std::max(output_data[3 * i + 1], 0.f);
-                    m_cache[4 * i + 2] = std::max(output_data[3 * i + 2], 0.f);
-                    m_cache[4 * i + 3] = 1;
-                }
-
-                mlUnmapImage(model_output.image, output_data);
-
-                // if returned tensor is empty return black image
-                m_context->WriteBuffer<float3>(0,
-                                               *m_last_denoised_image,
-                                               reinterpret_cast<float3 *>(m_cache.data()),
-                                               output_device_mem.GetElementCount()).Wait();
-
-                m_context->CopyBuffer<float3>(0,
-                                              *m_last_denoised_image,
-                                              output_device_mem,
-                                              0 /* srcOffset */,
-                                              0 /* destOffset */,
-                                              m_last_denoised_image->GetElementCount()).Wait();
-
-                m_has_denoised_image = true;
-            }
-            else if (m_has_denoised_image)
-            {
-                m_context->CopyBuffer<float3>(0,
-                                              *m_last_denoised_image,
-                                              output_device_mem,
-                                              0 /* srcOffset */,
-                                              0 /* destOffset */,
-                                              m_last_denoised_image->GetElementCount()).Wait();
-            }
-            else
-            {
-                Resize_x2(output_device_mem, clw_input->data());
-            }
-        }
-
-        void SuperRes::Apply(InputSet const &input_set, Output &output)
-        {
-
-
-            auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
-            auto visible_devices = GetParameter("visible_devices").GetString();
-
-
-            auto clw_output = dynamic_cast<ClwOutput*>(&output);
-            if (clw_output == nullptr)
-            {
-                throw std::runtime_error("SuperRes::Apply(..): incorrect output");
-            }
-
-            auto output_device_mem = clw_output->data();
-
-            // get another tensor from model queue
-            auto model_output = m_inference->PopOutput();
-
-            if (model_output.image != ML_INVALID_HANDLE && model_output.tag >= m_start_seq_num)
-            {
-                size_t output_size;
-                auto output_data = static_cast<float*>(
-                        mlMapImage(model_output.image, &output_size));
-
-                for (auto i = 0u; i < output_device_mem.GetElementCount(); i++)
-                {
-                    // 4th component (w) is not written here because
-                    // it is saved from the previous reading
-                    m_cache[4 * i] = std::max(output_data[3 * i], 0.f);
-                    m_cache[4 * i + 1] = std::max(output_data[3 * i + 1], 0.f);
-                    m_cache[4 * i + 2] = std::max(output_data[3 * i + 2], 0.f);
-                    m_cache[4 * i + 3] = 1;
-                }
-
-                mlUnmapImage(model_output.image, output_data);
-
-                // if returned tensor is empty return black image
-                m_context->WriteBuffer<float3>(0,
-                                               *m_last_denoised_image,
-                                               reinterpret_cast<float3 *>(m_cache.data()),
-                                               output_device_mem.GetElementCount()).Wait();
-
-                m_context->CopyBuffer<float3>(0,
-                                              *m_last_denoised_image,
-                                              output_device_mem,
-                                              0 /* srcOffset */,
-                                              0 /* destOffset */,
-                                              m_last_denoised_image->GetElementCount()).Wait();
-
-                m_has_denoised_image = true;
-            }
-            else if (m_has_denoised_image)
-            {
-                m_context->CopyBuffer<float3>(0,
-                                              *m_last_denoised_image,
-                                              output_device_mem,
-                                              0 /* srcOffset */,
-                                              0 /* destOffset */,
-                                              m_last_denoised_image->GetElementCount()).Wait();
-            }
-            else
-            {
-                  Resize_x2(output_device_mem, clw_input->data());
-            }
-        }
-
-        PostEffect::InputTypes SuperRes::GetInputTypes() const
-        {
-            return std::set<Renderer::OutputType>({Renderer::OutputType::kColor});
-        }
-
-        void SuperRes::Tonemap(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
-        {
-            assert (dst.GetElementCount() >= src.GetElementCount());
-
-            auto tonemapping = GetKernel("TonemapExponential");
-
-            // Set kernel parameters
-            int argc = 0;
-            tonemapping.SetArg(argc++, dst);
-            tonemapping.SetArg(argc++, src);
-            tonemapping.SetArg(argc++, (int)src.GetElementCount());
-
-            // run DivideBySampleCount kernel
-            auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
-            m_context->Launch1D(0,
-                                thread_num,
-                                64,
-                                tonemapping);
-        }
-
-
-//        if (m_inference == nullptr)
-//    {
-//        m_width = color_aov->width();
-//        m_height = color_aov->height();
-//        m_inference = CreateInference(gpu_memory_fraction,
-//                                      visible_devices,
-//                                      m_width,
-//                                      m_height);
 //
-//        m_device_cache.reset();
-//        m_device_cache = std::make_unique<CLWBuffer<float3>>(
-//                CLWBuffer<float3>::Create(*m_context, CL_MEM_READ_WRITE,
-//                                          m_width * m_height));
+//        void SisrPreprocess::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+//        {
+//            auto context = GetContext();
 //
-//        m_input_cache.reset();
-//        m_input_cache = std::make_unique<CLWBuffer<float>>(
-//                CLWBuffer<float>::Create(*m_context,
-//                                         CL_MEM_READ_WRITE,
-//                                         3 * m_width * m_height));
+//            if (m_resizer_cache == nullptr ||
+//                m_resizer_cache->GetElementCount() < 2 * src.GetElementCount())
+//            {
+//                m_resizer_cache.reset();
+//                m_resizer_cache = std::make_unique<CLWBuffer<float3>>(
+//                        CLWBuffer<float3>::Create(context, CL_MEM_READ_WRITE,
+//                                                  2 * src.GetElementCount())
+//                );
+//            }
 //
-//        m_cache.resize(4 * output.width() * output.height());
+//            auto scale_x = GetKernel("BicubicUpScaleX_x2");
 //
-//        m_last_denoised_image.reset();
+//            int argc = 0;
+//            scale_x.SetArg(argc++, *m_resizer_cache);
+//            scale_x.SetArg(argc++, src);
+//            scale_x.SetArg(argc++, m_width);
+//            scale_x.SetArg(argc++, m_height);
 //
-//        m_last_denoised_image = std::make_unique<CLWBuffer<float3>>(
-//                CLWBuffer<float3>::Create(
-//                        *m_context,
-//                        CL_MEM_READ_WRITE,
-//                        4 * m_width * m_height));
+//            // run BicubicUpScaleX_x2 kernel
+//            auto thread_num = ((2 * m_width * m_height + 63) / 64) * 64;
+//            context.Launch1D(0,
+//                             thread_num,
+//                             64,
+//                             scale_x);
 //
-//        m_has_denoised_image = false;
-//    }
+//            auto scale_y = GetKernel("BicubicUpScaleY_x2");
+//
+//            argc = 0;
+//            scale_y.SetArg(argc++, dst);
+//            scale_y.SetArg(argc++, *m_resizer_cache);
+//            scale_y.SetArg(argc++, 2 * m_width);
+//            scale_y.SetArg(argc++, m_height);
+//
+//            // run BicubicUpScaleY_x2 kernel
+//            thread_num = ((4 * m_width * m_height + 63) / 64) * 64;
+//            context.Launch1D(0,
+//                             thread_num,
+//                             64,
+//                             scale_y).Wait();
+//        }
     }
 }
