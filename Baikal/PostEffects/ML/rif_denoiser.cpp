@@ -268,7 +268,7 @@ RIFDenoiser::RIFDenoiser(const CLWContext& context, const CLProgramManager *prog
     auto device_idx = SelectDevice(device_count, visible_devices);
     m_rif_context = CreateContext(device_idx);
     m_rif_cmd_queue = CreateCmdQueue(m_rif_context);
-    m_rif_image_filter = CreateImageFilter(m_rif_image_filter);
+    m_rif_image_filter = CreateImageFilter(m_rif_context);
 }
 
 void RIFDenoiser::InitInference()

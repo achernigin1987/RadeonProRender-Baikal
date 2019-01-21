@@ -207,8 +207,7 @@ target_link_libraries(Baikal PUBLIC RadeonRays)
 
 if (BAIKAL_USE_RIF)
     target_include_directories(Baikal PRIVATE ${Baikal_SOURCE_DIR}/3rdparty/RadeonImageFilters/include)
-    target_link_directories(Baikal PRIVATE ${Baikal_SOURCE_DIR}/3rdparty/RadeonImageFilters/lib)
-    target_link_libraries(Baikal PRIVATE RadeonImageFilters64)
+    target_link_libraries(Baikal PRIVATE ${Baikal_SOURCE_DIR}/3rdparty/RadeonImageFilters/lib/libRadeonImageFilters64D.so)
 endif ()
 
 # Add 'treat warnings as errors' flag and 'Wall' flag on Unix
