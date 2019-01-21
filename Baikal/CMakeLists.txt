@@ -26,7 +26,9 @@ set(POSTEFFECT_ML_SOURCES
     PostEffects/ML/model_holder.h
     PostEffects/ML/model_holder.cpp
     PostEffects/ML/data_preprocess.h
-    PostEffects/ML/data_preprocess.cpp)
+    PostEffects/ML/data_preprocess.cpp
+    PostEffects/ML/image.h
+    PostEffects/ML/image.cpp)
 
 set(POSTEFFECT_SOURCES
     PostEffects/clw_post_effect.h

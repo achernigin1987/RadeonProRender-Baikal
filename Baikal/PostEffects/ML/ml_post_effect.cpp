@@ -32,6 +32,9 @@ namespace Baikal
 {
     namespace PostEffects {
 
+        using float3 = RadeonRays::float3;
+        using OutputType = Renderer::OutputType;
+
         MlPostEffect::MlPostEffect(CLWContext context, CLProgramManager* program_manager, PostEffectType type)
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
@@ -40,6 +43,8 @@ namespace Baikal
 #endif
         , m_type(type)
         , m_is_dirty(true)
+        , m_start_seq(0)
+        , m_last_seq(0)
         , m_program(program_manager)
         {
             m_inference = nullptr;
@@ -102,6 +107,13 @@ namespace Baikal
             m_height = aov->height();
 
             m_inference = CreateInference(m_width, m_height);
+            auto out_shape = m_inference->GetOutputShape();
+
+            m_last_image = CLWBuffer<float3>::Create(GetContext(),
+                                                     CL_MEM_READ_WRITE,
+                                                     out_shape.width * out_shape.height);
+
+            m_host = std::vector<float>(out_shape.width * out_shape.height);
         }
 
 
@@ -119,9 +131,71 @@ namespace Baikal
                 m_is_dirty = false;
             }
 
-            auto shape = m_inference->GetInputShape();
+            auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
 
+            if (!clw_inference_output)
+            {
+                throw std::runtime_error("MlPostEffect::Apply(...): can not cast output");
+            }
+
+            auto context = GetContext();
+            auto shape = m_inference->GetInputShape();
             auto image = m_preproc->MakeInput(input_set);
+
+            // if there's no suitable image for network input
+            if (image.tag == 0)
+            {
+                m_start_seq = m_last_seq + 1;
+                context.CopyBuffer<float3>(0,
+                                           dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data(),
+                                           clw_inference_output->data(),
+                                           0 /* srcOffset */,
+                                           0 /* destOffset */,
+                                           shape.width * shape.height).Wait();
+                return;
+            }
+            else
+            {
+                m_inference->PushInput(std::move(image));
+            }
+
+            auto res = m_inference->PopOutput();
+
+            if (res.image != ML_INVALID_HANDLE && res.tag >= m_start_seq)
+            {
+                size_t res_size;
+                auto res_data = static_cast<float *>(mlMapImage(res.image, &res_size));
+
+                if (res_data == nullptr)
+                {
+                    throw std::runtime_error("map input image is failed");
+                }
+
+                auto dest = m_host.data();
+                auto source = res_data;
+                for (auto i = 0u; i < shape.width * shape.height; ++i)
+                {
+                    dest->x = *source++;
+                    dest->y = *source++;
+                    dest->z = *source++;
+                    dest->w = 1;
+                    ++dest;
+                }
+
+                mlUnmapImage(res.image, res_data);
+
+                context.WriteBuffer<float3>(0,
+                                            m_last_image,
+                                            m_host.data(),
+                                            res_size / (3 * sizeof(float)));
+
+                context.CopyBuffer<float3>(0,
+                                           m_last_image,
+                                           clw_inference_output->data(),
+                                           0 /* srcOffset */,
+                                           0 /* destOffset */,
+                                           m_last_image.GetElementCount()).Wait();
+            }
         }
 
         void MlPostEffect::SetParameter(std::string const& name, Param value)
@@ -130,5 +204,51 @@ namespace Baikal
             PostEffect::SetParameter(name, value);
             m_is_dirty = true;
         }
+
+        //
+//        void SisrPreprocess::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+//        {
+//            auto context = GetContext();
+//
+//            if (m_resizer_cache == nullptr ||
+//                m_resizer_cache->GetElementCount() < 2 * src.GetElementCount())
+//            {
+//                m_resizer_cache.reset();
+//                m_resizer_cache = std::make_unique<CLWBuffer<float3>>(
+//                        CLWBuffer<float3>::Create(context, CL_MEM_READ_WRITE,
+//                                                  2 * src.GetElementCount())
+//                );
+//            }
+//
+//            auto scale_x = GetKernel("BicubicUpScaleX_x2");
+//
+//            int argc = 0;
+//            scale_x.SetArg(argc++, *m_resizer_cache);
+//            scale_x.SetArg(argc++, src);
+//            scale_x.SetArg(argc++, m_width);
+//            scale_x.SetArg(argc++, m_height);
+//
+//            // run BicubicUpScaleX_x2 kernel
+//            auto thread_num = ((2 * m_width * m_height + 63) / 64) * 64;
+//            context.Launch1D(0,
+//                             thread_num,
+//                             64,
+//                             scale_x);
+//
+//            auto scale_y = GetKernel("BicubicUpScaleY_x2");
+//
+//            argc = 0;
+//            scale_y.SetArg(argc++, dst);
+//            scale_y.SetArg(argc++, *m_resizer_cache);
+//            scale_y.SetArg(argc++, 2 * m_width);
+//            scale_y.SetArg(argc++, m_height);
+//
+//            // run BicubicUpScaleY_x2 kernel
+//            thread_num = ((4 * m_width * m_height + 63) / 64) * 64;
+//            context.Launch1D(0,
+//                             thread_num,
+//                             64,
+//                             scale_y).Wait();
+//        }
     }
 }

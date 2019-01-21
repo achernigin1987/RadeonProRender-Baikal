@@ -59,7 +59,8 @@ namespace Baikal
             }
         }
 
-        ml_image SisrPreprocess::MakeInput(PostEffect::InputSet const& inputs) {
+        Image SisrPreprocess::MakeInput(PostEffect::InputSet const& inputs)
+        {
             auto color_aov = inputs.begin()->second;
 
             auto clw_input = dynamic_cast<ClwOutput *>(color_aov);
@@ -77,7 +78,7 @@ namespace Baikal
 
             if (m_start_spp > sample_count)
             {
-                return nullptr;
+                return Image(0, nullptr);
             }
 
             Tonemap(m_cache, clw_input->data());
@@ -111,52 +112,7 @@ namespace Baikal
                 throw std::runtime_error("unmap operation failed");
             }
 
-            return m_image;
+            return Image(sample_count, m_image);
         }
-//
-//        void SisrPreprocess::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
-//        {
-//            auto context = GetContext();
-//
-//            if (m_resizer_cache == nullptr ||
-//                m_resizer_cache->GetElementCount() < 2 * src.GetElementCount())
-//            {
-//                m_resizer_cache.reset();
-//                m_resizer_cache = std::make_unique<CLWBuffer<float3>>(
-//                        CLWBuffer<float3>::Create(context, CL_MEM_READ_WRITE,
-//                                                  2 * src.GetElementCount())
-//                );
-//            }
-//
-//            auto scale_x = GetKernel("BicubicUpScaleX_x2");
-//
-//            int argc = 0;
-//            scale_x.SetArg(argc++, *m_resizer_cache);
-//            scale_x.SetArg(argc++, src);
-//            scale_x.SetArg(argc++, m_width);
-//            scale_x.SetArg(argc++, m_height);
-//
-//            // run BicubicUpScaleX_x2 kernel
-//            auto thread_num = ((2 * m_width * m_height + 63) / 64) * 64;
-//            context.Launch1D(0,
-//                             thread_num,
-//                             64,
-//                             scale_x);
-//
-//            auto scale_y = GetKernel("BicubicUpScaleY_x2");
-//
-//            argc = 0;
-//            scale_y.SetArg(argc++, dst);
-//            scale_y.SetArg(argc++, *m_resizer_cache);
-//            scale_y.SetArg(argc++, 2 * m_width);
-//            scale_y.SetArg(argc++, m_height);
-//
-//            // run BicubicUpScaleY_x2 kernel
-//            thread_num = ((4 * m_width * m_height + 63) / 64) * 64;
-//            context.Launch1D(0,
-//                             thread_num,
-//                             64,
-//                             scale_y).Wait();
-//        }
     }
 }

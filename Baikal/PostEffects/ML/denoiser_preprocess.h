@@ -55,7 +55,7 @@ namespace Baikal
                                std::uint32_t height,
                                std::uint32_t start_spp = 8);
 
-            ml_image MakeInput(PostEffect::InputSet const& inputs) override;
+            Image MakeInput(PostEffect::InputSet const& inputs) override;
 
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;

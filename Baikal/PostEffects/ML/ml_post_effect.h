@@ -57,7 +57,8 @@ namespace Baikal
             Inference::Ptr m_inference;
             PostEffectType m_type;
             bool m_is_dirty;
-            CLWBuffer<RadeonRays::float3> m_device_buf;
+            std::vector<RadeonRays::float3> m_host;
+            CLWBuffer<RadeonRays::float3> m_last_image;
             std::unique_ptr<DataPreprocess> m_preproc;
             std::uint32_t m_width, m_height;
             std::uint32_t m_start_seq, m_last_seq;

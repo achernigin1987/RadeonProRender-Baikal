@@ -43,7 +43,7 @@ namespace Baikal
                            std::uint32_t spp = 0);
 
 
-            ml_image MakeInput(PostEffect::InputSet const& inputs) override;
+            Image MakeInput(PostEffect::InputSet const& inputs) override;
         private:
 
             void Tonemap(CLWBuffer<RadeonRays::float3> dst,

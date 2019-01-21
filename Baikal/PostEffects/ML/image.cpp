@@ -20,40 +20,38 @@
  THE SOFTWARE.
  ********************************************************************/
 
-#pragma once
-
-#ifdef BAIKAL_EMBED_KERNELS
-#include "embed_kernels.h"
-#endif
-
-#include "CLW.h"
-#include "Utils/clw_class.h"
-#include "PostEffects/post_effect.h"
-#include "image.h"
-
-
 namespace Baikal
 {
     namespace PostEffects
     {
-        class DataPreprocess : public ClwClass
+        Image::Image()
+        : tag(0), image(nullptr)
+        {}
+
+        Image::Image(std::uint32_t tag, ml_image image)
+        : tag(tag), image(image)
+        {}
+
+        Image::Image(Image &&img)
+        : tag(img.tag), image(img.image)
         {
-        public:
-            DataPreprocess(CLWContext context, CLProgramManager const* program_manager);
+            img.image = nullptr;
+        }
 
-            virtual Image MakeInput(PostEffect::InputSet const& inputs) = 0;
+        Image &Image::operator=(Image &&img)
+        {
+            tag = img.tag;
+            image = img.image;
+            img.image = nullptr;
+            return *this;
+        }
 
-        protected:
-
-            CLWEvent WriteToInputs(CLWBuffer<float> dst_buffer,
-                                   CLWBuffer<float> src_buffer,
-                                   int width,
-                                   int height,
-                                   int dst_channels_offset,
-                                   int dst_channels_num,
-                                   int src_channels_offset,
-                                   int src_channels_num,
-                                   int channels_to_copy);
-        };
+        Image::~Image()
+        {
+            if (image != nullptr)
+            {
+                mlReleaseImage(image);
+            }
+        }
     }
 }

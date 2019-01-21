@@ -96,17 +96,18 @@ namespace Baikal
         }
 
 
-        ml_image DenoiserPreprocess::MakeInput(PostEffect::InputSet const& inputs)
+        Image DenoiserPreprocess::MakeInput(PostEffect::InputSet const& inputs)
         {
             auto context = GetContext();
             unsigned channels_count = 0u;
+            float real_sample_count = 0.f;
             bool too_few_samples = false;
 
             for (const auto& desc : m_layout)
             {
                 if (too_few_samples)
                 {
-                    return nullptr;
+                    return Image(0, nullptr);
                 }
 
                 auto type = desc.first;
@@ -116,12 +117,11 @@ namespace Baikal
                 auto device_mem = clw_output->data();
 
                 unsigned channels_to_copy = 0u;
+
                 switch (type)
                 {
                     case OutputType::kColor:
                     {
-                        float real_sample_count = 0.f;
-
                         DivideBySampleCount(CLWBuffer<float3>::CreateFromClBuffer(m_cache),
                                             CLWBuffer<float3>::CreateFromClBuffer(device_mem));
 
@@ -223,7 +223,7 @@ namespace Baikal
                 throw std::runtime_error("unmap operation failed");
             }
 
-            return m_image;
+            return Image(static_cast<std::uint32_t>(real_sample_count), m_image);
         }
 
 

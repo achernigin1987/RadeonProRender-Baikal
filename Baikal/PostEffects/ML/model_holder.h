@@ -61,7 +61,6 @@ namespace Baikal
             void ShutDown();
 
             ml_model m_model;
-
         };
     }
 }
