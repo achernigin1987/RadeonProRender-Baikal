@@ -15,10 +15,10 @@ set(OUTPUT_SOURCES
     Output/output.h)
 
 set(POSTEFFECT_ML_SOURCES
-    PostEffects/ML/super_res.h
-    PostEffects/ML/super_res.cpp
-    PostEffects/ML/denoiser.h
-    PostEffects/ML/denoiser.cpp
+    PostEffects/ML/sisr_preprocess.h
+    PostEffects/ML/sisr_preprocess.cpp
+    PostEffects/ML/denoiser_preprocess.h
+    PostEffects/ML/denoiser_preprocess.cpp
     PostEffects/ML/inference.h
     PostEffects/ML/inference.cpp
     PostEffects/ML/ml_post_effect.h

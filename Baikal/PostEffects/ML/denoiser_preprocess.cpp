@@ -21,7 +21,7 @@
 ********************************************************************/
 
 
-#include "PostEffects/ML/denoiser.h"
+#include "PostEffects/ML/denoiser_preprocess.h"
 
 #include "CLWBuffer.h"
 #include "Output/clwoutput.h"
