@@ -52,6 +52,7 @@ namespace Baikal
 
             RegisterParameter("gpu_memory_fraction", .7f);
             RegisterParameter("visible_devices", std::string());
+            RegisterParameter("start_spp", 1u);
 
             // init preprocessing
             switch (m_type)
@@ -89,8 +90,8 @@ namespace Baikal
                 case ModelType::kSisr:
                     return std::unique_ptr<Inference>(
                             new Inference("models/esrgan-05x3x32-198135.pb",
-                                          {ML_FLOAT32, width, height},
-                                          {ML_FLOAT32, 2 * width, 2 * height},
+                                          {ML_FLOAT32, width, height, 3},
+                                          {ML_FLOAT32, 2 * width, 2 * height, 3},
                                           gpu_memory_fraction,
                                           visible_devices));
 
