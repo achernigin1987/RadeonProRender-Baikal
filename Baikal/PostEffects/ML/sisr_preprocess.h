@@ -38,21 +38,21 @@ namespace Baikal
         public:
             SisrPreprocess(CLWContext context,
                            Baikal::CLProgramManager const *program_manager,
-                           std::uint32_t width,
-                           std::uint32_t height,
-                           std::uint32_t spp = 0);
+                           std::uint32_t spp = 1);
 
 
             Image MakeInput(PostEffect::InputSet const& inputs) override;
 
             std::set<Renderer::OutputType> GetInputTypes() const override;
+
         private:
+            void Init(std::uint32_t width, std::uint32_t height);
 
             void Tonemap(CLWBuffer<RadeonRays::float3> dst,
                          CLWBuffer<RadeonRays::float3> src);
 
+            bool m_is_init = false;
             std::uint32_t m_width, m_height;
-            std::uint32_t m_start_spp;
             CLWBuffer<float> m_input;
             CLWBuffer<float> m_resizer_cache;
             CLWBuffer<RadeonRays::float3> m_cache;

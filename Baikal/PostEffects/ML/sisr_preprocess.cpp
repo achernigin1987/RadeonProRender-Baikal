@@ -33,20 +33,18 @@ namespace Baikal
 
         SisrPreprocess::SisrPreprocess(CLWContext context,
                                        Baikal::CLProgramManager const *program_manager,
-                                       std::uint32_t width,
-                                       std::uint32_t height,
                                        std::uint32_t start_spp)
-        : DataPreprocess(context, program_manager)
-        , m_width(width)
-        , m_height(height)
-        , m_start_spp(start_spp)
+        : DataPreprocess(context, program_manager, start_spp)
         , m_context(mlCreateContext())
+        {}
+
+        void SisrPreprocess::Init(std::uint32_t width, std::uint32_t height)
         {
-            m_cache = CLWBuffer<float3>::Create(context,
+            m_cache = CLWBuffer<float3>::Create(GetContext(),
                                                 CL_MEM_READ_WRITE,
                                                 width * height);
 
-            m_input = CLWBuffer<float>::Create(context,
+            m_input = CLWBuffer<float>::Create(GetContext(),
                                                CL_MEM_READ_WRITE,
                                                3 * width * height);
 
@@ -62,6 +60,14 @@ namespace Baikal
         Image SisrPreprocess::MakeInput(PostEffect::InputSet const& inputs)
         {
             auto color_aov = inputs.begin()->second;
+
+            if (!m_is_init)
+            {
+                m_width = color_aov->width();
+                m_height = color_aov->height();
+                Init(m_width, m_height);
+                m_is_init = true;
+            }
 
             auto clw_input = dynamic_cast<ClwOutput *>(color_aov);
 

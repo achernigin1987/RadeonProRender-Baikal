@@ -51,20 +51,21 @@ namespace Baikal
         public:
             DenoiserPreprocess(CLWContext context,
                                CLProgramManager const* program_manager,
-                               std::uint32_t width,
-                               std::uint32_t height,
                                std::uint32_t start_spp = 8);
 
             Image MakeInput(PostEffect::InputSet const& inputs) override;
 
             std::set<Renderer::OutputType> GetInputTypes() const override;
-            
+
         private:
+            void Init(std::uint32_t width, std::uint32_t height);
+
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
             void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
                                      CLWBuffer<RadeonRays::float3> src);
 
+            bool m_is_init = false;
             CLWParallelPrimitives m_primitives;
             std::uint32_t m_start_spp;
             std::uint32_t m_width, m_height;

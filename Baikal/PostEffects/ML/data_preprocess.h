@@ -39,11 +39,17 @@ namespace Baikal
         class DataPreprocess : public ClwClass
         {
         public:
-            DataPreprocess(CLWContext context, CLProgramManager const* program_manager);
+            DataPreprocess(CLWContext context,
+                           CLProgramManager const* program_manager,
+                           std::uint32_t start_spp = 1);
 
             virtual Image MakeInput(PostEffect::InputSet const& inputs) = 0;
 
             virtual std::set<Renderer::OutputType> GetInputTypes() const = 0;
+
+            void ResetSpp(std::uint32_t spp)
+            { m_start_spp = spp; };
+
         protected:
 
             CLWEvent WriteToInputs(CLWBuffer<float> dst_buffer,
@@ -55,6 +61,8 @@ namespace Baikal
                                    int src_channels_offset,
                                    int src_channels_num,
                                    int channels_to_copy);
+
+            std::uint32_t  m_start_spp;
         };
     }
 }

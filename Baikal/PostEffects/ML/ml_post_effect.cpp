@@ -1,4 +1,4 @@
-/**********************************************************************
+    /**********************************************************************
  Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -52,27 +52,34 @@ namespace Baikal
 
             RegisterParameter("gpu_memory_fraction", .7f);
             RegisterParameter("visible_devices", std::string());
+
+            // init preprocessing
+            switch (m_type)
+            {
+                case ModelType ::kDenoiser:
+                    m_preproc = std::unique_ptr<DataPreprocess>(
+                            new DenoiserPreprocess(GetContext(), m_program));
+                    break;
+                case ModelType ::kSisr:
+                    m_preproc = std::unique_ptr<SisrPreprocess>(
+                            new SisrPreprocess(GetContext(), m_program));
+                    break;
+                default:
+                    throw std::logic_error("unsupported model type");
+            }
         }
 
         Inference::Ptr MlPostEffect::CreateInference(std::uint32_t width, std::uint32_t height)
         {
             auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
             auto visible_devices = GetParameter("visible_devices").GetString();
-            auto start_spp = GetParameter("start_spp").GetUint();
+            m_preproc->ResetSpp(GetParameter("start_spp").GetUint());
 
             std::string model_path;
 
             switch (m_type)
             {
                 case ModelType::kDenoiser:
-                    m_preproc = std::unique_ptr<DataPreprocess>(
-                            new DenoiserPreprocess(
-                                    GetContext(),
-                                    m_program,
-                                    width,
-                                    height,
-                                    start_spp));
-
                     return std::unique_ptr<Inference>(
                             new Inference("models/color_albedo_depth_normal_9_v3.pb",
                                           {ML_FLOAT32, width, height},
@@ -80,14 +87,6 @@ namespace Baikal
                                           gpu_memory_fraction,
                                           visible_devices));
                 case ModelType::kSisr:
-                    m_preproc = std::unique_ptr<DataPreprocess>(
-                            new SisrPreprocess(
-                                    GetContext(),
-                                    m_program,
-                                    width,
-                                    height,
-                                    start_spp));
-
                     return std::unique_ptr<Inference>(
                             new Inference("models/esrgan-05x3x32-198135.pb",
                                           {ML_FLOAT32, width, height},

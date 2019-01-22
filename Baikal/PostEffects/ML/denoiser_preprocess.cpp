@@ -38,14 +38,9 @@ namespace Baikal
 
         DenoiserPreprocess::DenoiserPreprocess(CLWContext context,
                                                CLProgramManager const *program_manager,
-                                               std::uint32_t width,
-                                               std::uint32_t height,
                                                std::uint32_t start_spp)
-        : DataPreprocess(context, program_manager)
+        : DataPreprocess(context, program_manager, start_spp)
         , m_primitives(CLWParallelPrimitives(context))
-        , m_start_spp(start_spp)
-        , m_width(width)
-        , m_height(height)
         , m_model(Model::kColorAlbedoDepthNormal9)
         , m_context(mlCreateContext())
         {
@@ -69,11 +64,15 @@ namespace Baikal
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     break;
             }
+        }
 
-            m_cache = CLWBuffer<float>::Create(
-                    context,
-                    CL_MEM_READ_WRITE,
-                    width * height);
+        void DenoiserPreprocess::Init(std::uint32_t width, std::uint32_t height)
+        {
+            auto context = GetContext();
+
+            m_cache = CLWBuffer<float>::Create(context,
+                                               CL_MEM_READ_WRITE,
+                                               width * height);
 
             m_channels = 0;
             for (const auto& layer: m_layout)
@@ -81,10 +80,9 @@ namespace Baikal
                 m_channels += layer.second;
             }
 
-            m_input = CLWBuffer<float>::Create(
-                    context,
-                    CL_MEM_READ_WRITE,
-                    m_channels * width * height);
+            m_input = CLWBuffer<float>::Create(context,
+                                               CL_MEM_READ_WRITE,
+                                               m_channels * width * height);
 
             ml_image_info image_info = {ML_FLOAT32, m_width, m_height, m_channels};
             m_image = mlCreateImage(m_context, &image_info);
@@ -93,8 +91,9 @@ namespace Baikal
             {
                 throw std::runtime_error("can not create ml_image");
             }
-        }
 
+            m_is_init = true;
+        }
 
         Image DenoiserPreprocess::MakeInput(PostEffect::InputSet const& inputs)
         {
@@ -102,6 +101,15 @@ namespace Baikal
             unsigned channels_count = 0u;
             float real_sample_count = 0.f;
             bool too_few_samples = false;
+
+            if (!m_is_init)
+            {
+                auto color = inputs.at(Renderer::OutputType::kColor);
+                m_width = color->width();
+                m_height = color->height();
+                Init(m_width, m_height);
+                m_is_init = true;
+            }
 
             for (const auto& desc : m_layout)
             {
