@@ -20,6 +20,9 @@
  THE SOFTWARE.
  ********************************************************************/
 
+#pragma once
+
+#include <cstdint>
 #include "RadeonProML.h"
 
 namespace Baikal

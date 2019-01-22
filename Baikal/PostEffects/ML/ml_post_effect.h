@@ -30,29 +30,30 @@ namespace Baikal
 {
     namespace PostEffects
     {
-
-        enum class PostEffectType
+        enum class ModelType
         {
-            kDenoiser = 0,
+            kDenoiser,
             kSisr
         };
 
         class MlPostEffect : public ClwPostEffect
         {
         public:
-            MlPostEffect(CLWContext context, CLProgramManager* program_manager, PostEffectType type);
+            MlPostEffect(CLWContext context, const CLProgramManager* program_manager, ModelType type);
 
             void Apply(InputSet const& input_set, Output& output) override;
 
             void SetParameter(std::string const& name, Param value) override;
 
+            InputTypes GetInputTypes() const override;
+
+            void Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
         private:
             Inference::Ptr CreateInference(std::uint32_t width, std::uint32_t height);
             void Init(InputSet const& input_set, Output& output);
-            void Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
 
             Inference::Ptr m_inference;
-            PostEffectType m_type;
+            ModelType m_type;
             bool m_is_dirty;
             bool m_has_denoised_img;
             std::vector<RadeonRays::float3> m_host;
@@ -63,7 +64,7 @@ namespace Baikal
             std::uint32_t m_height = 0;
             std::uint32_t m_start_seq = 0;
             std::uint32_t m_last_seq = 0;
-            CLProgramManager *m_program;
+            const CLProgramManager *m_program;
         };
     }
 }

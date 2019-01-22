@@ -39,7 +39,7 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        enum class ModelType
+        enum class Model
         {
             kColorDepthNormalGloss7,
             kColorAlbedoNormal8,
@@ -57,6 +57,8 @@ namespace Baikal
 
             Image MakeInput(PostEffect::InputSet const& inputs) override;
 
+            std::set<Renderer::OutputType> GetInputTypes() const override;
+            
         private:
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
@@ -67,7 +69,7 @@ namespace Baikal
             std::uint32_t m_start_spp;
             std::uint32_t m_width, m_height;
             std::uint32_t m_channels;
-            ModelType m_model;
+            Model m_model;
             MemoryLayout m_layout;
             CLWBuffer<float> m_cache;
             CLWBuffer<float> m_input;

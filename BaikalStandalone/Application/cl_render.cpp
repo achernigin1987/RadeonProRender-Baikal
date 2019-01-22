@@ -45,7 +45,7 @@ THE SOFTWARE.
 #include <chrono>
 #include <cmath>
 
-#include "PostEffects/ML/super_res.h"
+#include "PostEffects/ML/ml_post_effect.h"
 
 namespace Baikal
 {
@@ -345,12 +345,12 @@ namespace Baikal
                         }
                         else
                         {
-                            auto super_res = dynamic_cast<PostEffects::SuperRes*>(m_post_effect.get());
+                            auto ml_post_effect = dynamic_cast<PostEffects::MlPostEffect*>(m_post_effect.get());
 
-                            super_res->Resize_x2(dynamic_cast<ClwOutput*>(m_upscaled_img.get())->data(),
-                                                 dynamic_cast<ClwOutput*>(GetRendererOutput(
-                                                         m_primary,
-                                                         Renderer::OutputType::kColor))->data());
+                            ml_post_effect->Resize_x2(dynamic_cast<ClwOutput*>(m_upscaled_img.get())->data(),
+                                                      dynamic_cast<ClwOutput*>(GetRendererOutput(
+                                                      m_primary,
+                                                      Renderer::OutputType::kColor))->data());
 
                             CopyToGL(m_upscaled_img.get(), m_post_effect_output.get());
                         }

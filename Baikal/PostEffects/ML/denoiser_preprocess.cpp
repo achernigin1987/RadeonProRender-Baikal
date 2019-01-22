@@ -46,23 +46,23 @@ namespace Baikal
         , m_start_spp(start_spp)
         , m_width(width)
         , m_height(height)
-        , m_model(ModelType::kColorAlbedoDepthNormal9)
+        , m_model(Model::kColorAlbedoDepthNormal9)
         , m_context(mlCreateContext())
         {
             switch (m_model)
             {
-                case ModelType::kColorDepthNormalGloss7:
+                case Model::kColorDepthNormalGloss7:
                     m_layout.emplace_back(OutputType::kColor, 3);
                     m_layout.emplace_back(OutputType::kDepth, 1);
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     m_layout.emplace_back(OutputType::kGloss, 1);
                     break;
-                case ModelType::kColorAlbedoNormal8:
+                case Model::kColorAlbedoNormal8:
                     m_layout.emplace_back(OutputType::kColor, 3 );
                     m_layout.emplace_back(OutputType::kAlbedo, 3);
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     break;
-                case ModelType::kColorAlbedoDepthNormal9:
+                case Model::kColorAlbedoDepthNormal9:
                     m_layout.emplace_back(OutputType::kColor, 3 );
                     m_layout.emplace_back(OutputType::kAlbedo, 3);
                     m_layout.emplace_back(OutputType::kDepth, 1);
@@ -226,6 +226,38 @@ namespace Baikal
             return Image(static_cast<std::uint32_t>(real_sample_count), m_image);
         }
 
+        std::set<Renderer::OutputType> DenoiserPreprocess::GetInputTypes() const
+        {
+            switch (m_model)
+            {
+                case Model::kColorDepthNormalGloss7:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kDepth,
+                                    Renderer::OutputType::kViewShadingNormal,
+                                    Renderer::OutputType::kGloss,
+                            });
+
+                case Model::kColorAlbedoNormal8:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kAlbedo,
+                                    Renderer::OutputType::kViewShadingNormal,
+                            });
+                case Model::kColorAlbedoDepthNormal9:
+                    return std::set<Renderer::OutputType>(
+                            {
+                                    Renderer::OutputType::kColor,
+                                    Renderer::OutputType::kAlbedo,
+                                    Renderer::OutputType::kDepth,
+                                    Renderer::OutputType::kViewShadingNormal,
+                            });
+                default:
+                    throw std::runtime_error("Model is not supported");
+            }
+        }
 
         void DenoiserPreprocess::DivideBySampleCount(CLWBuffer<float3> dst,
                                                      CLWBuffer<float3> src)

@@ -42,13 +42,13 @@ namespace Baikal
         , m_start_spp(start_spp)
         , m_context(mlCreateContext())
         {
-            m_cache = CLWBuffer::Create<float3>(context,
+            m_cache = CLWBuffer<float3>::Create(context,
                                                 CL_MEM_READ_WRITE,
                                                 width * height);
 
-            m_input = CLWBuffer::Create<float>(context,
-                                                   CL_MEM_READ_WRITE,
-                                                   3 * width * height);
+            m_input = CLWBuffer<float>::Create(context,
+                                               CL_MEM_READ_WRITE,
+                                               3 * width * height);
 
             ml_image_info image_info = {ML_FLOAT32, width, height, 3};
             m_image = mlCreateImage(m_context, &image_info);
@@ -113,6 +113,31 @@ namespace Baikal
             }
 
             return Image(sample_count, m_image);
+        }
+
+        void SisrPreprocess::Tonemap(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+        {
+            assert (dst.GetElementCount() >= src.GetElementCount());
+
+            auto tonemapping = GetKernel("TonemapExponential");
+
+            // Set kernel parameters
+            int argc = 0;
+            tonemapping.SetArg(argc++, dst);
+            tonemapping.SetArg(argc++, src);
+            tonemapping.SetArg(argc++, (int)src.GetElementCount());
+
+            // run DivideBySampleCount kernel
+            auto thread_num = ((src.GetElementCount() + 63) / 64) * 64;
+            GetContext().Launch1D(0,
+                                  thread_num,
+                                  64,
+                                  tonemapping);
+        }
+
+        std::set<Renderer::OutputType> SisrPreprocess::GetInputTypes() const
+        {
+            return std::set<Renderer::OutputType>({Renderer::OutputType::kColor});
         }
     }
 }

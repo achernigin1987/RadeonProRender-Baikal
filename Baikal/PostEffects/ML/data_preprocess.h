@@ -43,6 +43,7 @@ namespace Baikal
 
             virtual Image MakeInput(PostEffect::InputSet const& inputs) = 0;
 
+            virtual std::set<Renderer::OutputType> GetInputTypes() const = 0;
         protected:
 
             CLWEvent WriteToInputs(CLWBuffer<float> dst_buffer,

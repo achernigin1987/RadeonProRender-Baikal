@@ -44,6 +44,8 @@ namespace Baikal
 
 
             Image MakeInput(PostEffect::InputSet const& inputs) override;
+
+            std::set<Renderer::OutputType> GetInputTypes() const override;
         private:
 
             void Tonemap(CLWBuffer<RadeonRays::float3> dst,

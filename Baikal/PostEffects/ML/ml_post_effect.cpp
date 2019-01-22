@@ -35,7 +35,7 @@ namespace Baikal
         using float3 = RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        MlPostEffect::MlPostEffect(CLWContext context, CLProgramManager* program_manager, PostEffectType type)
+        MlPostEffect::MlPostEffect(CLWContext context, const CLProgramManager* program_manager, ModelType type)
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
 #else
@@ -64,7 +64,7 @@ namespace Baikal
 
             switch (m_type)
             {
-                case PostEffectType::kDenoiser:
+                case ModelType::kDenoiser:
                     m_preproc = std::unique_ptr<DataPreprocess>(
                             new DenoiserPreprocess(
                                     GetContext(),
@@ -79,7 +79,7 @@ namespace Baikal
                                           {ML_FLOAT32, width, height},
                                           gpu_memory_fraction,
                                           visible_devices));
-                case PostEffectType::kSisr:
+                case ModelType::kSisr:
                     m_preproc = std::unique_ptr<DataPreprocess>(
                             new SisrPreprocess(
                                     GetContext(),
@@ -114,7 +114,7 @@ namespace Baikal
                                                      CL_MEM_READ_WRITE,
                                                      out_shape.width * out_shape.height);
 
-            m_host = std::vector<float>(out_shape.width * out_shape.height);
+            m_host = std::vector<float3>(out_shape.width * out_shape.height);
         }
 
 
@@ -147,7 +147,7 @@ namespace Baikal
             if (input.image == nullptr)
             {
                 auto color = dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data();
-                if (m_type == PostEffectType::kDenoiser)
+                if (m_type == ModelType ::kDenoiser)
                 {
                     context.CopyBuffer<float3>(0,
                                                color,
@@ -223,7 +223,10 @@ namespace Baikal
             m_is_dirty = true;
         }
 
-
+        PostEffect::InputTypes MlPostEffect::GetInputTypes() const
+        {
+            return m_preproc->GetInputTypes();
+        }
         void MlPostEffect::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
         {
             auto context = GetContext();

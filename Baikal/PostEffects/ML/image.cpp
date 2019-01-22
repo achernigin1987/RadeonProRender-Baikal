@@ -20,6 +20,8 @@
  THE SOFTWARE.
  ********************************************************************/
 
+#include "image.h"
+
 namespace Baikal
 {
     namespace PostEffects
