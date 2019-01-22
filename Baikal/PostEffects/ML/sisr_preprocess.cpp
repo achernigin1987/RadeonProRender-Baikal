@@ -78,7 +78,7 @@ namespace Baikal
 
             if (m_start_spp > sample_count)
             {
-                return Image(0, nullptr);
+                return Image(sample_count, nullptr);
             }
 
             Tonemap(m_cache, clw_input->data());

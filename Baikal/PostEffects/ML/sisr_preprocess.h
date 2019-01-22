@@ -52,6 +52,7 @@ namespace Baikal
             std::uint32_t m_width, m_height;
             std::uint32_t m_start_spp;
             CLWBuffer<float> m_input;
+            CLWBuffer<float> m_resizer_cache;
             CLWBuffer<RadeonRays::float3> m_cache;
             ml_context m_context;
             ml_image m_image;

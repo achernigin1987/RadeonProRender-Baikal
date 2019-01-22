@@ -107,7 +107,7 @@ namespace Baikal
             {
                 if (too_few_samples)
                 {
-                    return Image(0, nullptr);
+                    return Image(static_cast<std::uint32_t>(real_sample_count), nullptr);
                 }
 
                 auto type = desc.first;

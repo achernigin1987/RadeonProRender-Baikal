@@ -46,22 +46,23 @@ namespace Baikal
 
             void SetParameter(std::string const& name, Param value) override;
 
-        protected:
-            virtual bool PrepeareInput(BufferPtr device_buffer, InputSet const& input_set) = 0;
-            virtual void PrepeareOutput(Image const& inference_res, Output& output) = 0;
-
         private:
             Inference::Ptr CreateInference(std::uint32_t width, std::uint32_t height);
             void Init(InputSet const& input_set, Output& output);
+            void Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
 
             Inference::Ptr m_inference;
             PostEffectType m_type;
             bool m_is_dirty;
+            bool m_has_denoised_img;
             std::vector<RadeonRays::float3> m_host;
             CLWBuffer<RadeonRays::float3> m_last_image;
+            CLWBuffer<RadeonRays::float3> m_resizer_cache;
             std::unique_ptr<DataPreprocess> m_preproc;
-            std::uint32_t m_width, m_height;
-            std::uint32_t m_start_seq, m_last_seq;
+            std::uint32_t m_width = 0;
+            std::uint32_t m_height = 0;
+            std::uint32_t m_start_seq = 0;
+            std::uint32_t m_last_seq = 0;
             CLProgramManager *m_program;
         };
     }
