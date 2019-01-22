@@ -139,8 +139,8 @@ void DivideBySampleCount(GLOBAL float4* restrict dst,
 }
 
 KERNEL
-void CopyInterleaved(GLOBAL float4* restrict dst,
-                     GLOBAL float4 const* restrict src,
+void CopyInterleaved(GLOBAL float* restrict dst,
+                     GLOBAL float const* restrict src,
                      int dst_width,
                      int dst_height,
                      int dst_channels_offset, // offset inside pixel in channels (not bytes)
@@ -164,8 +164,8 @@ void CopyInterleaved(GLOBAL float4* restrict dst,
     int src_offset = src_channels_num * (y * src_width + x) + src_channels_offset;
     int dst_offset = dst_channels_num * (y * dst_width + x) + dst_channels_offset;
 
-    GLOBAL float* dst_pixel = (GLOBAL float*)dst + dst_offset;
-    GLOBAL float const* src_pixel = (GLOBAL float const*)src + src_offset;
+    GLOBAL float* dst_pixel = dst + dst_offset;
+    GLOBAL float const* src_pixel = src + src_offset;
 
     for (int i = 0; i < channels_to_copy; i++)
     {

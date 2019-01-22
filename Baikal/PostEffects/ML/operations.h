@@ -16,8 +16,8 @@ CLWBuffer<T> Cast(const CLWBuffer<U>& buffer)
 }
 
 inline void DivideBySampleCount(ClwClass* clw,
-                                CLWBuffer<RadeonRays::float3> dst_buffer,
-                                CLWBuffer<RadeonRays::float3> src_buffer)
+                                const CLWBuffer<RadeonRays::float3>& dst_buffer,
+                                const CLWBuffer<RadeonRays::float3>& src_buffer)
 {
     assert(dst_buffer.GetElementCount() >= src_buffer.GetElementCount());
 
@@ -33,8 +33,8 @@ inline void DivideBySampleCount(ClwClass* clw,
 }
 
 inline void CopyInterleaved(ClwClass* clw,
-                            CLWBuffer<float> dst_buffer,
-                            CLWBuffer<RadeonRays::float3> src_buffer,
+                            const CLWBuffer<float>& dst_buffer,
+                            const CLWBuffer<float>& src_buffer,
                             int image_width,
                             int image_height,
                             int dst_image_channels,
@@ -61,6 +61,14 @@ inline void CopyInterleaved(ClwClass* clw,
     // run copy_kernel
     const auto thread_num = ((image_width * image_height + 63) / 64) * 64;
     clw->GetContext().Launch1D(0, thread_num, 64, copy_kernel);
+}
+
+template<class T>
+std::vector<float> ReadBuffer(const CLWContext& context, const CLWBuffer<T>& buffer)
+{
+    std::vector<float> data(buffer.GetElementCount() * (sizeof(T) / sizeof(float)));
+    context.ReadBuffer(0 /*idx*/, buffer, reinterpret_cast<T*>(data.data()), buffer.GetElementCount()).Wait();
+    return data;
 }
 
 } // namespace PostEffects

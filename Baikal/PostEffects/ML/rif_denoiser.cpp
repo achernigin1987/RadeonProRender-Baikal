@@ -27,6 +27,8 @@
 #include "PostEffects/ML/exception.h"
 #include "PostEffects/ML/operations.h"
 #include "Renderers/renderer.h"
+#include "rif_denoiser.h"
+
 
 #include <RadeonImageFilters.h>
 #include <RadeonImageFilters_cl.h>
@@ -34,8 +36,6 @@
 #ifdef BAIKAL_EMBED_KERNELS
 #include "embed_kernels.h"
 #include "rif_denoiser.h"
-
-
 #endif
 
 
@@ -47,7 +47,7 @@ using Handle = RIFDenoiser::Handle;
 
 namespace {
 
-using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
+using MemoryLayout = std::vector<std::pair<Renderer::OutputType, int>>;
 
 const MemoryLayout kColorDepthNormalGloss7{
     {OutputType::kColor, 3},
@@ -137,43 +137,22 @@ void CheckStatus(const char* function_name, rif_int status)
     }
 }
 
-rif_int GetDeviceCount()
-{
-    rif_int device_count;
-    CheckStatus("rifGetDeviceCount",
-                rifGetDeviceCount(RIF_BACKEND_API_OPENCL, RIF_PROCESSOR_GPU, &device_count));
-
-    if (device_count <= 0)
-    {
-        throw std::runtime_error("RIF: no devices found");
-    }
-
-    return device_count;
-}
-
-rif_int SelectDevice(rif_int device_count, const std::string& visible_devices)
-{
-    rif_int device_idx = 0;
-    std::istringstream stream(visible_devices);
-    stream >> device_idx; // Ignore errors
-    return std::min(device_idx, device_count - 1);
-}
-
 Handle WrapHandle(void* handle)
 {
     return Handle(handle, rifObjectDelete);
 }
 
-Handle CreateContext(rif_int device_idx)
+Handle CreateContext(const CLWContext& clw_context)
 {
     rif_context context = nullptr;
-    CheckStatus("rifCreateContext",
-                rifCreateContext(RIF_API_VERSION,
-                                 RIF_BACKEND_API_OPENCL,
-                                 RIF_PROCESSOR_GPU,
-                                 device_idx,
-                                 nullptr /*cache_path*/,
-                                 &context));
+    cl_device_id device_id;
+    CheckStatus("rifCreateContextFromOpenClContext",
+                rifCreateContextFromOpenClContext(RIF_API_VERSION,
+                                                  clw_context,
+                                                  &device_id,
+                                                  clw_context.GetCommandQueue(0),
+                                                  nullptr /*cache_path*/,
+                                                  &context));
     return WrapHandle(context);
 }
 
@@ -187,12 +166,30 @@ Handle CreateCmdQueue(const Handle& context)
 
 Handle CreateImageFilter(const Handle& context)
 {
-    rif_image_filter image_filter;
+    rif_image_filter image_filter = nullptr;
     CheckStatus("rifContextCreateImageFilter",
                 rifContextCreateImageFilter(context.get(),
                                             RIF_IMAGE_FILTER_MIOPEN_DENOISE,
                                             &image_filter));
     return WrapHandle(image_filter);
+}
+
+void AttachImageFilter(const Handle& cmd_queue,
+                       const Handle& image_filter,
+                       const Handle& input_image,
+                       const Handle& output_image)
+{
+    CheckStatus("rifCommandQueueAttachImageFilter",
+                rifCommandQueueAttachImageFilter(cmd_queue.get(),
+                                                 image_filter.get(),
+                                                 input_image.get(),
+                                                 output_image.get()));
+}
+
+void DetachImageFilter(const Handle& cmd_queue, const Handle& image_filter)
+{
+    CheckStatus("rifCommandQueueDetachImageFilter",
+                rifCommandQueueDetachImageFilter(cmd_queue.get(), image_filter.get()));
 }
 
 void SetFilterParameter(const Handle& filter, const char* param_name, const Handle& image)
@@ -203,9 +200,9 @@ void SetFilterParameter(const Handle& filter, const char* param_name, const Hand
 
 Handle BufferToImage(const Handle& context,
                      const CLWBuffer<float>& buffer,
-                     std::size_t image_width,
-                     std::size_t image_height,
-                     std::size_t image_channels)
+                     int image_width,
+                     int image_height,
+                     int image_channels)
 {
     rif_image_desc image_desc {};
     image_desc.image_width = static_cast<rif_uint>(image_width);
@@ -223,18 +220,8 @@ Handle BufferToImage(const Handle& context,
     return WrapHandle(image);
 }
 
-void ExecuteImageFilter(const Handle& context,
-                        const Handle& cmd_queue,
-                        const Handle& image_filter,
-                        const Handle& input_image,
-                        const Handle& output_image)
+void ExecuteCmdQueue(const Handle& context, const Handle& cmd_queue)
 {
-    CheckStatus("rifCommandQueueAttachImageFilter",
-                rifCommandQueueAttachImageFilter(cmd_queue.get(),
-                                                 image_filter.get(),
-                                                 input_image.get(),
-                                                 output_image.get()));
-
     CheckStatus("rifContextExecuteCommandQueue",
                 rifContextExecuteCommandQueue(context.get(),
                                               cmd_queue.get(),
@@ -254,82 +241,57 @@ RIFDenoiser::RIFDenoiser(const CLWContext& context, const CLProgramManager *prog
 #endif
     , m_context(context)
     , m_primitives(context)
-    , m_rif_context(nullptr, nullptr)
-    , m_rif_cmd_queue(nullptr, nullptr)
-    , m_rif_image_filter(nullptr, nullptr)
-    , m_rif_out_image{{}, {nullptr, nullptr}}
+    , m_rif_context(CreateContext(m_context))
+    , m_rif_cmd_queue(CreateCmdQueue(m_rif_context))
+    , m_rif_image_filter(CreateImageFilter(m_rif_context))
+    , m_output{{}, {nullptr, nullptr}}
 {
     RegisterParameter("gpu_memory_fraction", .1f);
     RegisterParameter("start_spp", 8u);
     RegisterParameter("visible_devices", std::string());
-
-    auto device_count = GetDeviceCount();
-    auto visible_devices = GetParameter("visible_devices").GetString();
-    auto device_idx = SelectDevice(device_count, visible_devices);
-    m_rif_context = CreateContext(device_idx);
-    m_rif_cmd_queue = CreateCmdQueue(m_rif_context);
-    m_rif_image_filter = CreateImageFilter(m_rif_context);
 }
 
 void RIFDenoiser::InitInference()
 {
-    // Realloc cache if needed
-    size_t bytes_count = sizeof(float) * m_width * m_height * kInputChannels;
-
-    if (m_host_cache.size() != bytes_count)
+    if (m_inputs.empty() || m_inputs.front().cl.GetElementCount() != m_width * m_height * kInputChannels)
     {
-        m_host_cache.resize(m_width * m_height);
+        if (m_output.rif != nullptr) // Re-attach scenario
+        {
+            DetachImageFilter(m_rif_cmd_queue, m_rif_image_filter);
+        }
 
-        m_device_cache = {};
-        m_device_cache =
-            CLWBuffer<RadeonRays::float3>::Create(m_context, CL_MEM_READ_WRITE, m_width * m_height);
-
-        m_last_denoised_image = {};
-        m_last_denoised_image =
-            CLWBuffer<RadeonRays::float3>::Create(m_context, CL_MEM_READ_WRITE, m_width * m_height);
-        m_has_denoised_image = false;
-
-        m_host_cache.resize(m_width * m_height);
+        m_device_cache = CLWBuffer<RadeonRays::float3>::Create(m_context, CL_MEM_READ_WRITE, m_width * m_height);
 
         m_inputs.clear();
 
         for (const auto& input : kInputs)
         {
-            m_inputs.push_back({{}, {nullptr, nullptr}});
-
-            m_inputs.back().cl =
-                CLWBuffer<float>::Create(m_context, CL_MEM_READ_WRITE, m_width * m_height * input.second);
-
-            m_inputs.back().rif =
-                BufferToImage(m_rif_context, m_inputs.back().cl, m_width, m_height, input.second);
-
+            m_inputs.push_back(CreateImage(input.second /*image_channels*/));
             SetFilterParameter(m_rif_image_filter, GetFilterParamName(input.first), m_inputs.back().rif);
         }
 
-        m_rif_out_image.cl =
-            CLWBuffer<float>::Create(m_context, CL_MEM_READ_ONLY, m_width * m_height * 3);
+        m_output = CreateImage(3 /*image_channels*/);
 
-        m_rif_out_image.rif =
-            BufferToImage(m_rif_context, m_rif_out_image.cl, m_width, m_height, 3);
+        AttachImageFilter(m_rif_cmd_queue, m_rif_image_filter, m_inputs.front().rif, m_output.rif);
     }
 }
 
-unsigned RIFDenoiser::ReadSampleCount(CLWBuffer<RadeonRays::float3> buffer)
+unsigned RIFDenoiser::ReadSampleCount(const CLWBuffer<RadeonRays::float3>& buffer)
 {
     RadeonRays::float3 first_pixel;
-    m_context.ReadBuffer<RadeonRays::float3>(0, buffer, &first_pixel, 1).Wait();
+    m_context.ReadBuffer(0 /*idx*/, buffer, &first_pixel /*hostBuffer*/, 1 /*elemCount*/).Wait();
     return static_cast<unsigned>(first_pixel.w);
 }
 
-void RIFDenoiser::WriteToInputs(CLWBuffer<float> dst_buffer,
-                                CLWBuffer<RadeonRays::float3> src_buffer,
+void RIFDenoiser::WriteToInputs(const CLWBuffer<float>& dst_buffer,
+                                const CLWBuffer<RadeonRays::float3>& src_buffer,
                                 int dst_image_channels,
                                 int src_image_channels,
                                 int channels_to_copy)
 {
     CopyInterleaved(this,
                     dst_buffer,
-                    src_buffer,
+                    Cast<float>(src_buffer),
                     m_width,
                     m_height,
                     dst_image_channels,
@@ -352,8 +314,6 @@ PostEffect::InputTypes RIFDenoiser::GetInputTypes() const
 
 void RIFDenoiser::Apply(InputSet const& input_set, Output& output)
 {
-//    auto start_spp = GetParameter("start_spp").GetUint();
-
     if (m_width != input_set.begin()->second->width() ||
         m_height != input_set.begin()->second->height())
     {
@@ -368,8 +328,14 @@ void RIFDenoiser::Apply(InputSet const& input_set, Output& output)
         m_is_dirty = false;
     }
 
-//    bool too_few_samples = false;
+    auto start_spp = GetParameter("start_spp").GetUint();
     auto input = m_inputs.begin();
+
+    auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
+    if (!clw_inference_output)
+    {
+        throw std::runtime_error("RIFDenoiser::Apply(...): can not cast output");
+    }
 
     for (const auto& input_desc : kInputs)
     {
@@ -379,11 +345,16 @@ void RIFDenoiser::Apply(InputSet const& input_set, Output& output)
         auto clw_output = dynamic_cast<ClwOutput*>(input_set.at(type));
         auto device_mem = clw_output->data();
 
-//        if (type == OutputType::kColor && ReadSampleCount(device_mem) < start_spp)
-//        {
-//            too_few_samples = true;
-//            break;
-//        }
+        if (type == OutputType::kColor && ReadSampleCount(device_mem) < start_spp)
+        {
+            m_context.CopyBuffer(0 /*idx*/,
+                                 device_mem /*source*/,
+                                 clw_inference_output->data() /*dest*/,
+                                 0 /* srcOffset */,
+                                 0 /* destOffset */,
+                                 clw_output->data().GetElementCount()).Wait();
+            return;
+        }
 
         switch (type)
         {
@@ -401,11 +372,10 @@ void RIFDenoiser::Apply(InputSet const& input_set, Output& output)
             break;
 
         case OutputType::kDepth:
-        {
             m_primitives.Normalize(0 /*deviceIdx*/,
-                                   Cast<cl_float3>(device_mem),
-                                   Cast<cl_float3>(m_device_cache),
-                                   (int)device_mem.GetElementCount());
+                                   Cast<cl_float3>(device_mem) /*input*/,
+                                   Cast<cl_float3>(m_device_cache) /*output*/,
+                                   static_cast<int>(device_mem.GetElementCount()));
 
             WriteToInputs(input->cl /*dst_buffer*/,
                           m_device_cache /*src_buffer*/,
@@ -413,103 +383,41 @@ void RIFDenoiser::Apply(InputSet const& input_set, Output& output)
                           4 /*src_image_channels*/,
                           size /*src_channels_to_copy*/);
             break;
-        }
 
         default:
             break;
         }
+
+        ++input;
     }
 
-#ifdef ML_DENOISER_IMAGES_DIR
-    static unsigned input_index = 0;
-    SaveImage("input", tensor.data(), tensor.size(), input_index++);
-#endif
+    ExecuteCmdQueue(m_rif_context, m_rif_cmd_queue);
 
-//    if (too_few_samples)
-//    {
-//        m_start_seq_num = m_last_seq_num + 1;
-//        m_has_denoised_image = false;
-//    }
-//    else
-//    {
-//        m_context.ReadBuffer<float>(0,
-//                                    *m_inputs,
-//                                    tensor.data(),
-//                                    m_inputs->GetElementCount()).Wait();
-//
-//        tensor.tag = ++m_last_seq_num;
-//        //m_inference->PushInput(std::move(tensor));
-//    }
-
-    auto clw_inference_output = dynamic_cast<ClwOutput*>(&output);
-
-    if (!clw_inference_output)
-    {
-        throw std::runtime_error("MLDenoiser::Apply(...): can not cast output");
-    }
-
-    ExecuteImageFilter(m_rif_context,
-                       m_rif_cmd_queue,
-                       m_rif_image_filter,
-                       m_inputs.front().rif,
-                       m_rif_out_image.rif);
-
-    m_context.CopyBuffer<float>(0 /*idx*/,
-                                m_rif_out_image.cl,
-                                Cast<float>(clw_inference_output->data()),
-                                0 /* srcOffset */,
-                                0 /* destOffset */,
-                                m_rif_out_image.cl.GetElementCount()).Wait();
-
-//    auto inference_res = m_inference->PopOutput();
-//
-//    if (!inference_res.empty() && inference_res.tag >= m_start_seq_num)
-//    {
 //#ifdef ML_DENOISER_IMAGES_DIR
-//        //SaveImage("output", inference_res.data(), inference_res.size(), inference_res.tag);
+//    {
+//        static unsigned input_index = 0;
+//        auto data = ReadBuffer(m_context, m_output.cl);
+//        SaveImage("output", data.data(), data.size(), input_index++);
+//    }
 //#endif
-//        auto dest = m_host_cache.data();
-//        auto source = inference_res.data();
-//        for (auto i = 0u; i < m_width * m_height; ++i)
-//        {
-//            dest->x = *source++;
-//            dest->y = *source++;
-//            dest->z = *source++;
-//            dest->w = 1;
-//            ++dest;
-//        }
 //
-//        m_context->WriteBuffer<float3>(0 /*idx*/,
-//                                       *m_last_denoised_image,
-//                                       m_host_cache.data(),
-//                                       inference_res.size() / 3);
-//        m_has_denoised_image = true;
-//
-//        m_context->CopyBuffer<float3>(0 /*idx*/,
-//                                      *m_last_denoised_image,
-//                                      clw_inference_output->data(),
-//                                      0 /* srcOffset */,
-//                                      0 /* destOffset */,
-//                                      m_last_denoised_image->GetElementCount()).Wait();
-//    }
-//    else if (m_has_denoised_image)
-//    {
-//        m_context->CopyBuffer<float3>(0 /*idx*/,
-//                                      *m_last_denoised_image,
-//                                      clw_inference_output->data(),
-//                                      0 /* srcOffset */,
-//                                      0 /* destOffset */,
-//                                      m_last_denoised_image->GetElementCount()).Wait();
-//    }
-//    else
-//    {
-//        m_context->CopyBuffer<float3>(0 /*idx*/,
-//                                      dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data(),
-//                                      clw_inference_output->data(),
-//                                      0 /* srcOffset */,
-//                                      0 /* destOffset */,
-//                                      m_width * m_height).Wait();
-//    }
+    // Set w = 1
+    m_context.FillBuffer(0 /*idx*/,
+                         clw_inference_output->data() /*dest*/,
+                         RadeonRays::float3(0, 0, 0, 1),
+                         clw_inference_output->data().GetElementCount());
+
+    // Copy x, y, z values
+    CopyInterleaved(this,
+                    Cast<float>(clw_inference_output->data()) /*dst_buffer*/,
+                    m_output.cl /*src_buffer*/,
+                    m_width,
+                    m_height,
+                    4 /*dst_image_channels*/,
+                    0 /*dst_channels_offset*/,
+                    3 /*src_image_channels*/,
+                    0 /*scr_channels_offset*/,
+                    3 /*num_channels_to_copy*/);
 }
 
 void RIFDenoiser::SetParameter(std::string const& name, Param value)
@@ -517,6 +425,18 @@ void RIFDenoiser::SetParameter(std::string const& name, Param value)
     auto param = GetParameter(name);
     PostEffect::SetParameter(name, value);
     m_is_dirty = true;
+}
+
+RIFDenoiser::Image RIFDenoiser::CreateImage(int image_channels)
+{
+    Image image {
+        CLWBuffer<float>::Create(m_context, CL_MEM_READ_WRITE, m_width * m_height * image_channels),
+        {{}, {}},
+    };
+
+    image.rif = BufferToImage(m_rif_context, image.cl, m_width, m_height, image_channels);
+
+    return image;
 }
 
 } // namespace PostEffects

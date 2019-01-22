@@ -47,18 +47,20 @@ public:
     void SetParameter(std::string const& name, Param value) override;
 
 private:
-    struct Input
+    struct Image
     {
         CLWBuffer<float> cl;
         Handle rif;
     };
 
+    Image CreateImage(int image_channels);
+
     void InitInference();
 
-    unsigned ReadSampleCount(CLWBuffer<RadeonRays::float3> buffer);
+    unsigned ReadSampleCount(const CLWBuffer<RadeonRays::float3>& buffer);
 
-    void WriteToInputs(CLWBuffer<float> dst_buffer,
-                       CLWBuffer<RadeonRays::float3> src_buffer,
+    void WriteToInputs(const CLWBuffer<float>& dst_buffer,
+                       const CLWBuffer<RadeonRays::float3>& src_buffer,
                        int dst_image_channels,
                        int src_image_channels,
                        int channels_to_copy);
@@ -74,13 +76,8 @@ private:
 
     // GPU cache
     CLWBuffer<RadeonRays::float3> m_device_cache;
-    std::vector<Input> m_inputs;
-    Input m_rif_out_image;
-
-    // CPU cache
-    std::vector<RadeonRays::float3> m_host_cache;
-    CLWBuffer<RadeonRays::float3> m_last_denoised_image;
-    bool m_has_denoised_image = false;
+    std::vector<Image> m_inputs;
+    Image m_output;
 
     std::uint32_t m_start_seq_num = 0;
     std::uint32_t m_last_seq_num = 0;
