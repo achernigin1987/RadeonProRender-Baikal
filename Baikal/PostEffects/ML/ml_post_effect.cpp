@@ -186,7 +186,8 @@ namespace Baikal
 
                 auto dest = m_host.data();
                 auto source = res_data;
-                for (auto i = 0u; i < shape.width * shape.height; ++i)
+                auto output_shape = m_inference->GetOutputShape();
+                for (auto i = 0u; i < output_shape.width * output_shape.height; ++i)
                 {
                     dest->x = *source++;
                     dest->y = *source++;

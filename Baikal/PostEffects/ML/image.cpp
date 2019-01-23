@@ -48,12 +48,12 @@ namespace Baikal
             return *this;
         }
 
-        Image::~Image()
-        {
-            if (image != nullptr)
-            {
-                mlReleaseImage(image);
-            }
-        }
+//        Image::~Image()
+//        {
+//            if (image != nullptr)
+//            {
+//                mlReleaseImage(image);
+//            }
+//        }
     }
 }
