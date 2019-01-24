@@ -47,13 +47,5 @@ namespace Baikal
             img.image = nullptr;
             return *this;
         }
-
-//        Image::~Image()
-//        {
-//            if (image != nullptr)
-//            {
-//                mlReleaseImage(image);
-//            }
-//        }
     }
 }

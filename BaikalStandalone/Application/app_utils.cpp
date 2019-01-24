@@ -203,7 +203,7 @@ namespace Baikal
             {
                 s.post_processing_type = PostProcessingType::kWavelet;
             }
-            else if (post_processing_type == "ml")
+            else if (post_processing_type == "denoise")
             {
                 s.post_processing_type = PostProcessingType::kML;
             }

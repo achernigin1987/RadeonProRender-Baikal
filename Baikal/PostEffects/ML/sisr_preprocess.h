@@ -1,5 +1,5 @@
 /**********************************************************************
-Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2019 Advanced Micro Devices, Inc. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ namespace Baikal
             void Init(std::uint32_t width, std::uint32_t height);
 
             void Tonemap(CLWBuffer<RadeonRays::float3> dst,
-                         CLWBuffer<RadeonRays::float3> src);
+                         CLWBuffer<RadeonRays::float3> const& src);
 
             bool m_is_init = false;
             std::uint32_t m_width, m_height;

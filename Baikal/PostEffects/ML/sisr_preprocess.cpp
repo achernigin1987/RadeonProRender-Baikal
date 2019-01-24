@@ -1,5 +1,5 @@
 /**********************************************************************
-Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2019 Advanced Micro Devices, Inc. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -85,7 +85,7 @@ namespace Baikal
 
             // read spp from first pixel as 4th channel
             RadeonRays::float3 pixel = .0f;
-            context.ReadBuffer<float3>(0, clw_input->data(), &pixel, 1).Wait();
+            context.ReadBuffer(0, clw_input->data(), &pixel, 1).Wait();
             auto sample_count = static_cast<unsigned>(pixel.w);
 
             if (m_start_spp > sample_count)
@@ -114,10 +114,10 @@ namespace Baikal
                  throw std::runtime_error("map operation failed");
              }
 
-             context.ReadBuffer<float>(0,
-                                       m_input,
-                                       static_cast<float*>(host_buffer),
-                                       m_input.GetElementCount()).Wait();
+             context.ReadBuffer(0,
+                                m_input,
+                                static_cast<float*>(host_buffer),
+                                m_input.GetElementCount()).Wait();
 
             if (mlUnmapImage(m_image, host_buffer) != ML_OK)
             {
@@ -127,14 +127,15 @@ namespace Baikal
             return Image(sample_count, m_image);
         }
 
-        void SisrPreprocess::Tonemap(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+        void SisrPreprocess::Tonemap(CLWBuffer<RadeonRays::float3> dst,
+                                     CLWBuffer<RadeonRays::float3> const& src)
         {
             assert (dst.GetElementCount() >= src.GetElementCount());
 
             auto tonemapping = GetKernel("TonemapExponential");
 
             // Set kernel parameters
-            int argc = 0;
+            unsigned argc = 0;
             tonemapping.SetArg(argc++, dst);
             tonemapping.SetArg(argc++, src);
             tonemapping.SetArg(argc++, (int)src.GetElementCount());

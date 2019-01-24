@@ -44,8 +44,8 @@ namespace Baikal
         std::string envmapname;
 
         //render
-        int width;
-        int height;
+        std::uint32_t width;
+        std::uint32_t height;
         int num_bounces;
         int num_samples;
         bool interop;
@@ -90,7 +90,6 @@ namespace Baikal
         std::string base_image_file_name;
         std::string image_file_format;
 
-        //light file
         std::string light_file;
 
         //unused

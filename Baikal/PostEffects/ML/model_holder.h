@@ -41,7 +41,7 @@ namespace Baikal
                         std::string const& visible_devices);
 
 
-            ml_model GetModel()
+            const ml_model GetModel()
             {
                 return m_model;
             }
@@ -56,10 +56,10 @@ namespace Baikal
             ModelHolder& operator = (const ModelHolder&) = delete;
             ModelHolder& operator = (ModelHolder&&) = delete;
 
-            ml_context m_context;
         private:
             void ShutDown();
 
+            ml_context m_context;
             ml_model m_model;
         };
     }

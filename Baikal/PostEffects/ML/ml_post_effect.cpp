@@ -240,7 +240,7 @@ namespace Baikal
 
             auto scale_x = GetKernel("BicubicUpScaleX_x2");
 
-            int argc = 0;
+            unsigned argc = 0;
             scale_x.SetArg(argc++, m_resizer_cache);
             scale_x.SetArg(argc++, src);
             scale_x.SetArg(argc++, m_width);

@@ -99,7 +99,6 @@ namespace Baikal
             auto context = GetContext();
             unsigned channels_count = 0u;
             float real_sample_count = 0.f;
-            bool too_few_samples = false;
 
             if (!m_is_initialized)
             {
@@ -112,11 +111,6 @@ namespace Baikal
 
             for (const auto& desc : m_layout)
             {
-                if (too_few_samples)
-                {
-                    return Image(static_cast<std::uint32_t>(real_sample_count), nullptr);
-                }
-
                 auto type = desc.first;
                 auto input = inputs.at(type);
 
@@ -146,7 +140,7 @@ namespace Baikal
 
                         if (static_cast<std::uint32_t>(real_sample_count) < m_start_spp)
                         {
-                            too_few_samples = true;
+                            return Image(static_cast<std::uint32_t>(real_sample_count), nullptr);
                         }
                         break;
                     }
@@ -204,7 +198,7 @@ namespace Baikal
                 throw std::runtime_error("map operation failed");
             }
 
-            context.ReadBuffer<float>(0,
+            context.ReadBuffer(0,
                     m_input,
                     static_cast<float*>(host_buffer),
                     m_input.GetElementCount()).Wait();
@@ -224,46 +218,25 @@ namespace Baikal
 
         std::set<Renderer::OutputType> DenoiserPreprocess::GetInputTypes() const
         {
-            switch (m_model)
-            {
-                case Model::kColorDepthNormalGloss7:
-                    return std::set<Renderer::OutputType>(
-                            {
-                                    Renderer::OutputType::kColor,
-                                    Renderer::OutputType::kDepth,
-                                    Renderer::OutputType::kViewShadingNormal,
-                                    Renderer::OutputType::kGloss,
-                            });
+            std::set<Renderer::OutputType> out_set;
 
-                case Model::kColorAlbedoNormal8:
-                    return std::set<Renderer::OutputType>(
-                            {
-                                    Renderer::OutputType::kColor,
-                                    Renderer::OutputType::kAlbedo,
-                                    Renderer::OutputType::kViewShadingNormal,
-                            });
-                case Model::kColorAlbedoDepthNormal9:
-                    return std::set<Renderer::OutputType>(
-                            {
-                                    Renderer::OutputType::kColor,
-                                    Renderer::OutputType::kAlbedo,
-                                    Renderer::OutputType::kDepth,
-                                    Renderer::OutputType::kViewShadingNormal,
-                            });
-                default:
-                    throw std::runtime_error("Model is not supported");
+            for (const auto& type: m_layout)
+            {
+                out_set.insert(type.first);
             }
+
+            return out_set;
         }
 
         void DenoiserPreprocess::DivideBySampleCount(CLWBuffer<float3> dst,
-                                                     CLWBuffer<float3> src)
+                                                     CLWBuffer<float3> const& src)
         {
-            assert (dst.GetElementCount() >= src.GetElementCount());
+            assert(dst.GetElementCount() >= src.GetElementCount());
 
             auto division_kernel = GetKernel("DivideBySampleCount");
 
             // Set kernel parameters
-            int argc = 0;
+            unsigned argc = 0;
             division_kernel.SetArg(argc++, dst);
             division_kernel.SetArg(argc++, src);
             division_kernel.SetArg(argc++, (int)src.GetElementCount());

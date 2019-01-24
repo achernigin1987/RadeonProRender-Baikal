@@ -1,5 +1,5 @@
 /**********************************************************************
-Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2019 Advanced Micro Devices, Inc. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,10 @@ THE SOFTWARE.
 
 #pragma once
 
+#include "data_preprocess.h"
+
 #include "CLW.h"
 #include "Utils/clw_class.h"
-#include "data_preprocess.h"
 
 #ifdef BAIKAL_EMBED_KERNELS
 #include "embed_kernels.h"
@@ -64,7 +65,7 @@ namespace Baikal
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
             void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
-                                     CLWBuffer<RadeonRays::float3> src);
+                                     CLWBuffer<RadeonRays::float3> const& src);
 
             bool m_is_initialized = false;
             CLWParallelPrimitives m_primitives;

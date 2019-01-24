@@ -85,11 +85,11 @@ namespace Baikal
             settings.platform_index,
             settings.device_index);
 
-        m_width = (m_post_processing_type == PostProcessingType::kSISR) ?\
-            (std::uint32_t)settings.width / 2 : (std::uint32_t)settings.width;
+        m_width = (m_post_processing_type == PostProcessingType::kSISR) ?
+            settings.width / 2 : settings.width;
 
         m_height = (m_post_processing_type == PostProcessingType::kSISR) ?
-                   (std::uint32_t)settings.height / 2 : (std::uint32_t)settings.height;
+                   settings.height / 2 : settings.height;
 
         std::cout << "Running on devices: \n";
 
@@ -163,7 +163,8 @@ namespace Baikal
         if (m_post_processing_type != PostProcessingType::kSISR)
         {
             m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
-        } else
+        }
+        else
         {
             m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(2 * m_width, 2 * m_height);
             m_upscaled_img = m_cfgs[device_idx].factory->CreateOutput(2 * m_width, 2 * m_height);
