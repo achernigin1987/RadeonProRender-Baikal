@@ -145,34 +145,17 @@ namespace Baikal
             auto shape = m_inference->GetInputShape();
             auto input = m_preproc->MakeInput(input_set);
 
-            // if there's no suitable image for network input
-            if (input.image == nullptr)
+            if (input.tag == 1)
             {
-                auto color = dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data();
-                if (m_type == ModelType ::kDenoiser)
-                {
-                    context.CopyBuffer<float3>(0,
-                                               color,
-                                               clw_inference_output->data(),
-                                               0 /* srcOffset */,
-                                               0 /* destOffset */,
-                                               shape.width * shape.height).Wait();
-                }
-                else
-                {
-                    Resize_x2(clw_inference_output->data(), color);
-                }
-
-                if (input.tag == 1)
-                {
-                    m_start_seq = m_last_seq + 1;
-                    m_has_denoised_img = false;
-                }
-                return;
+                m_start_seq = m_last_seq + 1;
+                m_has_denoised_img = false;
             }
 
-            input.tag = ++m_last_seq;
-            m_inference->PushInput(std::move(input));
+            if (input.image != nullptr)
+            {
+                input.tag = ++m_last_seq;
+                m_inference->PushInput(std::move(input));
+            }
 
             auto res = m_inference->PopOutput();
 
@@ -216,6 +199,24 @@ namespace Baikal
                                            0 /* srcOffset */,
                                            0 /* destOffset */,
                                            m_last_image.GetElementCount()).Wait();
+            }
+            else
+            {
+                auto color = dynamic_cast<ClwOutput*>(input_set.at(OutputType::kColor))->data();
+
+                if (m_type == ModelType ::kDenoiser)
+                {
+                    context.CopyBuffer<float3>(0,
+                                               color,
+                                               clw_inference_output->data(),
+                                               0 /* srcOffset */,
+                                               0 /* destOffset */,
+                                               shape.width * shape.height).Wait();
+                }
+                else
+                {
+                    Resize_x2(clw_inference_output->data(), color);
+                }
             }
         }
 
