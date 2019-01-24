@@ -50,7 +50,7 @@ namespace Baikal
         {
             auto copy_kernel = GetKernel("CopyInterleaved");
 
-            int argc = 0;
+            unsigned argc = 0;
             copy_kernel.SetArg(argc++, dst_buffer);
             copy_kernel.SetArg(argc++, src_buffer);
             copy_kernel.SetArg(argc++, width);

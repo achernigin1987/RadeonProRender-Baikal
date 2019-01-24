@@ -66,7 +66,7 @@ namespace Baikal
             void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
                                      CLWBuffer<RadeonRays::float3> src);
 
-            bool m_is_init = false;
+            bool m_is_initialized = false;
             CLWParallelPrimitives m_primitives;
             std::uint32_t m_width, m_height;
             std::uint32_t m_channels = 0;

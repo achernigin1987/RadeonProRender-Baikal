@@ -203,7 +203,6 @@ endif (BAIKAL_EMBED_KERNELS)
 
 target_compile_features(Baikal PRIVATE cxx_std_14)
 target_include_directories(Baikal PUBLIC "${Baikal_SOURCE_DIR}/Baikal")
-target_include_directories(Baikal PUBLIC "${Baikal_SOURCE_DIR}/Baikal")
 target_link_libraries(Baikal PUBLIC RadeonRays)
 
 # Add 'treat warnings as errors' flag and 'Wall' flag on Unix
@@ -240,7 +239,7 @@ endif ()
 
 # add ml libs
 target_include_directories(Baikal PUBLIC "${Baikal_SOURCE_DIR}/3rdparty/RadeonProML")
-target_link_directories(Baikal PUBLIC "${Baikal_SOURCE_DIR}/3rdparty/RadeonProML")
+target_link_libraries(Baikal PUBLIC "${Baikal_SOURCE_DIR}/3rdparty/RadeonProML/libRadeonProML.so")
 target_link_libraries(Baikal PUBLIC libRadeonProML.so)
 
 file(TO_CMAKE_PATH ${BAIKAL_KERNELS_SRC} BAIKAL_KERNELS_SRC_CMAKE)

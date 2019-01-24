@@ -37,10 +37,10 @@ namespace Baikal
         using OutputType = Renderer::OutputType;
 
         DenoiserPreprocess::DenoiserPreprocess(CLWContext context,
-                                               CLProgramManager const *program_manager,
+                                               CLProgramManager const* program_manager,
                                                std::uint32_t start_spp)
         : DataPreprocess(context, program_manager, start_spp)
-        , m_primitives(CLWParallelPrimitives(context))
+        , m_primitives(context)
         , m_model(Model::kColorAlbedoDepthNormal9)
         , m_context(mlCreateContext())
         {
@@ -91,7 +91,7 @@ namespace Baikal
                 throw std::runtime_error("can not create ml_image");
             }
 
-            m_is_init = true;
+            m_is_initialized = true;
         }
 
         Image DenoiserPreprocess::MakeInput(PostEffect::InputSet const& inputs)
@@ -101,13 +101,13 @@ namespace Baikal
             float real_sample_count = 0.f;
             bool too_few_samples = false;
 
-            if (!m_is_init)
+            if (!m_is_initialized)
             {
                 auto color = inputs.at(Renderer::OutputType::kColor);
                 m_width = color->width();
                 m_height = color->height();
                 Init(m_width, m_height);
-                m_is_init = true;
+                m_is_initialized = true;
             }
 
             for (const auto& desc : m_layout)
@@ -128,7 +128,7 @@ namespace Baikal
                     case OutputType::kColor:
                     {
                         DivideBySampleCount(CLWBuffer<float3>::CreateFromClBuffer(m_cache),
-                                            CLWBuffer<float3>::CreateFromClBuffer(device_mem));
+                                            device_mem);
 
                         WriteToInputs(m_input,
                                       m_cache,
