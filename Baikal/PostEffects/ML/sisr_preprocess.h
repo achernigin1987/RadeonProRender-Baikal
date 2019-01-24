@@ -45,6 +45,8 @@ namespace Baikal
 
             std::set<Renderer::OutputType> GetInputTypes() const override;
 
+            std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const override;
+
         private:
             void Init(std::uint32_t width, std::uint32_t height);
 

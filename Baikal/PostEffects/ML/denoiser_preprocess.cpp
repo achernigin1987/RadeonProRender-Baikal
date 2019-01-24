@@ -64,6 +64,11 @@ namespace Baikal
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     break;
             }
+
+            for (const auto& layer: m_layout)
+            {
+                m_channels += layer.second;
+            }
         }
 
         void DenoiserPreprocess::Init(std::uint32_t width, std::uint32_t height)
@@ -72,13 +77,7 @@ namespace Baikal
 
             m_cache = CLWBuffer<float>::Create(context,
                                                CL_MEM_READ_WRITE,
-                                               width * height);
-
-            m_channels = 0;
-            for (const auto& layer: m_layout)
-            {
-                m_channels += layer.second;
-            }
+                                               4 * width * height);
 
             m_input = CLWBuffer<float>::Create(context,
                                                CL_MEM_READ_WRITE,
@@ -124,8 +123,6 @@ namespace Baikal
                 auto clw_output = dynamic_cast<ClwOutput*>(input);
                 auto device_mem = clw_output->data();
 
-                unsigned channels_to_copy = 0u;
-
                 switch (type)
                 {
                     case OutputType::kColor:
@@ -133,17 +130,17 @@ namespace Baikal
                         DivideBySampleCount(CLWBuffer<float3>::CreateFromClBuffer(m_cache),
                                             CLWBuffer<float3>::CreateFromClBuffer(device_mem));
 
-                        channels_count += 3;
-
                         WriteToInputs(m_input,
                                       m_cache,
                                       m_width,
                                       m_height,
-                                      channels_count,
-                                      m_channels,
-                                      0,
-                                      4,
-                                      3);
+                                      channels_count, // dst channels offset
+                                      m_channels,     // dst channels num
+                                      0,              // src channels offset
+                                      4,              // src channels num
+                                      3);             // channels to copy
+
+                        channels_count += 3;
 
                         context.ReadBuffer<float>(0, m_cache, &real_sample_count, 3, 1).Wait();
 
@@ -166,50 +163,36 @@ namespace Baikal
                                       CLWBuffer<float>::CreateFromClBuffer(normalized_buf),
                                       m_width,
                                       m_height,
-                                      channels_count,
-                                      m_channels,
-                                      0,
-                                      4,
-                                      1).Wait();
+                                      channels_count, // dst channels offset
+                                      m_channels,     // dst channels num
+                                      0,              // src channels offset
+                                      4,              // src channels num
+                                      1).Wait();      // channels to copy
 
                         channels_count += 1;
                         break;
                     }
                     case OutputType::kViewShadingNormal:
-                    {
-                        channels_to_copy = 2;
-                        break;
-                    }
                     case OutputType::kGloss:
-                    {
-                        channels_to_copy = 1;
-                        break;
-                    }
                     case OutputType::kAlbedo:
                     {
-                        channels_to_copy = 3;
-                        break;
+                        DivideBySampleCount(CLWBuffer<float3>::CreateFromClBuffer(m_cache),
+                                            CLWBuffer<float3>::CreateFromClBuffer(device_mem));
+
+                        WriteToInputs(m_input,
+                                      CLWBuffer<float>::CreateFromClBuffer(m_cache),
+                                      m_width,
+                                      m_height,
+                                      channels_count,       // dst channels offset
+                                      m_channels,           // dst channels num
+                                      0,                    // src channels offset
+                                      4,                    // src channels num
+                                      desc.second).Wait();  // channels to copy
+
+                        channels_count += desc.second;
                     }
                     default:
                         break;
-                }
-
-                if (channels_to_copy)
-                {
-                    DivideBySampleCount(CLWBuffer<float3>::CreateFromClBuffer(m_cache),
-                                        CLWBuffer<float3>::CreateFromClBuffer(device_mem));
-
-                    WriteToInputs(m_input,
-                                  m_cache,
-                                  m_width,
-                                  m_height,
-                                  channels_count,
-                                  m_channels,
-                                  0,
-                                  4,
-                                  channels_to_copy).Wait();
-
-                    channels_count += channels_to_copy;
                 }
             }
 
@@ -232,6 +215,11 @@ namespace Baikal
             }
 
             return Image(static_cast<std::uint32_t>(real_sample_count), m_image);
+        }
+
+        std::tuple<std::uint32_t, std::uint32_t> DenoiserPreprocess::ChannelsNum() const
+        {
+            return std::tuple<std::uint32_t, std::uint32_t>(m_channels, 3);
         }
 
         std::set<Renderer::OutputType> DenoiserPreprocess::GetInputTypes() const

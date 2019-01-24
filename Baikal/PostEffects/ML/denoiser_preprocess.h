@@ -57,6 +57,7 @@ namespace Baikal
 
             std::set<Renderer::OutputType> GetInputTypes() const override;
 
+            std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const override;
         private:
             void Init(std::uint32_t width, std::uint32_t height);
 
@@ -69,7 +70,7 @@ namespace Baikal
             CLWParallelPrimitives m_primitives;
             std::uint32_t m_start_spp;
             std::uint32_t m_width, m_height;
-            std::uint32_t m_channels;
+            std::uint32_t m_channels = 0;
             Model m_model;
             MemoryLayout m_layout;
             CLWBuffer<float> m_cache;

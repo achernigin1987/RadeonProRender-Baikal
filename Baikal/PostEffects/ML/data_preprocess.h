@@ -47,6 +47,9 @@ namespace Baikal
 
             virtual std::set<Renderer::OutputType> GetInputTypes() const = 0;
 
+            // returns channels num at input and output
+            virtual std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const = 0;
+
             void ResetSpp(std::uint32_t spp)
             { m_start_spp = spp; };
 

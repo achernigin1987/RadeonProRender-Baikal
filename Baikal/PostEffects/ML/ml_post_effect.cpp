@@ -76,6 +76,8 @@ namespace Baikal
             auto visible_devices = GetParameter("visible_devices").GetString();
             m_preproc->ResetSpp(GetParameter("start_spp").GetUint());
 
+            auto channels = m_preproc->ChannelsNum();
+
             std::string model_path;
 
             switch (m_type)
@@ -83,15 +85,15 @@ namespace Baikal
                 case ModelType::kDenoiser:
                     return std::unique_ptr<Inference>(
                             new Inference("models/color_albedo_depth_normal_9_v3.pb",
-                                          {ML_FLOAT32, width, height},
-                                          {ML_FLOAT32, width, height},
+                                          {ML_FLOAT32, width, height, std::get<0>(channels)},
+                                          {ML_FLOAT32, width, height, std::get<1>(channels)},
                                           gpu_memory_fraction,
                                           visible_devices));
                 case ModelType::kSisr:
                     return std::unique_ptr<Inference>(
                             new Inference("models/esrgan-05x3x32-198135.pb",
-                                          {ML_FLOAT32, width, height, 3},
-                                          {ML_FLOAT32, 2 * width, 2 * height, 3},
+                                          {ML_FLOAT32, width, height, std::get<0>(channels)},
+                                          {ML_FLOAT32, 2 * width, 2 * height, std::get<1>(channels)},
                                           gpu_memory_fraction,
                                           visible_devices));
 

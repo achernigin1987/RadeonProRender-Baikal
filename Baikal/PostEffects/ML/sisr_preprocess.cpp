@@ -57,6 +57,11 @@ namespace Baikal
             }
         }
 
+        std::tuple<std::uint32_t, std::uint32_t> SisrPreprocess::ChannelsNum() const
+        {
+            return std::tuple<std::uint32_t, std::uint32_t>(3, 3);
+        }
+
         Image SisrPreprocess::MakeInput(PostEffect::InputSet const& inputs)
         {
             auto color_aov = inputs.begin()->second;
@@ -71,7 +76,8 @@ namespace Baikal
 
             auto clw_input = dynamic_cast<ClwOutput *>(color_aov);
 
-            if (clw_input == nullptr) {
+            if (clw_input == nullptr)
+            {
                 throw std::runtime_error("SisrPreprocess::MakeInput(..): incorrect input");
             }
 
