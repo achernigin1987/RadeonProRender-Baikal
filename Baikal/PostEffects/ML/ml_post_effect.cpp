@@ -1,5 +1,5 @@
-    /**********************************************************************
- Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+/**********************************************************************
+ Copyright (c) 2019 Advanced Micro Devices, Inc. All rights reserved.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,7 @@ namespace Baikal
 #else
         : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl")
 #endif
+        , m_inference(nullptr)
         , m_type(type)
         , m_is_dirty(true)
         , m_has_denoised_img(false)
@@ -48,22 +49,17 @@ namespace Baikal
         , m_last_seq(0)
         , m_program(program_manager)
         {
-            m_inference = nullptr;
-
             RegisterParameter("gpu_memory_fraction", .7f);
             RegisterParameter("visible_devices", std::string());
             RegisterParameter("start_spp", 1u);
-
             // init preprocessing
             switch (m_type)
             {
-                case ModelType ::kDenoiser:
-                    m_preproc = std::unique_ptr<DataPreprocess>(
-                            new DenoiserPreprocess(GetContext(), m_program));
+                case ModelType::kDenoiser:
+                    m_preproc = std::make_unique<DenoiserPreprocess>(GetContext(), m_program);
                     break;
-                case ModelType ::kSisr:
-                    m_preproc = std::unique_ptr<SisrPreprocess>(
-                            new SisrPreprocess(GetContext(), m_program));
+                case ModelType::kSisr:
+                    m_preproc = std::make_unique<SisrPreprocess>(GetContext(), m_program);
                     break;
                 default:
                     throw std::logic_error("unsupported model type");
@@ -83,17 +79,17 @@ namespace Baikal
             switch (m_type)
             {
                 case ModelType::kDenoiser:
-                    return std::unique_ptr<Inference>(
-                            new Inference("models/color_albedo_depth_normal_9_v3.pb",
-                                          {ML_FLOAT32, width, height, std::get<0>(channels)},
-                                          {ML_FLOAT32, width, height, std::get<1>(channels)},
+                    return std::make_unique<Inference>(
+                            "models/color_albedo_depth_normal_9_v3.pb",
+                                          ml_image_info {ML_FLOAT32, width, height, std::get<0>(channels)},
+                                          ml_image_info {ML_FLOAT32, width, height, std::get<1>(channels)},
                                           gpu_memory_fraction,
-                                          visible_devices));
+                                          visible_devices);
                 case ModelType::kSisr:
                     return std::unique_ptr<Inference>(
                             new Inference("models/esrgan-05x3x32-198135.pb",
-                                          {ML_FLOAT32, width, height, std::get<0>(channels)},
-                                          {ML_FLOAT32, 2 * width, 2 * height, std::get<1>(channels)},
+                                          ml_image_info {ML_FLOAT32, width, height, std::get<0>(channels)},
+                                          ml_image_info {ML_FLOAT32, 2 * width, 2 * height, std::get<1>(channels)},
                                           gpu_memory_fraction,
                                           visible_devices));
 
@@ -162,7 +158,7 @@ namespace Baikal
             if (res.image != ML_INVALID_HANDLE && res.tag >= m_start_seq)
             {
                 size_t res_size;
-                auto res_data = static_cast<float *>(mlMapImage(res.image, &res_size));
+                auto res_data = static_cast<float*>(mlMapImage(res.image, &res_size));
 
                 if (res_data == nullptr)
                 {
@@ -183,22 +179,22 @@ namespace Baikal
 
                 mlUnmapImage(res.image, res_data);
 
-                context.WriteBuffer<float3>(0,
-                                            m_last_image,
-                                            m_host.data(),
-                                            res_size / (3 * sizeof(float)));
+                context.WriteBuffer(0,
+                                    m_last_image,
+                                    m_host.data(),
+                                    res_size / (3 * sizeof(float)));
 
                 m_has_denoised_img = true;
             }
 
             if (m_has_denoised_img)
             {
-                context.CopyBuffer<float3>(0,
-                                           m_last_image,
-                                           clw_inference_output->data(),
-                                           0 /* srcOffset */,
-                                           0 /* destOffset */,
-                                           m_last_image.GetElementCount()).Wait();
+                context.CopyBuffer(0,
+                                   m_last_image,
+                                   clw_inference_output->data(),
+                                   0 /* srcOffset */,
+                                   0 /* destOffset */,
+                                   m_last_image.GetElementCount()).Wait();
             }
             else
             {

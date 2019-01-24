@@ -26,20 +26,6 @@ THE SOFTWARE.
 #include <RadeonProML.h>
 
 
-namespace {
-
-void CheckModelStatus(ml_model model, bool status)
-{
-    if (!status)
-    {
-        std::vector<char> buffer(1024);
-        throw std::runtime_error(mlGetModelError(model, buffer.data(), buffer.size()));
-    }
-}
-
-} // namespace
-
-
 namespace Baikal
 {
     namespace PostEffects
@@ -164,5 +150,15 @@ namespace Baikal
             m_input_queue.push({0, ML_INVALID_HANDLE});
             m_worker.join();
         }
+
+        void Inference::CheckModelStatus(ml_model model, bool status)
+        {
+            if (!status)
+            {
+                std::vector<char> buffer(1024);
+                throw std::runtime_error(mlGetModelError(model, buffer.data(), buffer.size()));
+            }
+        }
+
     }
 }
