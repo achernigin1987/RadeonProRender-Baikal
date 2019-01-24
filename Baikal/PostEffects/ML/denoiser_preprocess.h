@@ -68,7 +68,6 @@ namespace Baikal
 
             bool m_is_init = false;
             CLWParallelPrimitives m_primitives;
-            std::uint32_t m_start_spp;
             std::uint32_t m_width, m_height;
             std::uint32_t m_channels = 0;
             Model m_model;

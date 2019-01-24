@@ -144,7 +144,7 @@ namespace Baikal
 
                         context.ReadBuffer<float>(0, m_cache, &real_sample_count, 3, 1).Wait();
 
-                        if (real_sample_count < m_start_spp)
+                        if (static_cast<std::uint32_t>(real_sample_count) < m_start_spp)
                         {
                             too_few_samples = true;
                         }

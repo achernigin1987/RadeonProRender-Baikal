@@ -196,7 +196,7 @@ void CopyInterleaved(GLOBAL float4* restrict dst,
     }
 }
 
-static float3 ConvlutionCompute(float4 f0, float4 f1, float4 f2, float4 f3)
+static float3 ConvolutionCompute(float4 f0, float4 f1, float4 f2, float4 f3)
 {
     const float t = 0.5f;
     float4 a0 = f1;
@@ -226,10 +226,10 @@ void BicubicUpScaleX_x2(// size of the dst buffer should be enough
         return;
     }
 
-    dst[idx].xyz = ConvlutionCompute(src[src_idx - 1],
-                                     src[src_idx],
-                                     src[src_idx + 1],
-                                     src[src_idx + 2]);
+    dst[idx].xyz = ConvolutionCompute(src[src_idx - 1],
+                                      src[src_idx],
+                                      src[src_idx + 1],
+                                      src[src_idx + 2]);
 
 
 }
@@ -258,10 +258,10 @@ void BicubicUpScaleY_x2(// size of the dst buffer should be enough to store
         return;
     }
 
-    dst[idx].xyz = ConvlutionCompute(src[src_idx - width],
-                                     src[src_idx],
-                                     src[src_idx + width],
-                                     src[src_idx + 2 * width]);
+    dst[idx].xyz = ConvolutionCompute(src[src_idx - width],
+                                      src[src_idx],
+                                      src[src_idx + width],
+                                      src[src_idx + 2 * width]);
 }
 
 #endif
