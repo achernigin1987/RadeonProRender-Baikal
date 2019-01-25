@@ -20,7 +20,7 @@
  THE SOFTWARE.
  ********************************************************************/
 
-#include "ml_post_effect.h"
+#include "PostEffects/ML/ml_post_effect.h"
 #include "denoiser_preprocess.h"
 #include "sisr_preprocess.h"
 

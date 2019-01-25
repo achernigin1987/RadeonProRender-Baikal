@@ -45,8 +45,7 @@ namespace Baikal
         {
             ml_image_info image_info;
             // specify input tensor shape for model
-            CheckModelStatus(m_model.GetModel(),
-                             mlGetModelInfo(m_model.GetModel(), &image_info, NULL) == ML_OK);
+            CheckModelStatus(mlGetModelInfo(m_model.GetModel(), &image_info, NULL));
 
             if (image_info.channels != input_desc.channels)
             {
@@ -54,17 +53,10 @@ namespace Baikal
             }
 
             m_input_desc.dtype = image_info.dtype;
-            if (mlSetModelInputInfo(m_model.GetModel(), &m_input_desc) != ML_OK)
-            {
-                throw std::runtime_error(
-                        "can not set input shape to model due to unknown reason");
-            }
+            CheckModelStatus(mlSetModelInputInfo(m_model.GetModel(), &m_input_desc));
 
             // get output tensor shape for out model
-            if (mlGetModelInfo(m_model.GetModel(), NULL, &m_output_desc) != ML_OK)
-            {
-                throw std::runtime_error("can not get input shape");
-            }
+            CheckModelStatus(mlGetModelInfo(m_model.GetModel(), NULL, &m_output_desc));
 
             m_worker = std::thread(&Inference::DoInference, this);
         }
@@ -131,16 +123,7 @@ namespace Baikal
                 }
 
                 Image output = { input.tag, AllocImage(m_output_desc) };
-
-                if (mlInfer(m_model.GetModel(), input.image, output.image) != ML_OK)
-                {
-                    const size_t size = 1024;
-                    char buffer[size];
-                    mlGetModelError(m_model.GetModel(), buffer, size);
-                    std::cerr << "Can't perform inference: " << buffer << std::endl;
-                    continue;
-                }
-
+                CheckModelStatus(mlInfer(m_model.GetModel(), input.image, output.image));
                 m_output_queue.push(std::move(output));
             }
         }
@@ -151,12 +134,14 @@ namespace Baikal
             m_worker.join();
         }
 
-        void Inference::CheckModelStatus(ml_model model, bool status)
+        void Inference::CheckModelStatus(ml_status status)
         {
-            if (!status)
+            if (status != ML_OK)
             {
                 std::vector<char> buffer(1024);
-                throw std::runtime_error(mlGetModelError(model, buffer.data(), buffer.size()));
+                throw std::runtime_error(mlGetModelError(m_model.GetModel(),
+                                                         buffer.data(),
+                                                         buffer.size()));
             }
         }
 

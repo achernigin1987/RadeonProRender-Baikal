@@ -42,7 +42,7 @@ namespace Baikal
         : DataPreprocess(context, program_manager, start_spp)
         , m_primitives(context)
         , m_model(Model::kColorAlbedoDepthNormal9)
-        , m_context(mlCreateContext())
+        , m_context(mlCreateContext(), mlReleaseContext)
         {
             switch (m_model)
             {
@@ -84,7 +84,7 @@ namespace Baikal
                                                m_channels * width * height);
 
             ml_image_info image_info = {ML_FLOAT32, m_width, m_height, m_channels};
-            m_image = mlCreateImage(m_context, &image_info);
+            m_image = mlCreateImage(m_context.get(), &image_info);
 
             if (!m_image)
             {
@@ -228,7 +228,7 @@ namespace Baikal
             return out_set;
         }
 
-        void DenoiserPreprocess::DivideBySampleCount(CLWBuffer<float3> dst,
+        void DenoiserPreprocess::DivideBySampleCount(CLWBuffer<float3> const& dst,
                                                      CLWBuffer<float3> const& src)
         {
             assert(dst.GetElementCount() >= src.GetElementCount());

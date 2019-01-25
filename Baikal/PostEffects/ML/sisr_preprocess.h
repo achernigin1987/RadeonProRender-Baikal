@@ -58,7 +58,7 @@ namespace Baikal
             CLWBuffer<float> m_input;
             CLWBuffer<float> m_resizer_cache;
             CLWBuffer<RadeonRays::float3> m_cache;
-            ml_context m_context;
+            Handle<ml_context> m_context;
             ml_image m_image;
         };
     }

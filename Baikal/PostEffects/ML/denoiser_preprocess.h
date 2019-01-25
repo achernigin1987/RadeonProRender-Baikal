@@ -64,7 +64,7 @@ namespace Baikal
 
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, std::size_t>>;
 
-            void DivideBySampleCount(CLWBuffer<RadeonRays::float3> dst,
+            void DivideBySampleCount(CLWBuffer<RadeonRays::float3> const& dst,
                                      CLWBuffer<RadeonRays::float3> const& src);
 
             bool m_is_initialized = false;
@@ -75,7 +75,7 @@ namespace Baikal
             MemoryLayout m_layout;
             CLWBuffer<float> m_cache;
             CLWBuffer<float> m_input;
-            ml_context m_context;
+            Handle<ml_context> m_context;
             ml_image m_image;
         };
     }

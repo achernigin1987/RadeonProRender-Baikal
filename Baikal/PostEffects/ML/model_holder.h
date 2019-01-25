@@ -43,7 +43,7 @@ namespace Baikal
 
             const ml_model GetModel()
             {
-                return m_model;
+                return m_model.get();
             }
 
             ml_image CreateImage(ml_image_info const& info);
@@ -57,10 +57,11 @@ namespace Baikal
             ModelHolder& operator = (ModelHolder&&) = delete;
 
         private:
-            void ShutDown();
+            template<class T>
+            using Handle = std::unique_ptr<typename std::remove_pointer<T>::type, void (*)(T)>;
 
-            ml_context m_context;
-            ml_model m_model;
+            Handle<ml_context> m_context;
+            Handle<ml_model> m_model;
         };
     }
 }

@@ -35,7 +35,7 @@ namespace Baikal
                                        Baikal::CLProgramManager const *program_manager,
                                        std::uint32_t start_spp)
         : DataPreprocess(context, program_manager, start_spp)
-        , m_context(mlCreateContext())
+        , m_context(mlCreateContext(), mlReleaseContext)
         {}
 
         void SisrPreprocess::Init(std::uint32_t width, std::uint32_t height)
@@ -49,7 +49,7 @@ namespace Baikal
                                                3 * width * height);
 
             ml_image_info image_info = {ML_FLOAT32, width, height, 3};
-            m_image = mlCreateImage(m_context, &image_info);
+            m_image = mlCreateImage(m_context.get(), &image_info);
 
             if (!m_image)
             {

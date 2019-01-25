@@ -32,41 +32,32 @@ namespace Baikal
         ModelHolder::ModelHolder(std::string const& model_path,
                                  float gpu_memory_fraction,
                                  std::string const& visible_devices)
+        : m_context(mlCreateContext(), mlReleaseContext)
+        , m_model(nullptr, nullptr)
         {
-            try
+            if (m_context == ML_INVALID_HANDLE)
             {
-                m_context = mlCreateContext();
-
-                if (m_context == ML_INVALID_HANDLE)
-                {
-                    throw std::runtime_error("can't create ml context");
-                }
-
-                ml_model_params params = {};
-                params.model_path = model_path.c_str();
-                params.gpu_memory_fraction = gpu_memory_fraction;
-                params.visible_devices = !visible_devices.empty() ?
-                                         visible_devices.c_str() : nullptr;
-
-                m_model = mlCreateModel(m_context, &params);
-
-                if (m_model == ML_INVALID_HANDLE)
-                {
-                    throw std::runtime_error(
-                            "can't create ml model, check that model is not absent or valid");
-                }
+                throw std::runtime_error("can't create ml context");
             }
 
-            catch (const std::exception& ex)
+            ml_model_params params = {};
+            params.model_path = model_path.c_str();
+            params.gpu_memory_fraction = gpu_memory_fraction;
+            params.visible_devices = !visible_devices.empty() ?
+                                     visible_devices.c_str() : nullptr;
+
+            m_model = Handle<ml_model>(mlCreateModel(m_context.get(), &params), mlReleaseModel);
+
+            if (m_model == ML_INVALID_HANDLE)
             {
-                ShutDown();
-                throw;
+                throw std::runtime_error(
+                        "can't create ml model, check that model is not absent or valid");
             }
         }
 
         ml_image ModelHolder::CreateImage(ml_image_info const& info)
         {
-            auto tensor = mlCreateImage(m_context, &info);
+            auto tensor = mlCreateImage(m_context.get(), &info);
 
             if (tensor == ML_INVALID_HANDLE)
             {
@@ -77,21 +68,6 @@ namespace Baikal
         }
 
         ModelHolder::~ModelHolder()
-        {
-            ShutDown();
-        }
-
-        void ModelHolder::ShutDown()
-        {
-            if (m_model)
-            {
-                mlReleaseModel(m_model);
-            }
-
-            if (m_context)
-            {
-                mlReleaseContext(m_context);
-            }
-        }
+        {}
     }
 }

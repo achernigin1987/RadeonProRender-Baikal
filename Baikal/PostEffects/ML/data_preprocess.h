@@ -54,6 +54,8 @@ namespace Baikal
             { m_start_spp = spp; };
 
         protected:
+            template<class T>
+            using Handle = std::unique_ptr<typename std::remove_pointer<T>::type, void (*)(T)>;
 
             CLWEvent WriteToInputs(CLWBuffer<float> dst_buffer,
                                    CLWBuffer<float> src_buffer,
