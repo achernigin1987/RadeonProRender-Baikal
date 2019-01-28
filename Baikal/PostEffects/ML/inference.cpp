@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 
-
+#include "PostEffects/ML/error_handler.h"
 #include "inference.h"
 #include <cassert>
 #include <RadeonProML.h>
@@ -45,7 +45,8 @@ namespace Baikal
         {
             ml_image_info image_info;
             // specify input tensor shape for model
-            CheckModelStatus(mlGetModelInfo(m_model.GetModel(), &image_info, NULL));
+            CheckModelStatus(m_model.GetModel(),
+                    mlGetModelInfo(m_model.GetModel(), &image_info, NULL));
 
             if (image_info.channels != input_desc.channels)
             {
@@ -53,10 +54,12 @@ namespace Baikal
             }
 
             m_input_desc.dtype = image_info.dtype;
-            CheckModelStatus(mlSetModelInputInfo(m_model.GetModel(), &m_input_desc));
+            CheckModelStatus(m_model.GetModel(),
+                    mlSetModelInputInfo(m_model.GetModel(), &m_input_desc));
 
             // get output tensor shape for out model
-            CheckModelStatus(mlGetModelInfo(m_model.GetModel(), NULL, &m_output_desc));
+            CheckModelStatus(m_model.GetModel(),
+                    mlGetModelInfo(m_model.GetModel(), NULL, &m_output_desc));
 
             m_worker = std::thread(&Inference::DoInference, this);
         }
@@ -123,7 +126,10 @@ namespace Baikal
                 }
 
                 Image output = { input.tag, AllocImage(m_output_desc) };
-                CheckModelStatus(mlInfer(m_model.GetModel(), input.image, output.image));
+
+                CheckModelStatus(m_model.GetModel(),
+                        mlInfer(m_model.GetModel(), input.image, output.image));
+
                 m_output_queue.push(std::move(output));
             }
         }
@@ -133,17 +139,5 @@ namespace Baikal
             m_input_queue.push({0, ML_INVALID_HANDLE});
             m_worker.join();
         }
-
-        void Inference::CheckModelStatus(ml_status status)
-        {
-            if (status != ML_OK)
-            {
-                std::vector<char> buffer(1024);
-                throw std::runtime_error(mlGetModelError(m_model.GetModel(),
-                                                         buffer.data(),
-                                                         buffer.size()));
-            }
-        }
-
     }
 }

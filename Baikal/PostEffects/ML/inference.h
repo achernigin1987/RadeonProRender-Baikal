@@ -73,7 +73,6 @@ namespace Baikal
 
         private:
             void Shutdown();
-            void CheckModelStatus(ml_status status);
 
             std::thread m_worker;
         };

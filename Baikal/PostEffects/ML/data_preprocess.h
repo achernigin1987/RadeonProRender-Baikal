@@ -57,8 +57,10 @@ namespace Baikal
             template<class T>
             using Handle = std::unique_ptr<typename std::remove_pointer<T>::type, void (*)(T)>;
 
-            CLWEvent WriteToInputs(CLWBuffer<float> dst_buffer,
-                                   CLWBuffer<float> src_buffer,
+            unsigned ReadSpp(CLWBuffer<RadeonRays::float3> const& buffer);
+
+            CLWEvent WriteToInputs(CLWBuffer<float> const& dst_buffer,
+                                   CLWBuffer<float> const& src_buffer,
                                    int width,
                                    int height,
                                    int dst_channels_offset,

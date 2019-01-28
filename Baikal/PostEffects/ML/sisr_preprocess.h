@@ -50,7 +50,7 @@ namespace Baikal
         private:
             void Init(std::uint32_t width, std::uint32_t height);
 
-            void Tonemap(CLWBuffer<RadeonRays::float3> dst,
+            void Tonemap(CLWBuffer<RadeonRays::float3> const& dst,
                          CLWBuffer<RadeonRays::float3> const& src);
 
             bool m_is_init = false;

@@ -28,7 +28,8 @@ set(POSTEFFECT_ML_SOURCES
     PostEffects/ML/data_preprocess.h
     PostEffects/ML/data_preprocess.cpp
     PostEffects/ML/image.h
-    PostEffects/ML/image.cpp)
+    PostEffects/ML/image.cpp
+    PostEffects/ML/error_handler.h)
 
 set(POSTEFFECT_SOURCES
     PostEffects/clw_post_effect.h

@@ -38,8 +38,8 @@ namespace Baikal
         {  }
 
 
-        CLWEvent DataPreprocess::WriteToInputs(CLWBuffer<float> dst_buffer,
-                                               CLWBuffer<float> src_buffer,
+        CLWEvent DataPreprocess::WriteToInputs(CLWBuffer<float> const& dst_buffer,
+                                               CLWBuffer<float> const& src_buffer,
                                                int width,
                                                int height,
                                                int dst_channels_offset,
@@ -71,6 +71,13 @@ namespace Baikal
                                          thread_num,
                                          64,
                                          copy_kernel);
+        }
+
+        unsigned DataPreprocess::ReadSpp(CLWBuffer<RadeonRays::float3> const &buffer)
+        {
+            RadeonRays::float3 pixel;
+            GetContext().ReadBuffer(0, buffer, &pixel, 1).Wait();
+            return static_cast<unsigned>(pixel.w);
         }
     }
 }

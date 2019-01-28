@@ -84,9 +84,7 @@ namespace Baikal
             auto context = GetContext();
 
             // read spp from first pixel as 4th channel
-            RadeonRays::float3 pixel = .0f;
-            context.ReadBuffer(0, clw_input->data(), &pixel, 1).Wait();
-            auto sample_count = static_cast<unsigned>(pixel.w);
+            auto sample_count = ReadSpp(clw_input->data());
 
             if (m_start_spp > sample_count)
             {
@@ -127,7 +125,7 @@ namespace Baikal
             return Image(sample_count, m_image);
         }
 
-        void SisrPreprocess::Tonemap(CLWBuffer<RadeonRays::float3> dst,
+        void SisrPreprocess::Tonemap(CLWBuffer<RadeonRays::float3> const& dst,
                                      CLWBuffer<RadeonRays::float3> const& src)
         {
             assert (dst.GetElementCount() >= src.GetElementCount());

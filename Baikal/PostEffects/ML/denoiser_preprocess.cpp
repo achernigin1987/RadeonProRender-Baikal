@@ -1,5 +1,5 @@
 /**********************************************************************
- Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+ Copyright (c) 2019 Advanced Micro Devices, Inc. All rights reserved.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 
 
 #include "PostEffects/ML/denoiser_preprocess.h"
+#include "PostEffects/ML/error_handler.h"
 
 #include "CLWBuffer.h"
 #include "Output/clwoutput.h"
@@ -86,9 +87,10 @@ namespace Baikal
             ml_image_info image_info = {ML_FLOAT32, m_width, m_height, m_channels};
             m_image = mlCreateImage(m_context.get(), &image_info);
 
+
             if (!m_image)
             {
-                throw std::runtime_error("can not create ml_image");
+                ContextError(m_context.get());
             }
 
             m_is_initialized = true;
@@ -98,7 +100,7 @@ namespace Baikal
         {
             auto context = GetContext();
             unsigned channels_count = 0u;
-            float real_sample_count = 0.f;
+            unsigned real_sample_count = 0u;
 
             if (!m_is_initialized)
             {
@@ -128,19 +130,19 @@ namespace Baikal
                                       m_cache,
                                       m_width,
                                       m_height,
-                                      channels_count, // dst channels offset
-                                      m_channels,     // dst channels num
-                                      0,              // src channels offset
-                                      4,              // src channels num
-                                      3);             // channels to copy
+                                      channels_count /* dst channels offset */,
+                                      m_channels     /* dst channels num */,
+                                      0              /* src channels offset */,
+                                      4              /* src channels num */,
+                                      3              /* channels to copy */);
 
                         channels_count += 3;
 
-                        context.ReadBuffer<float>(0, m_cache, &real_sample_count, 3, 1).Wait();
+                        real_sample_count = ReadSpp(CLWBuffer<float3>::CreateFromClBuffer(m_cache));
 
-                        if (static_cast<std::uint32_t>(real_sample_count) < m_start_spp)
+                        if (real_sample_count < m_start_spp)
                         {
-                            return Image(static_cast<std::uint32_t>(real_sample_count), nullptr);
+                            return Image(real_sample_count, nullptr);
                         }
                         break;
                     }
