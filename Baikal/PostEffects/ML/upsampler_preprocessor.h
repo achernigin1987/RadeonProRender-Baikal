@@ -33,10 +33,10 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        class SisrPreprocessor : public DataPreprocessor
+        class UpsamplerPreprocessor : public DataPreprocessor
         {
         public:
-            SisrPreprocessor(CLWContext context,
+            UpsamplerPreprocessor(CLWContext context,
                            Baikal::CLProgramManager const *program_manager,
                            std::uint32_t spp = 1);
 

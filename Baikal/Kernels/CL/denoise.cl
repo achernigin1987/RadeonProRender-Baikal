@@ -114,7 +114,7 @@ void BilateralDenoise_main(
 }
 
 KERNEL
-void ToneMapingExponential(GLOBAL float4* restrict dst,
+void ToneMappingExponential(GLOBAL float4* restrict dst,
                         GLOBAL float4 const* restrict src,
                         int elems_num)
 {

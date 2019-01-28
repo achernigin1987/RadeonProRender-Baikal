@@ -347,7 +347,7 @@ namespace Baikal
                         {
                             auto ml_post_effect = dynamic_cast<PostEffects::MLPostEffect*>(m_post_effect.get());
 
-                            ml_post_effect->Resize_x2(dynamic_cast<ClwOutput*>(m_upscaled_img.get())->data(),
+                            ml_post_effect->Resize_2x(dynamic_cast<ClwOutput*>(m_upscaled_img.get())->data(),
                                                       dynamic_cast<ClwOutput*>(GetRendererOutput(
                                                       m_primary,
                                                       Renderer::OutputType::kColor))->data());

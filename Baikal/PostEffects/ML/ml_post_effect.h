@@ -47,7 +47,7 @@ namespace Baikal
 
             InputTypes GetInputTypes() const override;
 
-            void Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
+            void Resize_2x(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
         private:
             Inference::Ptr CreateInference(std::uint32_t width, std::uint32_t height);
             void Init(InputSet const& input_set, Output& output);

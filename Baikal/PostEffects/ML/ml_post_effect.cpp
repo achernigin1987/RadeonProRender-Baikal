@@ -22,7 +22,7 @@
 
 #include "PostEffects/ML/ml_post_effect.h"
 #include "denoiser_preprocessor.h"
-#include "sisr_preprocessor.h"
+#include "upsampler_preprocessor.h"
 
 #ifdef BAIKAL_EMBED_KERNELS
 #include "embed_kernels.h"
@@ -59,7 +59,7 @@ namespace Baikal
                     m_preproc = std::make_unique<DenoiserPreprocessor>(GetContext(), m_program);
                     break;
                 case ModelType::kUpsampler:
-                    m_preproc = std::make_unique<SisrPreprocessor>(GetContext(), m_program);
+                    m_preproc = std::make_unique<UpsamplerPreprocessor>(GetContext(), m_program);
                     break;
                 default:
                     throw std::logic_error("unsupported model type");
@@ -211,7 +211,7 @@ namespace Baikal
                 }
                 else
                 {
-                    Resize_x2(clw_inference_output->data(), color);
+                    Resize_2x(clw_inference_output->data(), color);
                 }
             }
         }
@@ -228,7 +228,7 @@ namespace Baikal
             return m_preproc->GetInputTypes();
         }
 
-        void MLPostEffect::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+        void MLPostEffect::Resize_2x(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
         {
             auto context = GetContext();
 

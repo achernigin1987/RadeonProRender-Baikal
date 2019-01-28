@@ -15,8 +15,8 @@ set(OUTPUT_SOURCES
     Output/output.h)
 
 set(POSTEFFECT_ML_SOURCES
-    PostEffects/ML/sisr_preprocessor.h
-    PostEffects/ML/sisr_preprocessor.cpp
+    PostEffects/ML/upsampler_preprocessor.h
+    PostEffects/ML/upsampler_preprocessor.cpp
     PostEffects/ML/denoiser_preprocessor.h
     PostEffects/ML/denoiser_preprocessor.cpp
     PostEffects/ML/inference.h

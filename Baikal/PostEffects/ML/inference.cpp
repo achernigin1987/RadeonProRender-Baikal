@@ -22,9 +22,9 @@ THE SOFTWARE.
 
 #include "PostEffects/ML/error_handler.h"
 #include "inference.h"
-#include <cassert>
 #include "RadeonProML.h"
 
+#include <cassert>
 
 namespace Baikal
 {
