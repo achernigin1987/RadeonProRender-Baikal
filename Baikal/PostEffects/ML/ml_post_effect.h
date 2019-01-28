@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 #pragma once
 
-#include "data_preprocess.h"
+#include "data_preprocessor.h"
 #include "PostEffects/ML/inference.h"
 #include "PostEffects/clw_post_effect.h"
 
@@ -33,13 +33,13 @@ namespace Baikal
         enum class ModelType
         {
             kDenoiser,
-            kSisr,
+            kUpsampler,
         };
 
-        class MlPostEffect : public ClwPostEffect
+        class MLPostEffect : public ClwPostEffect
         {
         public:
-            MlPostEffect(CLWContext context, const CLProgramManager* program_manager, ModelType type);
+            MLPostEffect(CLWContext context, const CLProgramManager* program_manager, ModelType type);
 
             void Apply(InputSet const& input_set, Output& output) override;
 
@@ -59,7 +59,7 @@ namespace Baikal
             std::vector<RadeonRays::float3> m_host;
             CLWBuffer<RadeonRays::float3> m_last_image;
             CLWBuffer<RadeonRays::float3> m_resizer_cache;
-            std::unique_ptr<DataPreprocess> m_preproc;
+            std::unique_ptr<DataPreprocessor> m_preproc;
             std::uint32_t m_width = 0;
             std::uint32_t m_height = 0;
             std::uint32_t m_start_seq = 0;

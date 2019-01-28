@@ -22,42 +22,60 @@ THE SOFTWARE.
 
 #pragma once
 
+#include "data_preprocessor.h"
+
+#include "CLW.h"
+#include "Utils/clw_class.h"
+
 #ifdef BAIKAL_EMBED_KERNELS
 #include "embed_kernels.h"
 #endif
 
-#include "data_preprocess.h"
+#include <cstddef>
+#include <memory>
+#include <vector>
 
 
 namespace Baikal
 {
     namespace PostEffects
     {
-        class SisrPreprocess : public DataPreprocess
+        enum class Model
+        {
+            kColorDepthNormalGloss7,
+            kColorAlbedoNormal8,
+            kColorAlbedoDepthNormal9
+        };
+
+        class DenoiserPreprocessor: public DataPreprocessor
         {
         public:
-            SisrPreprocess(CLWContext context,
-                           Baikal::CLProgramManager const *program_manager,
-                           std::uint32_t spp = 1);
-
+            DenoiserPreprocessor(CLWContext context,
+                               CLProgramManager const* program_manager,
+                               std::uint32_t start_spp = 8);
 
             Image MakeInput(PostEffect::InputSet const& inputs) override;
 
             std::set<Renderer::OutputType> GetInputTypes() const override;
 
             std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const override;
-
         private:
             void Init(std::uint32_t width, std::uint32_t height);
 
-            void Tonemap(CLWBuffer<RadeonRays::float3> const& dst,
-                         CLWBuffer<RadeonRays::float3> const& src);
+            // layout of the outputs in input tensor in terms of channels
+            using MemoryLayout = std::vector<std::pair<Renderer::OutputType, int>>;
 
-            bool m_is_init = false;
+            void DivideBySampleCount(CLWBuffer<RadeonRays::float3> const& dst,
+                                     CLWBuffer<RadeonRays::float3> const& src);
+
+            bool m_is_initialized = false;
+            CLWParallelPrimitives m_primitives;
             std::uint32_t m_width, m_height;
+            std::uint32_t m_channels = 0;
+            Model m_model;
+            MemoryLayout m_layout;
+            CLWBuffer<float> m_cache;
             CLWBuffer<float> m_input;
-            CLWBuffer<float> m_resizer_cache;
-            CLWBuffer<RadeonRays::float3> m_cache;
             Handle<ml_context> m_context;
             ml_image m_image;
         };

@@ -20,13 +20,13 @@
  THE SOFTWARE.
  ********************************************************************/
 
-#include "data_preprocess.h"
+#include "data_preprocessor.h"
 
 namespace Baikal
 {
     namespace PostEffects
     {
-        DataPreprocess::DataPreprocess(CLWContext context,
+        DataPreprocessor::DataPreprocessor(CLWContext context,
                                        CLProgramManager const* program_manager,
                                        std::uint32_t start_spp)
 #ifdef BAIKAL_EMBED_KERNELS
@@ -38,15 +38,15 @@ namespace Baikal
         {  }
 
 
-        CLWEvent DataPreprocess::WriteToInputs(CLWBuffer<float> const& dst_buffer,
-                                               CLWBuffer<float> const& src_buffer,
-                                               int width,
-                                               int height,
-                                               int dst_channels_offset,
-                                               int dst_channels_num,
-                                               int src_channels_offset,
-                                               int src_channels_num,
-                                               int channels_to_copy)
+        CLWEvent DataPreprocessor::WriteToInputs(CLWBuffer<float> const& dst_buffer,
+                                                 CLWBuffer<float> const& src_buffer,
+                                                 int width,
+                                                 int height,
+                                                 int dst_channels_offset,
+                                                 int dst_channels_num,
+                                                 int src_channels_offset,
+                                                 int src_channels_num,
+                                                 int channels_to_copy)
         {
             auto copy_kernel = GetKernel("CopyInterleaved");
 
@@ -73,7 +73,7 @@ namespace Baikal
                                          copy_kernel);
         }
 
-        unsigned DataPreprocess::ReadSpp(CLWBuffer<RadeonRays::float3> const &buffer)
+        unsigned DataPreprocessor::ReadSpp(CLWBuffer<RadeonRays::float3> const &buffer)
         {
             RadeonRays::float3 pixel;
             GetContext().ReadBuffer(0, buffer, &pixel, 1).Wait();

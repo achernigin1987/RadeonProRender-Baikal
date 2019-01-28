@@ -21,8 +21,8 @@
  ********************************************************************/
 
 #include "PostEffects/ML/ml_post_effect.h"
-#include "denoiser_preprocess.h"
-#include "sisr_preprocess.h"
+#include "denoiser_preprocessor.h"
+#include "sisr_preprocessor.h"
 
 #ifdef BAIKAL_EMBED_KERNELS
 #include "embed_kernels.h"
@@ -35,7 +35,7 @@ namespace Baikal
         using float3 = RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        MlPostEffect::MlPostEffect(CLWContext context, const CLProgramManager* program_manager, ModelType type)
+        MLPostEffect::MLPostEffect(CLWContext context, const CLProgramManager* program_manager, ModelType type)
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
 #else
@@ -56,21 +56,21 @@ namespace Baikal
             switch (m_type)
             {
                 case ModelType::kDenoiser:
-                    m_preproc = std::make_unique<DenoiserPreprocess>(GetContext(), m_program);
+                    m_preproc = std::make_unique<DenoiserPreprocessor>(GetContext(), m_program);
                     break;
-                case ModelType::kSisr:
-                    m_preproc = std::make_unique<SisrPreprocess>(GetContext(), m_program);
+                case ModelType::kUpsampler:
+                    m_preproc = std::make_unique<SisrPreprocessor>(GetContext(), m_program);
                     break;
                 default:
                     throw std::logic_error("unsupported model type");
             }
         }
 
-        Inference::Ptr MlPostEffect::CreateInference(std::uint32_t width, std::uint32_t height)
+        Inference::Ptr MLPostEffect::CreateInference(std::uint32_t width, std::uint32_t height)
         {
             auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
             auto visible_devices = GetParameter("visible_devices").GetString();
-            m_preproc->ResetSpp(GetParameter("start_spp").GetUint());
+            m_preproc->SetStartSpp(GetParameter("start_spp").GetUint());
 
             auto channels = m_preproc->ChannelsNum();
 
@@ -85,7 +85,7 @@ namespace Baikal
                                           ml_image_info {ML_FLOAT32, width, height, std::get<1>(channels)},
                                           gpu_memory_fraction,
                                           visible_devices);
-                case ModelType::kSisr:
+                case ModelType::kUpsampler:
                     return std::unique_ptr<Inference>(
                             new Inference("models/esrgan-05x3x32-198135.pb",
                                           ml_image_info {ML_FLOAT32, width, height, std::get<0>(channels)},
@@ -98,7 +98,7 @@ namespace Baikal
             }
         }
 
-        void MlPostEffect::Init(InputSet const& input_set, Output& output)
+        void MLPostEffect::Init(InputSet const& input_set, Output& output)
         {
             auto aov = input_set.begin()->second;
 
@@ -116,7 +116,7 @@ namespace Baikal
         }
 
 
-        void MlPostEffect::Apply(InputSet const& input_set, Output& output)
+        void MLPostEffect::Apply(InputSet const& input_set, Output& output)
         {
             if (m_width != input_set.begin()->second->width() ||
                 m_height != input_set.begin()->second->height())
@@ -134,7 +134,7 @@ namespace Baikal
 
             if (!clw_inference_output)
             {
-                throw std::runtime_error("MlPostEffect::Apply(...): can not cast output");
+                throw std::runtime_error("MLPostEffect::Apply(...): can not cast output");
             }
 
             auto context = GetContext();
@@ -216,18 +216,19 @@ namespace Baikal
             }
         }
 
-        void MlPostEffect::SetParameter(std::string const& name, Param value)
+        void MLPostEffect::SetParameter(std::string const& name, Param value)
         {
             auto param = GetParameter(name);
             PostEffect::SetParameter(name, value);
             m_is_dirty = true;
         }
 
-        PostEffect::InputTypes MlPostEffect::GetInputTypes() const
+        PostEffect::InputTypes MLPostEffect::GetInputTypes() const
         {
             return m_preproc->GetInputTypes();
         }
-        void MlPostEffect::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
+
+        void MLPostEffect::Resize_x2(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
         {
             auto context = GetContext();
 
@@ -238,7 +239,7 @@ namespace Baikal
                                                             2 * src.GetElementCount());
             }
 
-            auto scale_x = GetKernel("BicubicUpScaleX_x2");
+            auto scale_x = GetKernel("BicubicUpscale2x_X");
 
             unsigned argc = 0;
             scale_x.SetArg(argc++, m_resizer_cache);
@@ -246,14 +247,14 @@ namespace Baikal
             scale_x.SetArg(argc++, m_width);
             scale_x.SetArg(argc++, m_height);
 
-            // run BicubicUpScaleX_x2 kernel
+            // run BicubicUpScale2x_X kernel
             auto thread_num = ((2 * m_width * m_height + 63) / 64) * 64;
             context.Launch1D(0,
                              thread_num,
                              64,
                              scale_x);
 
-            auto scale_y = GetKernel("BicubicUpScaleY_x2");
+            auto scale_y = GetKernel("BicubicUpscale2x_Y");
 
             argc = 0;
             scale_y.SetArg(argc++, dst);
@@ -261,7 +262,7 @@ namespace Baikal
             scale_y.SetArg(argc++, 2 * m_width);
             scale_y.SetArg(argc++, m_height);
 
-            // run BicubicUpScaleY_x2 kernel
+            // run BicubicUpScale2x_Y kernel
             thread_num = ((4 * m_width * m_height + 63) / 64) * 64;
             context.Launch1D(0,
                              thread_num,

@@ -44,10 +44,10 @@ enum class DeviceType
 enum class PostProcessingType
 {
     kNone = 0,
-    kBilateral,
-    kWavelet,
-    kML,
-    kSISR
+    kBilateralDenoiser,
+    kWaveletDenoser,
+    kMLDenoiser,
+    kMLUpsample
 };
 
 enum class Mode

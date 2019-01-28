@@ -59,7 +59,6 @@ namespace Baikal
             Image PopOutput();
             virtual ~Inference();
 
-
         protected:
             void DoInference();
             ml_image AllocImage(ml_image_info info);

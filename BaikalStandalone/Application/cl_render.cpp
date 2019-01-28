@@ -85,10 +85,10 @@ namespace Baikal
             settings.platform_index,
             settings.device_index);
 
-        m_width = (m_post_processing_type == PostProcessingType::kSISR) ?
+        m_width = (m_post_processing_type == PostProcessingType::kMLUpsample) ?
             settings.width / 2 : settings.width;
 
-        m_height = (m_post_processing_type == PostProcessingType::kSISR) ?
+        m_height = (m_post_processing_type == PostProcessingType::kMLUpsample) ?
                    settings.height / 2 : settings.height;
 
         std::cout << "Running on devices: \n";
@@ -160,7 +160,7 @@ namespace Baikal
         }
 
         // create buffer for post-effect output
-        if (m_post_processing_type != PostProcessingType::kSISR)
+        if (m_post_processing_type != PostProcessingType::kMLUpsample)
         {
             m_post_effect_output = m_cfgs[device_idx].factory->CreateOutput(m_width, m_height);
         }
@@ -197,21 +197,20 @@ namespace Baikal
 
         switch (settings.camera_type)
         {
-            case CameraType::kPerspective:
-                m_camera = Baikal::PerspectiveCamera::Create(
-                        settings.camera_pos
-                        , settings.camera_at
-                        , settings.camera_up);
-
-                break;
-            case CameraType::kOrthographic:
-                m_camera = Baikal::OrthographicCamera::Create(
-                        settings.camera_pos
-                        , settings.camera_at
-                        , settings.camera_up);
-                break;
-            default:
-                throw std::runtime_error("AppClRender::InitCl(...): unsupported camera type");
+        case CameraType::kPerspective:
+            m_camera = Baikal::PerspectiveCamera::Create(
+                    settings.camera_pos
+                    , settings.camera_at
+                    , settings.camera_up);
+            break;
+        case CameraType::kOrthographic:
+            m_camera = Baikal::OrthographicCamera::Create(
+                    settings.camera_pos
+                    , settings.camera_at
+                    , settings.camera_up);
+            break;
+        default:
+            throw std::runtime_error("AppClRender::InitCl(...): unsupported camera type");
         }
 
         m_scene->SetCamera(m_camera);
@@ -339,14 +338,14 @@ namespace Baikal
                 {
                     if (settings.split_output)
                     {
-                        if (m_post_processing_type != PostProcessingType::kSISR)
+                        if (m_post_processing_type != PostProcessingType::kMLUpsample)
                         {
                             CopyToGL(GetRendererOutput(m_primary, Renderer::OutputType::kColor),
                                      m_post_effect_output.get());
                         }
                         else
                         {
-                            auto ml_post_effect = dynamic_cast<PostEffects::MlPostEffect*>(m_post_effect.get());
+                            auto ml_post_effect = dynamic_cast<PostEffects::MLPostEffect*>(m_post_effect.get());
 
                             ml_post_effect->Resize_x2(dynamic_cast<ClwOutput*>(m_upscaled_img.get())->data(),
                                                       dynamic_cast<ClwOutput*>(GetRendererOutput(
@@ -759,24 +758,27 @@ namespace Baikal
         {
         case PostProcessingType::kNone:
             break;
-        case PostProcessingType::kBilateral:
+        case PostProcessingType::kBilateralDenoiser:
             if (settings.camera_type != CameraType::kPerspective)
             {
                 throw std::logic_error("Bilateral denoiser requires perspective camera");
             }
             AddPostEffect(m_primary, PostEffectType::kBilateralDenoiser);
             break;
-        case PostProcessingType::kWavelet:
+        case PostProcessingType::kWaveletDenoser:
             AddPostEffect(m_primary, PostEffectType::kWaveletDenoiser);
             break;
-        case PostProcessingType::kML:
+        case PostProcessingType::kMLDenoiser:
             AddPostEffect(m_primary, PostEffectType::kMLDenoiser);
             m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
             m_post_effect->SetParameter("visible_devices", settings.visible_devices);
             m_post_effect->SetParameter("start_spp", settings.denoiser_start_spp);
             break;
-        case PostProcessingType::kSISR:
-            AddPostEffect(m_primary, PostEffectType::kSISR);
+        case PostProcessingType::kMLUpsample:
+            AddPostEffect(m_primary, PostEffectType::kMLUpsampler);
+            m_post_effect->SetParameter("gpu_memory_fraction", settings.gpu_mem_fraction);
+            m_post_effect->SetParameter("visible_devices", settings.visible_devices);
+            m_post_effect->SetParameter("start_spp", settings.denoiser_start_spp);
             break;
         default:
             throw std::runtime_error("AppClRender(...): Unsupported denoiser type");
@@ -787,7 +789,7 @@ namespace Baikal
     {
         switch (m_post_processing_type)
         {
-        case PostProcessingType::kBilateral:
+        case PostProcessingType::kBilateralDenoiser:
         {
             const auto radius = 10U - RadeonRays::clamp((sample_cnt / 16), 1U, 9U);
             m_post_effect->SetParameter("radius", static_cast<float>(radius));
@@ -797,7 +799,7 @@ namespace Baikal
             m_post_effect->SetParameter("albedo_sensitivity", 0.5f + (radius / 10.f) * 0.5f);
             break;
         }
-        case PostProcessingType::kWavelet:
+        case PostProcessingType::kWaveletDenoser:
         {
             auto pCamera = dynamic_cast<PerspectiveCamera*>(m_camera.get());
             m_post_effect->SetParameter("camera_focal_length", pCamera->GetFocalLength());
@@ -810,8 +812,8 @@ namespace Baikal
             m_post_effect->SetParameter("camera_aspect_ratio", pCamera->GetAspectRatio());
             break;
         }
-        case PostProcessingType::kML:
-        case PostProcessingType::kSISR:
+        case PostProcessingType::kMLDenoiser:
+        case PostProcessingType::kMLUpsample:
         case PostProcessingType::kNone:
         default:
             break;

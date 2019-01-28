@@ -22,7 +22,7 @@ THE SOFTWARE.
 
 #pragma once
 
-#include <RadeonProML.h>
+#include "RadeonProML.h"
 
 #include <memory>
 #include <string>
@@ -49,7 +49,6 @@ namespace Baikal
             ml_image CreateImage(ml_image_info const& info);
 
             ~ModelHolder();
-
 
             ModelHolder(const ModelHolder&) = delete;
             ModelHolder(ModelHolder&&) = delete;

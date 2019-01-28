@@ -1,4 +1,3 @@
-
 /**********************************************************************
  Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
 

@@ -22,23 +22,44 @@
 
 #pragma once
 
-#include <cstdint>
-#include "RadeonProML.h"
+#ifdef BAIKAL_EMBED_KERNELS
+#include "embed_kernels.h"
+#endif
+
+#include "data_preprocessor.h"
+
 
 namespace Baikal
 {
     namespace PostEffects
     {
-        struct Image
+        class SisrPreprocessor : public DataPreprocessor
         {
-            Image();
-            Image(std::uint32_t tag, ml_image image);
-            Image(Image &&);
+        public:
+            SisrPreprocessor(CLWContext context,
+                           Baikal::CLProgramManager const *program_manager,
+                           std::uint32_t spp = 1);
 
-            Image &operator=(Image &&image);
 
-            std::uint32_t tag;
-            ml_image image;
+            Image MakeInput(PostEffect::InputSet const& inputs) override;
+
+            std::set<Renderer::OutputType> GetInputTypes() const override;
+
+            std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const override;
+
+        private:
+            void Init(std::uint32_t width, std::uint32_t height);
+
+            void ApplyToneMapping(CLWBuffer<RadeonRays::float3> const& dst,
+                                  CLWBuffer<RadeonRays::float3> const& src);
+
+            bool m_is_init = false;
+            std::uint32_t m_width, m_height;
+            CLWBuffer<float> m_input;
+            CLWBuffer<float> m_resizer_cache;
+            CLWBuffer<RadeonRays::float3> m_cache;
+            Handle<ml_context> m_context;
+            ml_image m_image;
         };
     }
 }

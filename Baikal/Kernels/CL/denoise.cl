@@ -114,7 +114,7 @@ void BilateralDenoise_main(
 }
 
 KERNEL
-void TonemapExponential(GLOBAL float4* restrict dst,
+void ToneMapingExponential(GLOBAL float4* restrict dst,
                         GLOBAL float4 const* restrict src,
                         int elems_num)
 {
@@ -196,7 +196,7 @@ void CopyInterleaved(GLOBAL float4* restrict dst,
     }
 }
 
-static float3 ConvolutionCompute(float4 f0, float4 f1, float4 f2, float4 f3)
+static float3 BicubicConvolutionCompute(float4 f0, float4 f1, float4 f2, float4 f3)
 {
     const float t = 0.5f;
     float4 a0 = f1;
@@ -208,7 +208,7 @@ static float3 ConvolutionCompute(float4 f0, float4 f1, float4 f2, float4 f3)
 }
 
 KERNEL
-void BicubicUpScaleX_x2(// size of the dst buffer should be enough
+void BicubicUpscale2x_X(// size of the dst buffer should be enough
                         // to store 2 * sizeof(float3) * width * height
                         GLOBAL float4* restrict dst,
                         GLOBAL float4 const* restrict src,
@@ -226,7 +226,7 @@ void BicubicUpScaleX_x2(// size of the dst buffer should be enough
         return;
     }
 
-    dst[idx].xyz = ConvolutionCompute(src[src_idx - 1],
+    dst[idx].xyz = BicubicConvolutionCompute(src[src_idx - 1],
                                       src[src_idx],
                                       src[src_idx + 1],
                                       src[src_idx + 2]);
@@ -236,7 +236,7 @@ void BicubicUpScaleX_x2(// size of the dst buffer should be enough
 
 
 KERNEL
-void BicubicUpScaleY_x2(// size of the dst buffer should be enough to store
+void BicubicUpscale2x_Y(// size of the dst buffer should be enough to store
                         // 2 * sizeof(float3) * width * height
                         GLOBAL float4* restrict dst,
                         GLOBAL float4 const* restrict src,
@@ -258,7 +258,7 @@ void BicubicUpScaleY_x2(// size of the dst buffer should be enough to store
         return;
     }
 
-    dst[idx].xyz = ConvolutionCompute(src[src_idx - width],
+    dst[idx].xyz = BicubicConvolutionCompute(src[src_idx - width],
                                       src[src_idx],
                                       src[src_idx + width],
                                       src[src_idx + 2 * width]);

@@ -15,18 +15,18 @@ set(OUTPUT_SOURCES
     Output/output.h)
 
 set(POSTEFFECT_ML_SOURCES
-    PostEffects/ML/sisr_preprocess.h
-    PostEffects/ML/sisr_preprocess.cpp
-    PostEffects/ML/denoiser_preprocess.h
-    PostEffects/ML/denoiser_preprocess.cpp
+    PostEffects/ML/sisr_preprocessor.h
+    PostEffects/ML/sisr_preprocessor.cpp
+    PostEffects/ML/denoiser_preprocessor.h
+    PostEffects/ML/denoiser_preprocessor.cpp
     PostEffects/ML/inference.h
     PostEffects/ML/inference.cpp
     PostEffects/ML/ml_post_effect.h
     PostEffects/ML/ml_post_effect.cpp
     PostEffects/ML/model_holder.h
     PostEffects/ML/model_holder.cpp
-    PostEffects/ML/data_preprocess.h
-    PostEffects/ML/data_preprocess.cpp
+    PostEffects/ML/data_preprocessor.h
+    PostEffects/ML/data_preprocessor.cpp
     PostEffects/ML/image.h
     PostEffects/ML/image.cpp
     PostEffects/ML/error_handler.h)

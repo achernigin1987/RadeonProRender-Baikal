@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 
-#include "sisr_preprocess.h"
+#include "sisr_preprocessor.h"
 #include "Output/clwoutput.h"
 #include "CLWBuffer.h"
 
@@ -31,14 +31,14 @@ namespace Baikal
         using uint32_t = std::uint32_t;
         using float3 =  RadeonRays::float3;
 
-        SisrPreprocess::SisrPreprocess(CLWContext context,
+        SisrPreprocessor::SisrPreprocessor(CLWContext context,
                                        Baikal::CLProgramManager const *program_manager,
                                        std::uint32_t start_spp)
-        : DataPreprocess(context, program_manager, start_spp)
+        : DataPreprocessor(context, program_manager, start_spp)
         , m_context(mlCreateContext(), mlReleaseContext)
         {}
 
-        void SisrPreprocess::Init(std::uint32_t width, std::uint32_t height)
+        void SisrPreprocessor::Init(std::uint32_t width, std::uint32_t height)
         {
             m_cache = CLWBuffer<float3>::Create(GetContext(),
                                                 CL_MEM_READ_WRITE,
@@ -57,12 +57,12 @@ namespace Baikal
             }
         }
 
-        std::tuple<std::uint32_t, std::uint32_t> SisrPreprocess::ChannelsNum() const
+        std::tuple<std::uint32_t, std::uint32_t> SisrPreprocessor::ChannelsNum() const
         {
             return std::tuple<std::uint32_t, std::uint32_t>(3, 3);
         }
 
-        Image SisrPreprocess::MakeInput(PostEffect::InputSet const& inputs)
+        Image SisrPreprocessor::MakeInput(PostEffect::InputSet const& inputs)
         {
             auto color_aov = inputs.begin()->second;
 
@@ -78,7 +78,7 @@ namespace Baikal
 
             if (clw_input == nullptr)
             {
-                throw std::runtime_error("SisrPreprocess::MakeInput(..): incorrect input");
+                throw std::runtime_error("SisrPreprocessor::MakeInput(..): incorrect input");
             }
 
             auto context = GetContext();
@@ -91,7 +91,7 @@ namespace Baikal
                 return Image(sample_count, nullptr);
             }
 
-            Tonemap(m_cache, clw_input->data());
+            ApplyToneMapping(m_cache, clw_input->data());
 
             // delete 4th channel
             WriteToInputs(m_input,
@@ -125,12 +125,12 @@ namespace Baikal
             return Image(sample_count, m_image);
         }
 
-        void SisrPreprocess::Tonemap(CLWBuffer<RadeonRays::float3> const& dst,
-                                     CLWBuffer<RadeonRays::float3> const& src)
+        void SisrPreprocessor::ApplyToneMapping(CLWBuffer<RadeonRays::float3> const& dst,
+                                                CLWBuffer<RadeonRays::float3> const& src)
         {
             assert (dst.GetElementCount() >= src.GetElementCount());
 
-            auto tonemapping = GetKernel("TonemapExponential");
+            auto tonemapping = GetKernel("ToneMapingExponential");
 
             // Set kernel parameters
             unsigned argc = 0;
@@ -146,7 +146,7 @@ namespace Baikal
                                   tonemapping);
         }
 
-        std::set<Renderer::OutputType> SisrPreprocess::GetInputTypes() const
+        std::set<Renderer::OutputType> SisrPreprocessor::GetInputTypes() const
         {
             return std::set<Renderer::OutputType>({Renderer::OutputType::kColor});
         }

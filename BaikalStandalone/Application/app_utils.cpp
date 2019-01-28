@@ -197,19 +197,19 @@ namespace Baikal
 
             if (post_processing_type == "bilateral")
             {
-                s.post_processing_type = PostProcessingType::kBilateral;
+                s.post_processing_type = PostProcessingType::kBilateralDenoiser;
             }
             else if (post_processing_type == "wavelet")
             {
-                s.post_processing_type = PostProcessingType::kWavelet;
+                s.post_processing_type = PostProcessingType::kWaveletDenoser;
             }
             else if (post_processing_type == "denoise")
             {
-                s.post_processing_type = PostProcessingType::kML;
+                s.post_processing_type = PostProcessingType::kMLDenoiser;
             }
             else if (post_processing_type == "sisr")
             {
-                s.post_processing_type = PostProcessingType::kSISR;
+                s.post_processing_type = PostProcessingType::kMLUpsample;
             }
             else
             {

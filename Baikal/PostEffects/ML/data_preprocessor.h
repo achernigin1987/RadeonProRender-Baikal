@@ -36,12 +36,12 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        class DataPreprocess : public ClwClass
+        class DataPreprocessor : public ClwClass
         {
         public:
-            DataPreprocess(CLWContext context,
-                           CLProgramManager const* program_manager,
-                           std::uint32_t start_spp = 1);
+            DataPreprocessor(CLWContext context,
+                             CLProgramManager const* program_manager,
+                             std::uint32_t start_spp = 1);
 
             virtual Image MakeInput(PostEffect::InputSet const& inputs) = 0;
 
@@ -50,8 +50,8 @@ namespace Baikal
             // returns channels num at input and output
             virtual std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const = 0;
 
-            void ResetSpp(std::uint32_t spp)
-            { m_start_spp = spp; };
+            void SetStartSpp(std::uint32_t start_spp)
+            { m_start_spp = start_spp; }
 
         protected:
             template<class T>
