@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 #pragma once
 
+#include "PostEffects/ML/ml_common.h"
 #include "RadeonProML.h"
 #include "CLW.h"
 
@@ -37,26 +38,29 @@ namespace Baikal
         class ModelHolder
         {
         public:
-            ModelHolder(std::string const& model_path,
+            ModelHolder(ModelType model_type,
+                        std::string const& model_path,
                         float gpu_memory_fraction,
                         std::string const& visible_devices,
-                        cl_command_queue command_queue);
-
-            const ml_model GetModel()
-            {
-                return m_model;
-            }
-
-            ml_image CreateImage(ml_image_info const& info, ml_access_mode access_mode);
-            ml_image CreateImageFromBuffer(cl_mem buffer, ml_image_info const& info, ml_access_mode access_mode);
-            ~ModelHolder();
+                        cl_command_queue command_queue = nullptr);
 
             ModelHolder(const ModelHolder&) = delete;
             ModelHolder(ModelHolder&&) = delete;
+
             ModelHolder& operator = (const ModelHolder&) = delete;
             ModelHolder& operator = (ModelHolder&&) = delete;
 
+            ~ModelHolder();
+
+            const ml_context GetContext() const { return m_context; }
+            const ml_model GetModel() const { return m_model; }
+            const ModelType GetModelType() const { return m_model_type; }
+
+            ml_image CreateImage(ml_image_info const& info, ml_access_mode access_mode);
+            ml_image CreateImageFromBuffer(cl_mem buffer, ml_image_info const& info, ml_access_mode access_mode);
+
         private:
+            const ModelType m_model_type;
             ml_context m_context;
             ml_model m_model;
         };

@@ -80,5 +80,25 @@ namespace Baikal
             GetContext().ReadBuffer(0, buffer, &pixel, 1).Wait();
             return static_cast<unsigned>(pixel.w);
         }
+
+        std::set<Renderer::OutputType> DataPreprocessor::GetInputTypes(InputDataType model)
+        {
+            using OutputType = Renderer::OutputType;
+
+            switch (model)
+            {
+            case InputDataType::kColor3:
+                return { OutputType::kColor };
+            case InputDataType::kColorDepthNormalGloss7:
+                return { OutputType::kColor, OutputType::kDepth, OutputType::kViewShadingNormal, OutputType::kGloss };
+            case InputDataType::kColorAlbedoNormal8:
+                return { OutputType::kColor, OutputType::kAlbedo, OutputType::kViewShadingNormal };
+            case InputDataType::kColorAlbedoDepthNormal9:
+                return { OutputType::kColor, OutputType::kAlbedo, OutputType::kDepth, OutputType::kViewShadingNormal };
+            default:
+                throw std::runtime_error("Unsupported input data type");
+            }
+
+        }
     }
 }

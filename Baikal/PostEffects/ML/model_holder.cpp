@@ -20,7 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ********************************************************************/
 
-#include "model_holder.h"
+#include "PostEffects/ML/ml_common.h"
+#include "PostEffects/ML/model_holder.h"
 #include "RadeonProML_cl.h"
 
 #include <stdexcept>
@@ -30,15 +31,16 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        ModelHolder::ModelHolder(std::string const& model_path,
+        ModelHolder::ModelHolder(ModelType model_type,
+                                 std::string const& model_path,
                                  float gpu_memory_fraction,
                                  std::string const& visible_devices,
                                  cl_command_queue command_queue)
+            : m_model_type(model_type)
         {
             if (command_queue)
             {
                 m_context = mlCreateContextFromClQueue(command_queue);
-                //m_context = mlCreateContext();
             }
             else
             {

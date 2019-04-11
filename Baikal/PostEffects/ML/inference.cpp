@@ -30,25 +30,19 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        Inference::Inference(std::string const& model_path,
+        Inference::Inference(ModelHolder* model_holder, 
                              size_t input_height,
-                             size_t input_width,
-                             float gpu_memory_fraction,
-                             std::string const& visible_devices,
-                             cl_command_queue command_queue)
-                : m_model(model_path,
-                          gpu_memory_fraction,
-                          visible_devices,
-                          command_queue)
+                             size_t input_width)
+            : m_model_holder(model_holder)
         {
-            CheckStatus(mlGetModelInfo(m_model.GetModel(), &m_input_info, nullptr));
+            CheckStatus(mlGetModelInfo(m_model_holder->GetModel(), &m_input_info, nullptr));
             // Set unspecified input tensor dimensions
             m_input_info.width = input_width;
             m_input_info.height = input_height;
-            CheckStatus(mlSetModelInputInfo(m_model.GetModel(), &m_input_info));
+            CheckStatus(mlSetModelInputInfo(m_model_holder->GetModel(), &m_input_info));
 
             // Get output tensor shape for model
-            CheckStatus(mlGetModelInfo(m_model.GetModel(), nullptr, &m_output_info));
+            CheckStatus(mlGetModelInfo(m_model_holder->GetModel(), nullptr, &m_output_info));
 
             m_worker = std::thread(&Inference::DoInference, this);
         }
@@ -94,7 +88,7 @@ namespace Baikal
 
         ml_image Inference::AllocImage(ml_image_info info, ml_access_mode access_mode)
         {
-            auto image = m_model.CreateImage(info, access_mode);
+            auto image = m_model_holder->CreateImage(info, access_mode);
 
             if (image == nullptr)
             {
@@ -123,7 +117,7 @@ namespace Baikal
 
                 Image output = { input.tag, AllocImage(m_output_info, ML_READ_WRITE) };
 
-                CheckStatus(mlInfer(m_model.GetModel(), input.image, output.image));
+                CheckStatus(mlInfer(m_model_holder->GetModel(), input.image, output.image));
 
                 m_output_queue.push(std::move(output));
             }

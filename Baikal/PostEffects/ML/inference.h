@@ -42,12 +42,9 @@ namespace Baikal
         public:
             using Ptr = std::unique_ptr<Inference>;
 
-            Inference(std::string const& model_path,
+            Inference(ModelHolder* model_holder,
                       size_t input_height,
-                      size_t input_width,
-                      float gpu_memory_fraction,
-                      std::string const& visible_devices,
-                      cl_command_queue command_queue);
+                      size_t input_width);
 
             virtual ~Inference();
 
@@ -65,18 +62,17 @@ namespace Baikal
             // Wait and pop output image. 
             Image PopOutput();
 
-        protected:
+        private:
             void DoInference();
             ml_image AllocImage(ml_image_info info, ml_access_mode access_mode);
 
             RadeonRays::thread_safe_queue<Image> m_input_queue;
             RadeonRays::thread_safe_queue<Image> m_output_queue;
 
-            ModelHolder m_model;
+            ModelHolder* m_model_holder = nullptr;
             ml_image_info m_input_info;
             ml_image_info m_output_info;
 
-        private:
             void Shutdown();
 
             std::thread m_worker;

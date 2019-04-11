@@ -23,7 +23,7 @@ THE SOFTWARE.
 #pragma once
 
 #include "data_preprocessor.h"
-
+#include "PostEffects/ML/model_holder.h"
 #include "CLW.h"
 #include "Utils/clw_class.h"
 
@@ -40,30 +40,22 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        enum class Model
-        {
-            kColorDepthNormalGloss7,
-            kColorAlbedoNormal8,
-            kColorAlbedoDepthNormal9
-        };
-
         class DenoiserPreprocessor: public DataPreprocessor
         {
         public:
-            DenoiserPreprocessor(CLWContext context,
-                               CLProgramManager const* program_manager,
-                               std::uint32_t start_spp = 8);
+            DenoiserPreprocessor(ModelHolder* model_holder,
+                                 CLWContext clcontext,
+                                 CLProgramManager const* program_manager,
+                                 std::uint32_t start_spp = 8);
 
             Image Preprocess(PostEffect::InputSet const& inputs) override;
             Image Preprocess(PostEffect::InputSet const& inputs, bool use_interop);
-
-            std::set<Renderer::OutputType> GetInputTypes() const override;
 
             std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const override;
         private:
             void Init(std::uint32_t width, std::uint32_t height);
             Image DoPreprocess(PostEffect::InputSet const& inputs);
-            Image CopyToHost(Image& image);
+            //Image CopyToHost(Image& image);
 
             // layout of the outputs in input tensor in terms of channels
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, int>>;
@@ -71,16 +63,17 @@ namespace Baikal
             void DivideBySampleCount(CLWBuffer<RadeonRays::float3> const& dst,
                                      CLWBuffer<RadeonRays::float3> const& src);
 
-            bool m_is_initialized = false;
+            ModelHolder* m_model_holder;
+            InputDataType m_model;
             CLWParallelPrimitives m_primitives;
             std::uint32_t m_width, m_height;
             std::uint32_t m_channels = 0;
-            Model m_model;
+
             MemoryLayout m_layout;
             CLWBuffer<float> m_cache;
             CLWBuffer<float> m_input;
-            Handle<ml_context> m_context;
             ml_image m_image;
+            bool m_is_initialized = false;
         };
     }
 }

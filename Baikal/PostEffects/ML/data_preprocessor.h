@@ -36,6 +36,14 @@ namespace Baikal
 {
     namespace PostEffects
     {
+        enum class InputDataType
+        {
+            kColor3,
+            kColorDepthNormalGloss7,
+            kColorAlbedoNormal8,
+            kColorAlbedoDepthNormal9
+        };
+
         class DataPreprocessor : public ClwClass
         {
         public:
@@ -45,17 +53,16 @@ namespace Baikal
 
             virtual Image Preprocess(PostEffect::InputSet const& inputs) = 0;
 
-            virtual std::set<Renderer::OutputType> GetInputTypes() const = 0;
-
             // returns channels num at input and output
             virtual std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const = 0;
 
             void SetStartSpp(std::uint32_t start_spp)
             { m_start_spp = start_spp; }
 
+            static std::set<Renderer::OutputType> GetInputTypes(InputDataType input_data_type);
         protected:
             template<class T>
-            using Handle = std::unique_ptr<typename std::remove_pointer<T>::type, void (*)(T)>;
+            using Handle = std::unique_ptr<typename std::remove_pointer<T>::type, void(*)(T)>;
 
             unsigned ReadSpp(CLWBuffer<RadeonRays::float3> const& buffer);
 

@@ -35,14 +35,15 @@ namespace Baikal
         using float3 = RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        MLPostEffect::MLPostEffect(ModelType type, CLWContext context, const CLProgramManager* program_manager)
+        MLPostEffect::MLPostEffect(ModelType model_type, CLWContext context, const CLProgramManager* program_manager)
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
 #else
         : ClwPostEffect(context, program_manager, "../Baikal/Kernels/CL/denoise.cl")
 #endif
+        , m_model_holder(nullptr)
         , m_inference(nullptr)
-        , m_type(type)
+        , m_type(model_type)
         , m_start_seq(0)
         , m_last_seq(0)
         , m_program(program_manager)
@@ -52,48 +53,87 @@ namespace Baikal
             RegisterParameter("start_spp", 1u);
             RegisterParameter("every_frame", 0u);
 
-            // init preprocessing
             switch (m_type)
             {
-                case ModelType::kDenoiser:
-                    m_preprocessor = std::make_unique<DenoiserPreprocessor>(GetContext(), m_program);
-                    break;
-                case ModelType::kUpsampler:
-                    m_preprocessor = std::make_unique<UpsamplerPreprocessor>(GetContext(), m_program);
-                    break;
-                default:
-                    throw std::logic_error("unsupported model type");
+            case ModelType::kDenoiser:
+                m_input_data_type = InputDataType::kColorAlbedoDepthNormal9;
+                break;
+            case ModelType::kUpsampler:
+                m_input_data_type = InputDataType::kColor3;
+                break;
+            default:
+                throw std::logic_error("Unsupported model type");
             }
         }
 
-        Inference::Ptr MLPostEffect::CreateInference()
+        void MLPostEffect::CreateModelHolder()
         {
-            auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
-            auto visible_devices = GetParameter("visible_devices").GetString();
-            m_preprocessor->SetStartSpp(GetParameter("start_spp").GetUint());
-            m_process_every_frame = static_cast<bool>(GetParameter("every_frame").GetUint());
+            std::string model_path;
 
             switch (m_type)
             {
-                case ModelType::kDenoiser:
-                    return std::make_unique<Inference>(
-                            "models/color_albedo_depth_normal_9_v3.json",
-                                          m_input_height,
-                                          m_input_width,
-                                          gpu_memory_fraction,
-                                          visible_devices,
-                                          GetContext().GetCommandQueue(0));
-                case ModelType::kUpsampler:
-                    return std::make_unique<Inference>(
-                            "models/esrgan-03x2x32-273866.json",
-                                          m_input_height, 
-                                          m_input_width,
-                                          gpu_memory_fraction,
-                                          visible_devices,
-                                          GetContext().GetCommandQueue(0));
-                default:
-                    throw std::logic_error("Unsupported model type");
+            case ModelType::kDenoiser:
+                if (m_input_data_type == InputDataType::kColorAlbedoDepthNormal9)
+                {
+                    model_path = "models/color_albedo_depth_normal_9_v3.json";
+                }
+                else
+                {
+                    throw std::logic_error("Unsupported denoiser inputs");
+                }
+                break;
+            case ModelType::kUpsampler:
+                if (m_input_data_type == InputDataType::kColor3)
+                {
+                    model_path = "models/esrgan-03x2x32-273866.json";
+                }
+                else
+                {
+                    throw std::logic_error("Unsupported upsampler inputs");
+                }
+                break;
+            default:
+                throw std::logic_error("Unsupported model type");
             }
+
+            m_model_holder = std::make_unique<ModelHolder>(
+                m_type,
+                model_path,
+                GetParameter("gpu_memory_fraction").GetFloat(),
+                GetParameter("visible_devices").GetString(),
+                GetContext().GetCommandQueue(0));
+        }
+
+        void MLPostEffect::CreateInference()
+        {
+            m_process_every_frame = static_cast<bool>(GetParameter("every_frame").GetUint());
+            m_inference = std::make_unique<Inference>(
+                m_model_holder.get(),
+                m_input_height,
+                m_input_width);
+        }
+
+        void MLPostEffect::CreatePreprocessor()
+        {
+            // init preprocessing
+            switch (m_type)
+            {
+            case ModelType::kDenoiser:
+                m_preprocessor = std::make_unique<DenoiserPreprocessor>(
+                    m_model_holder.get(), 
+                    GetContext(), 
+                    m_program);
+                break;
+            case ModelType::kUpsampler:
+                m_preprocessor = std::make_unique<UpsamplerPreprocessor>(
+                    GetContext(),
+                    m_program);
+                break;
+            default:
+                throw std::logic_error("unsupported model type");
+            }
+
+            m_preprocessor->SetStartSpp(GetParameter("start_spp").GetUint());
         }
 
         void MLPostEffect::Init(InputSet const& input_set, Output& output)
@@ -103,7 +143,10 @@ namespace Baikal
             m_input_width = aov->width();
             m_input_height = aov->height();
 
-            m_inference = CreateInference();
+            CreateModelHolder();
+            CreatePreprocessor();
+            CreateInference();
+
             auto output_info = m_inference->GetOutputInfo();
 
             m_last_image = CLWBuffer<float3>::Create(GetContext(),
@@ -112,7 +155,6 @@ namespace Baikal
 
             m_host = std::vector<float3>(output_info.width * output_info.height);
         }
-
 
         void MLPostEffect::Apply(InputSet const& input_set, Output& output)
         {
@@ -228,7 +270,7 @@ namespace Baikal
 
         PostEffect::InputTypes MLPostEffect::GetInputTypes() const
         {
-            return m_preprocessor->GetInputTypes();
+            return DataPreprocessor::GetInputTypes(m_input_data_type);
         }
 
         void MLPostEffect::Resize_2x(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)

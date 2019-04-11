@@ -23,6 +23,7 @@ THE SOFTWARE.
 #pragma once
 
 #include "data_preprocessor.h"
+#include "PostEffects/ML/ml_common.h"
 #include "PostEffects/ML/inference.h"
 #include "PostEffects/clw_post_effect.h"
 
@@ -31,12 +32,6 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        enum class ModelType
-        {
-            kDenoiser,
-            kUpsampler,
-        };
-
         class MLPostEffect : public ClwPostEffect
         {
         public:
@@ -50,11 +45,15 @@ namespace Baikal
 
             void Resize_2x(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src);
         private:
-            Inference::Ptr CreateInference();
+            void CreateModelHolder();
+            void CreatePreprocessor();
+            void CreateInference();
+
             void Init(InputSet const& input_set, Output& output);
 
-            Inference::Ptr m_inference;
             ModelType m_type;
+            InputDataType m_input_data_type;
+
             bool m_is_dirty = true;
             bool m_process_every_frame = false;
 
@@ -62,7 +61,9 @@ namespace Baikal
             CLWBuffer<RadeonRays::float3> m_last_image;
             CLWBuffer<RadeonRays::float3> m_resizer_cache;
 
+            std::unique_ptr<ModelHolder> m_model_holder;
             std::unique_ptr<DataPreprocessor> m_preprocessor;
+            std::unique_ptr<Inference> m_inference;
 
             std::uint32_t m_input_width = 0;
             std::uint32_t m_input_height = 0;

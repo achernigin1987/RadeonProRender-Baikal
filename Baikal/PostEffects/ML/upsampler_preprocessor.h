@@ -43,8 +43,6 @@ namespace Baikal
 
             Image Preprocess(PostEffect::InputSet const& inputs) override;
 
-            std::set<Renderer::OutputType> GetInputTypes() const override;
-
             std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const override;
 
         private:

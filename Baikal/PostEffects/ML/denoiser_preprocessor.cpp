@@ -28,7 +28,6 @@
 #include "Output/clwoutput.h"
 #include "math/mathutils.h"
 
-#include "RadeonProML.h"
 
 namespace Baikal
 {
@@ -37,28 +36,29 @@ namespace Baikal
         using float3 =  RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        DenoiserPreprocessor::DenoiserPreprocessor(CLWContext context,
-                                               CLProgramManager const* program_manager,
-                                               std::uint32_t start_spp)
+        DenoiserPreprocessor::DenoiserPreprocessor(ModelHolder* model_holder, 
+                                                   CLWContext context,
+                                                   CLProgramManager const* program_manager,
+                                                   std::uint32_t start_spp)
         : DataPreprocessor(context, program_manager, start_spp)
+        , m_model_holder(model_holder)
         , m_primitives(context)
-        , m_model(Model::kColorAlbedoDepthNormal9)
-        , m_context(mlCreateContext(), mlReleaseContext)
+        , m_model(InputDataType::kColorAlbedoDepthNormal9)
         {
             switch (m_model)
             {
-                case Model::kColorDepthNormalGloss7:
+                case InputDataType::kColorDepthNormalGloss7:
                     m_layout.emplace_back(OutputType::kColor, 3);
                     m_layout.emplace_back(OutputType::kDepth, 1);
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     m_layout.emplace_back(OutputType::kGloss, 1);
                     break;
-                case Model::kColorAlbedoNormal8:
+                case InputDataType::kColorAlbedoNormal8:
                     m_layout.emplace_back(OutputType::kColor, 3 );
                     m_layout.emplace_back(OutputType::kAlbedo, 3);
                     m_layout.emplace_back(OutputType::kViewShadingNormal, 2);
                     break;
-                case Model::kColorAlbedoDepthNormal9:
+                case InputDataType::kColorAlbedoDepthNormal9:
                     m_layout.emplace_back(OutputType::kColor, 3 );
                     m_layout.emplace_back(OutputType::kAlbedo, 3);
                     m_layout.emplace_back(OutputType::kDepth, 1);
@@ -84,13 +84,8 @@ namespace Baikal
                                                CL_MEM_READ_WRITE,
                                                m_channels * width * height);
 
-            ml_image_info image_info = {ML_FLOAT32, m_height, m_width, m_channels};
-            m_image = mlCreateImage(m_context.get(), &image_info, ML_READ_WRITE);
-
-            if (!m_image)
-            {
-                ContextError(m_context.get());
-            }
+            ml_image_info image_info = { ML_FLOAT32, m_height, m_width, m_channels };
+            m_image = m_model_holder->CreateImageFromBuffer(m_input, image_info, ML_READ_WRITE);
 
             m_is_initialized = true;
         }
@@ -191,24 +186,6 @@ namespace Baikal
                 }
             }
 
-            //size_t image_size = 0;
-            //auto host_buffer = mlMapImage(m_image, &image_size);
-
-            //if (!host_buffer || image_size == 0)
-            //{
-            //    throw std::runtime_error("map operation failed");
-            //}
-
-            //context.ReadBuffer(0,
-            //        m_input,
-            //        static_cast<float*>(host_buffer),
-            //        m_input.GetElementCount()).Wait();
-
-            //if (mlUnmapImage(m_image, host_buffer) != ML_OK)
-            //{
-            //    throw std::runtime_error("unmap operation failed");
-            //}
-
             return Image(static_cast<std::uint32_t>(real_sample_count), m_image);
         }
 
@@ -234,21 +211,10 @@ namespace Baikal
 
         //    return Image(static_cast<std::uint32_t>(real_sample_count), m_image);
         //}
+
         std::tuple<std::uint32_t, std::uint32_t> DenoiserPreprocessor::ChannelsNum() const
         {
             return {m_channels, 3};
-        }
-
-        std::set<Renderer::OutputType> DenoiserPreprocessor::GetInputTypes() const
-        {
-            std::set<Renderer::OutputType> out_set;
-
-            for (const auto& type: m_layout)
-            {
-                out_set.insert(type.first);
-            }
-
-            return out_set;
         }
 
         void DenoiserPreprocessor::DivideBySampleCount(CLWBuffer<float3> const& dst,

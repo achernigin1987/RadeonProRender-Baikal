@@ -145,10 +145,5 @@ namespace Baikal
                                   64,
                                   tonemapping);
         }
-
-        std::set<Renderer::OutputType> UpsamplerPreprocessor::GetInputTypes() const
-        {
-            return std::set<Renderer::OutputType>({Renderer::OutputType::kColor});
-        }
     }
 }
