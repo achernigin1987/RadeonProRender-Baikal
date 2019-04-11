@@ -46,7 +46,8 @@ namespace Baikal
                       size_t input_height,
                       size_t input_width,
                       float gpu_memory_fraction,
-                      std::string const& visible_devices);
+                      std::string const& visible_devices,
+                      cl_command_queue command_queue);
 
             virtual ~Inference();
 

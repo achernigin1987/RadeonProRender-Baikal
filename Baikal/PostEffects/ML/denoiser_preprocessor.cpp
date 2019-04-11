@@ -87,7 +87,6 @@ namespace Baikal
             ml_image_info image_info = {ML_FLOAT32, m_height, m_width, m_channels};
             m_image = mlCreateImage(m_context.get(), &image_info, ML_READ_WRITE);
 
-
             if (!m_image)
             {
                 ContextError(m_context.get());
@@ -96,7 +95,12 @@ namespace Baikal
             m_is_initialized = true;
         }
 
-        Image DenoiserPreprocessor::MakeInput(PostEffect::InputSet const& inputs)
+        Image DenoiserPreprocessor::Preprocess(PostEffect::InputSet const& inputs)
+        {
+            return DoPreprocess(inputs);
+        }
+
+        Image DenoiserPreprocessor::DoPreprocess(PostEffect::InputSet const& inputs)
         {
             auto context = GetContext();
             unsigned channels_count = 0u;
@@ -187,27 +191,49 @@ namespace Baikal
                 }
             }
 
-            size_t image_size = 0;
-            auto host_buffer = mlMapImage(m_image, &image_size);
+            //size_t image_size = 0;
+            //auto host_buffer = mlMapImage(m_image, &image_size);
 
-            if (!host_buffer || image_size == 0)
-            {
-                throw std::runtime_error("map operation failed");
-            }
+            //if (!host_buffer || image_size == 0)
+            //{
+            //    throw std::runtime_error("map operation failed");
+            //}
 
-            context.ReadBuffer(0,
-                    m_input,
-                    static_cast<float*>(host_buffer),
-                    m_input.GetElementCount()).Wait();
+            //context.ReadBuffer(0,
+            //        m_input,
+            //        static_cast<float*>(host_buffer),
+            //        m_input.GetElementCount()).Wait();
 
-            if (mlUnmapImage(m_image, host_buffer) != ML_OK)
-            {
-                throw std::runtime_error("unmap operation failed");
-            }
+            //if (mlUnmapImage(m_image, host_buffer) != ML_OK)
+            //{
+            //    throw std::runtime_error("unmap operation failed");
+            //}
 
             return Image(static_cast<std::uint32_t>(real_sample_count), m_image);
         }
 
+        //Image DenoiserPreprocessor::CopyToHost()
+        //{
+        //    size_t image_size = 0;
+        //    auto host_buffer = mlMapImage(m_image, &image_size);
+
+        //    if (!host_buffer || image_size == 0)
+        //    {
+        //        throw std::runtime_error("map operation failed");
+        //    }
+
+        //    context.ReadBuffer(0,
+        //        m_input,
+        //        static_cast<float*>(host_buffer),
+        //        m_input.GetElementCount()).Wait();
+
+        //    if (mlUnmapImage(m_image, host_buffer) != ML_OK)
+        //    {
+        //        throw std::runtime_error("unmap operation failed");
+        //    }
+
+        //    return Image(static_cast<std::uint32_t>(real_sample_count), m_image);
+        //}
         std::tuple<std::uint32_t, std::uint32_t> DenoiserPreprocessor::ChannelsNum() const
         {
             return {m_channels, 3};

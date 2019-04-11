@@ -23,6 +23,7 @@ THE SOFTWARE.
 #pragma once
 
 #include "RadeonProML.h"
+#include "CLW.h"
 
 #include <memory>
 #include <string>
@@ -38,16 +39,16 @@ namespace Baikal
         public:
             ModelHolder(std::string const& model_path,
                         float gpu_memory_fraction,
-                        std::string const& visible_devices);
-
+                        std::string const& visible_devices,
+                        cl_command_queue command_queue);
 
             const ml_model GetModel()
             {
-                return m_model.get();
+                return m_model;
             }
 
             ml_image CreateImage(ml_image_info const& info, ml_access_mode access_mode);
-
+            ml_image CreateImageFromBuffer(cl_mem buffer, ml_image_info const& info, ml_access_mode access_mode);
             ~ModelHolder();
 
             ModelHolder(const ModelHolder&) = delete;
@@ -56,11 +57,8 @@ namespace Baikal
             ModelHolder& operator = (ModelHolder&&) = delete;
 
         private:
-            template<class T>
-            using Handle = std::unique_ptr<typename std::remove_pointer<T>::type, void (*)(T)>;
-
-            Handle<ml_context> m_context;
-            Handle<ml_model> m_model;
+            ml_context m_context;
+            ml_model m_model;
         };
     }
 }

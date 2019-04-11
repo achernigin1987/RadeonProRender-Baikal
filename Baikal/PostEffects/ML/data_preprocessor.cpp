@@ -26,9 +26,10 @@ namespace Baikal
 {
     namespace PostEffects
     {
-        DataPreprocessor::DataPreprocessor(CLWContext context,
-                                       CLProgramManager const* program_manager,
-                                       std::uint32_t start_spp)
+        DataPreprocessor::DataPreprocessor(
+            CLWContext context,
+            CLProgramManager const* program_manager,
+            std::uint32_t start_spp)
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwClass(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers)
 #else

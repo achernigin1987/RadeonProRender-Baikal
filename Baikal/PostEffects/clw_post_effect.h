@@ -37,7 +37,7 @@ namespace Baikal
     /**
     \brief Post effects partial implementation based on CLW framework.
     */
-    class ClwPostEffect : public PostEffect, protected ClwClass
+    class ClwPostEffect : public PostEffect, public ClwClass
     {
     public:
 #ifdef BAIKAL_EMBED_KERNELS

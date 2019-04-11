@@ -43,7 +43,7 @@ namespace Baikal
                              CLProgramManager const* program_manager,
                              std::uint32_t start_spp = 1);
 
-            virtual Image MakeInput(PostEffect::InputSet const& inputs) = 0;
+            virtual Image Preprocess(PostEffect::InputSet const& inputs) = 0;
 
             virtual std::set<Renderer::OutputType> GetInputTypes() const = 0;
 

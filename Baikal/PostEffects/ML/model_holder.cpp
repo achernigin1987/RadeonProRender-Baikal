@@ -21,6 +21,7 @@ THE SOFTWARE.
 ********************************************************************/
 
 #include "model_holder.h"
+#include "RadeonProML_cl.h"
 
 #include <stdexcept>
 #include <sstream>
@@ -31,13 +32,22 @@ namespace Baikal
     {
         ModelHolder::ModelHolder(std::string const& model_path,
                                  float gpu_memory_fraction,
-                                 std::string const& visible_devices)
-        : m_context(mlCreateContext(), mlReleaseContext)
-        , m_model(nullptr, nullptr)
+                                 std::string const& visible_devices,
+                                 cl_command_queue command_queue)
         {
+            if (command_queue)
+            {
+                m_context = mlCreateContextFromClQueue(command_queue);
+                //m_context = mlCreateContext();
+            }
+            else
+            {
+                m_context = mlCreateContext();
+            }
+
             if (m_context == nullptr)
             {
-                throw std::runtime_error("can't create ml context");
+                throw std::runtime_error(mlGetLastError(nullptr));
             }
 
             ml_model_params params = {};
@@ -46,7 +56,7 @@ namespace Baikal
             params.visible_devices = !visible_devices.empty() ?
                                      visible_devices.c_str() : nullptr;
 
-            m_model = Handle<ml_model>(mlCreateModel(m_context.get(), &params), mlReleaseModel);
+            m_model = mlCreateModel(m_context, &params);
 
             if (m_model == nullptr)
             {   
@@ -56,17 +66,32 @@ namespace Baikal
 
         ml_image ModelHolder::CreateImage(ml_image_info const& info, ml_access_mode access_mode)
         {
-            auto tensor = mlCreateImage(m_context.get(), &info, access_mode);
+            auto tensor = mlCreateImage(m_context, &info, access_mode);
 
             if (tensor == nullptr)
             {
-                throw std::runtime_error("can not create model image");
+                throw std::runtime_error(mlGetLastError(nullptr));
+            }
+
+            return tensor;
+        }
+
+        ml_image ModelHolder::CreateImageFromBuffer(cl_mem buffer, ml_image_info const& info, ml_access_mode access_mode)
+        {
+            auto tensor = mlCreateImageFromClBuffer(m_context, buffer, &info, access_mode);
+
+            if (tensor == nullptr)
+            {
+                throw std::runtime_error(mlGetLastError(nullptr));
             }
 
             return tensor;
         }
 
         ModelHolder::~ModelHolder()
-        {}
+        {
+            mlReleaseModel(m_model);
+            mlReleaseContext(m_context);
+        }
     }
 }

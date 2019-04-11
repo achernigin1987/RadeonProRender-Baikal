@@ -41,7 +41,7 @@ namespace Baikal
                                   std::uint32_t spp = 1);
 
 
-            Image MakeInput(PostEffect::InputSet const& inputs) override;
+            Image Preprocess(PostEffect::InputSet const& inputs) override;
 
             std::set<Renderer::OutputType> GetInputTypes() const override;
 

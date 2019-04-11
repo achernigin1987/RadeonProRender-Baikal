@@ -40,7 +40,7 @@ namespace Baikal
         class MLPostEffect : public ClwPostEffect
         {
         public:
-            MLPostEffect(CLWContext context, const CLProgramManager* program_manager, ModelType type);
+            MLPostEffect(ModelType type, CLWContext context, const CLProgramManager* program_manager);
 
             void Apply(InputSet const& input_set, Output& output) override;
 
@@ -57,12 +57,12 @@ namespace Baikal
             ModelType m_type;
             bool m_is_dirty = true;
             bool m_process_every_frame = false;
-            bool m_has_postprocessed_image = false;
 
             std::vector<RadeonRays::float3> m_host;
             CLWBuffer<RadeonRays::float3> m_last_image;
             CLWBuffer<RadeonRays::float3> m_resizer_cache;
-            std::unique_ptr<DataPreprocessor> m_preproc;
+
+            std::unique_ptr<DataPreprocessor> m_preprocessor;
 
             std::uint32_t m_input_width = 0;
             std::uint32_t m_input_height = 0;

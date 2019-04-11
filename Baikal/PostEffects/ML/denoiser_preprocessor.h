@@ -54,13 +54,16 @@ namespace Baikal
                                CLProgramManager const* program_manager,
                                std::uint32_t start_spp = 8);
 
-            Image MakeInput(PostEffect::InputSet const& inputs) override;
+            Image Preprocess(PostEffect::InputSet const& inputs) override;
+            Image Preprocess(PostEffect::InputSet const& inputs, bool use_interop);
 
             std::set<Renderer::OutputType> GetInputTypes() const override;
 
             std::tuple<std::uint32_t, std::uint32_t> ChannelsNum() const override;
         private:
             void Init(std::uint32_t width, std::uint32_t height);
+            Image DoPreprocess(PostEffect::InputSet const& inputs);
+            Image CopyToHost(Image& image);
 
             // layout of the outputs in input tensor in terms of channels
             using MemoryLayout = std::vector<std::pair<Renderer::OutputType, int>>;

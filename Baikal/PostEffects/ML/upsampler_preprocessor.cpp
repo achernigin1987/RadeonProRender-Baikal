@@ -62,7 +62,7 @@ namespace Baikal
             return std::tuple<std::uint32_t, std::uint32_t>(3, 3);
         }
 
-        Image UpsamplerPreprocessor::MakeInput(PostEffect::InputSet const& inputs)
+        Image UpsamplerPreprocessor::Preprocess(PostEffect::InputSet const& inputs)
         {
             auto color_aov = inputs.begin()->second;
 

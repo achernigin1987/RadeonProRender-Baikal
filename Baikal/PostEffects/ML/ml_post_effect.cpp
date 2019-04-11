@@ -35,7 +35,7 @@ namespace Baikal
         using float3 = RadeonRays::float3;
         using OutputType = Renderer::OutputType;
 
-        MLPostEffect::MLPostEffect(CLWContext context, const CLProgramManager* program_manager, ModelType type)
+        MLPostEffect::MLPostEffect(ModelType type, CLWContext context, const CLProgramManager* program_manager)
 #ifdef BAIKAL_EMBED_KERNELS
         : ClwPostEffect(context, program_manager, "denoise", g_denoise_opencl, g_denoise_opencl_headers),
 #else
@@ -56,10 +56,10 @@ namespace Baikal
             switch (m_type)
             {
                 case ModelType::kDenoiser:
-                    m_preproc = std::make_unique<DenoiserPreprocessor>(GetContext(), m_program);
+                    m_preprocessor = std::make_unique<DenoiserPreprocessor>(GetContext(), m_program);
                     break;
                 case ModelType::kUpsampler:
-                    m_preproc = std::make_unique<UpsamplerPreprocessor>(GetContext(), m_program);
+                    m_preprocessor = std::make_unique<UpsamplerPreprocessor>(GetContext(), m_program);
                     break;
                 default:
                     throw std::logic_error("unsupported model type");
@@ -70,7 +70,7 @@ namespace Baikal
         {
             auto gpu_memory_fraction = GetParameter("gpu_memory_fraction").GetFloat();
             auto visible_devices = GetParameter("visible_devices").GetString();
-            m_preproc->SetStartSpp(GetParameter("start_spp").GetUint());
+            m_preprocessor->SetStartSpp(GetParameter("start_spp").GetUint());
             m_process_every_frame = static_cast<bool>(GetParameter("every_frame").GetUint());
 
             switch (m_type)
@@ -81,14 +81,16 @@ namespace Baikal
                                           m_input_height,
                                           m_input_width,
                                           gpu_memory_fraction,
-                                          visible_devices);
+                                          visible_devices,
+                                          GetContext().GetCommandQueue(0));
                 case ModelType::kUpsampler:
-                    return std::unique_ptr<Inference>(
-                            new Inference("models/esrgan-03x2x32-273866.json",
+                    return std::make_unique<Inference>(
+                            "models/esrgan-03x2x32-273866.json",
                                           m_input_height, 
                                           m_input_width,
                                           gpu_memory_fraction,
-                                          visible_devices));
+                                          visible_devices,
+                                          GetContext().GetCommandQueue(0));
                 default:
                     throw std::logic_error("Unsupported model type");
             }
@@ -102,13 +104,13 @@ namespace Baikal
             m_input_height = aov->height();
 
             m_inference = CreateInference();
-            auto out_shape = m_inference->GetOutputInfo();
+            auto output_info = m_inference->GetOutputInfo();
 
             m_last_image = CLWBuffer<float3>::Create(GetContext(),
                                                      CL_MEM_READ_WRITE,
-                                                     out_shape.width * out_shape.height);
+                                                     output_info.width * output_info.height);
 
-            m_host = std::vector<float3>(out_shape.width * out_shape.height);
+            m_host = std::vector<float3>(output_info.width * output_info.height);
         }
 
 
@@ -135,7 +137,7 @@ namespace Baikal
 
             auto context = GetContext();
             auto shape = m_inference->GetInputInfo();
-            auto input = m_preproc->MakeInput(input_set);
+            auto input = m_preprocessor->Preprocess(input_set);
 
             Image res;
             if (m_process_every_frame)
@@ -226,7 +228,7 @@ namespace Baikal
 
         PostEffect::InputTypes MLPostEffect::GetInputTypes() const
         {
-            return m_preproc->GetInputTypes();
+            return m_preprocessor->GetInputTypes();
         }
 
         void MLPostEffect::Resize_2x(CLWBuffer<RadeonRays::float3> dst, CLWBuffer<RadeonRays::float3> src)
