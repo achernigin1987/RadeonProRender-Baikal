@@ -31,7 +31,7 @@ using namespace Baikal;
 
 namespace
 {
-    void LoadMaterials(std::string const& basepath, Scene1::Ptr scene)
+    void LoadMaterials(std::string const& basepath, const Scene1::Ptr& scene)
     {
         // Check it we have material remapping
         std::ifstream in_materials(basepath + "materials.xml");
@@ -46,7 +46,17 @@ namespace
         material_io->ReplaceSceneMaterials(*scene, *mats, mapping);
     }
 
-    void LoadLights(std::string const& light_file, Scene1::Ptr scene)
+    Light::Ptr LoadIblLight(const std::string& texture, float multiplier)
+    {
+        auto image_io = ImageIo::CreateImageIo();
+        auto tex = image_io->LoadImage(texture);
+        auto ibl = ImageBasedLight::Create();
+        ibl->SetTexture(image_io->LoadImage(texture));
+        ibl->SetMultiplier(multiplier);
+        return ibl;
+    }
+
+    void LoadLights(std::string const& light_file, const Scene1::Ptr& scene)
     {
         if (light_file.empty())
         {
@@ -88,12 +98,7 @@ namespace
             }
             else if (type == "ibl")
             {
-                auto image_io = ImageIo::CreateImageIo();
-                auto tex = image_io->LoadImage(elem->Attribute("tex"));
-                auto ibl = ImageBasedLight::Create();
-                ibl->SetTexture(tex);
-                ibl->SetMultiplier(elem->FloatAttribute("mul"));
-                light = ibl;
+                light = LoadIblLight(elem->Attribute("tex"), elem->FloatAttribute("mul"));
             }
             else
             {
@@ -144,5 +149,11 @@ Scene1::Ptr LoadScene(Baikal::AppSettings const& settings)
 
     LoadMaterials(basepath, scene);
     LoadLights(settings.light_file, scene);
+
+    if (!settings.envmapname.empty())
+    {
+        scene->AttachLight(LoadIblLight(settings.envmapname, settings.envmapmul));
+    }
+
     return scene;
 }

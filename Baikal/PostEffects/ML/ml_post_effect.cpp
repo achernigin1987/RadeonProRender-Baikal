@@ -126,7 +126,8 @@ namespace Baikal
                 break;
             case ModelType::kUpsampler:
                 m_preprocessor = std::make_unique<UpsamplerPreprocessor>(
-                    GetContext(),
+					m_model_holder.get(),
+					GetContext(),
                     m_program);
                 break;
             default:
