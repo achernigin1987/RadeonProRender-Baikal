@@ -50,7 +50,7 @@ namespace Baikal
             DataPreprocessor(CLWContext context,
                              CLProgramManager const* program_manager,
                              std::uint32_t start_spp = 1);
-
+            virtual ~DataPreprocessor() {};
             virtual Image Preprocess(PostEffect::InputSet const& inputs) = 0;
 
             // returns channels num at input and output

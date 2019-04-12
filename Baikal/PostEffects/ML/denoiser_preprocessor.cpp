@@ -72,6 +72,14 @@ namespace Baikal
             }
         }
 
+        DenoiserPreprocessor::~DenoiserPreprocessor()
+        {
+            if (m_image != nullptr)
+            {
+                mlReleaseImage(m_image);
+            }
+        }
+
         void DenoiserPreprocessor::Init(std::uint32_t width, std::uint32_t height)
         {
             auto context = GetContext();

@@ -44,7 +44,8 @@ namespace Baikal
 
             Inference(ModelHolder* model_holder,
                       size_t input_height,
-                      size_t input_width);
+                      size_t input_width,
+                      bool every_frame);
 
             virtual ~Inference();
 
@@ -62,12 +63,15 @@ namespace Baikal
             // Wait and pop output image. 
             Image PopOutput();
 
+            Image Infer(const Image& input);
         private:
-            void DoInference();
-            ml_image AllocImage(ml_image_info info, ml_access_mode access_mode);
+            void DoAsyncInference();
+            void DoInference(const Image& input);
 
             RadeonRays::thread_safe_queue<Image> m_input_queue;
             RadeonRays::thread_safe_queue<Image> m_output_queue;
+
+            ml_image m_output_image;
 
             ModelHolder* m_model_holder = nullptr;
             ml_image_info m_input_info;
@@ -76,6 +80,7 @@ namespace Baikal
             void Shutdown();
 
             std::thread m_worker;
+            bool m_every_frame = false;
         };
     }
 }

@@ -48,6 +48,8 @@ namespace Baikal
                                  CLProgramManager const* program_manager,
                                  std::uint32_t start_spp = 8);
 
+            ~DenoiserPreprocessor() override;
+
             Image Preprocess(PostEffect::InputSet const& inputs) override;
             Image Preprocess(PostEffect::InputSet const& inputs, bool use_interop);
 

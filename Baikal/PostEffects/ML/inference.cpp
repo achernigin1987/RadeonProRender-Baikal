@@ -32,8 +32,10 @@ namespace Baikal
     {
         Inference::Inference(ModelHolder* model_holder, 
                              size_t input_height,
-                             size_t input_width)
+                             size_t input_width,
+                             bool every_frame)
             : m_model_holder(model_holder)
+            , m_every_frame(every_frame)
         {
             CheckStatus(mlGetModelInfo(m_model_holder->GetModel(), &m_input_info, nullptr));
             // Set unspecified input tensor dimensions
@@ -44,7 +46,14 @@ namespace Baikal
             // Get output tensor shape for model
             CheckStatus(mlGetModelInfo(m_model_holder->GetModel(), nullptr, &m_output_info));
 
-            m_worker = std::thread(&Inference::DoInference, this);
+            if (m_every_frame)
+            {
+                m_output_image = m_model_holder->CreateImage(m_output_info, ML_READ_WRITE);
+            }
+            else
+            {
+                m_worker = std::thread(&Inference::DoAsyncInference, this);
+            }
         }
 
         Inference::~Inference()
@@ -64,7 +73,7 @@ namespace Baikal
 
         Image Inference::GetInputData()
         {
-            return {0, AllocImage(m_input_info, ML_READ_WRITE)};
+            return {0, m_model_holder->CreateImage(m_input_info, ML_READ_WRITE) };
         }
 
         void Inference::PushInput(Image&& image)
@@ -86,36 +95,30 @@ namespace Baikal
             return output_tensor;
         }
 
-        ml_image Inference::AllocImage(ml_image_info info, ml_access_mode access_mode)
+        Image Inference::Infer(const Image& input)
         {
-            auto image = m_model_holder->CreateImage(info, access_mode);
-
-            if (image == nullptr)
-            {
-                throw std::runtime_error("Couldn't not create image");
-            }
-
-            return image;
+            CheckStatus(mlInfer(m_model_holder->GetModel(), input.image, m_output_image));
+            return Image(static_cast<std::uint32_t>(input.tag), m_output_image);
         }
 
-        void Inference::DoInference()
+        void Inference::DoAsyncInference()
         {
             for (;;)
             {
                 Image input;
                 m_input_queue.wait_and_pop(input);
 
-                if (input.image == nullptr)
-                {
-                    break;
-                }
-
                 if (m_input_queue.size() > 0)
                 {
                     continue;
                 }
 
-                Image output = { input.tag, AllocImage(m_output_info, ML_READ_WRITE) };
+                if (input.image == nullptr)
+                {
+                    break;
+                }
+
+                Image output = { input.tag, m_model_holder->CreateImage(m_output_info, ML_READ_WRITE) };
 
                 CheckStatus(mlInfer(m_model_holder->GetModel(), input.image, output.image));
 
@@ -125,8 +128,15 @@ namespace Baikal
 
         void Inference::Shutdown()
         {
-            m_input_queue.push({0, nullptr});
-            m_worker.join();
+            if (m_every_frame)
+            {
+                mlReleaseImage(m_output_image);
+            }
+            else
+            {
+                m_input_queue.push({ 0, nullptr });
+                m_worker.join();
+            }
         }
     }
 }

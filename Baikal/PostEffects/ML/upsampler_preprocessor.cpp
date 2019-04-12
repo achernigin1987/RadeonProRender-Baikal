@@ -41,6 +41,14 @@ namespace Baikal
         {
         }
 
+        UpsamplerPreprocessor::~UpsamplerPreprocessor()
+        {
+            if (m_image != nullptr)
+            {
+                mlReleaseImage(m_image);
+            }
+        }
+
         void UpsamplerPreprocessor::Init(std::uint32_t width, std::uint32_t height)
         {
             m_cache = CLWBuffer<float3>::Create(GetContext(),

@@ -110,7 +110,8 @@ namespace Baikal
             m_inference = std::make_unique<Inference>(
                 m_model_holder.get(),
                 m_input_height,
-                m_input_width);
+                m_input_width,
+                m_process_every_frame);
         }
 
         void MLPostEffect::CreatePreprocessor()
@@ -185,8 +186,7 @@ namespace Baikal
             Image res;
             if (m_process_every_frame)
             {
-                m_inference->PushInput(std::move(input));
-                res = m_inference->PopOutput();
+                res = m_inference->Infer(input);
             }
             else
             {

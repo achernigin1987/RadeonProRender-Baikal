@@ -42,6 +42,7 @@ namespace Baikal
                                   CLProgramManager const *program_manager,
                                   std::uint32_t spp = 1);
 
+            ~UpsamplerPreprocessor() override;
 
             Image Preprocess(PostEffect::InputSet const& inputs) override;
 
