@@ -27,6 +27,7 @@
 #endif
 
 #include "data_preprocessor.h"
+#include "PostEffects/ML/model_holder.h"
 
 
 namespace Baikal
@@ -36,8 +37,9 @@ namespace Baikal
         class UpsamplerPreprocessor : public DataPreprocessor
         {
         public:
-            UpsamplerPreprocessor(CLWContext context,
-                                  Baikal::CLProgramManager const *program_manager,
+            UpsamplerPreprocessor(ModelHolder* model_holder, 
+                                  CLWContext context,
+                                  CLProgramManager const *program_manager,
                                   std::uint32_t spp = 1);
 
 
@@ -51,6 +53,7 @@ namespace Baikal
             void ApplyToneMapping(CLWBuffer<RadeonRays::float3> const& dst,
                                   CLWBuffer<RadeonRays::float3> const& src);
 
+            ModelHolder* m_model_holder;
             bool m_is_init = false;
             std::uint32_t m_width, m_height;
             CLWBuffer<float> m_input;

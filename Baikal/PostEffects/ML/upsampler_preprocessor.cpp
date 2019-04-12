@@ -31,12 +31,15 @@ namespace Baikal
         using uint32_t = std::uint32_t;
         using float3 =  RadeonRays::float3;
 
-        UpsamplerPreprocessor::UpsamplerPreprocessor(CLWContext context,
-                                       Baikal::CLProgramManager const *program_manager,
-                                       std::uint32_t start_spp)
-        : DataPreprocessor(context, program_manager, start_spp)
-        , m_context(mlCreateContext(), mlReleaseContext)
-        {}
+        UpsamplerPreprocessor::UpsamplerPreprocessor(ModelHolder* model_holder,
+                                                     CLWContext context,
+                                                     CLProgramManager const *program_manager,
+                                                     std::uint32_t start_spp)
+            : DataPreprocessor(context, program_manager, start_spp)
+            , m_model_holder(model_holder)
+            , m_context(mlCreateContext(), mlReleaseContext)
+        {
+        }
 
         void UpsamplerPreprocessor::Init(std::uint32_t width, std::uint32_t height)
         {
@@ -49,7 +52,7 @@ namespace Baikal
                                                3 * width * height);
 
             ml_image_info image_info = {ML_FLOAT32, width, height, 3};
-            m_image = mlCreateImage(m_context.get(), &image_info, ML_READ_WRITE);
+            m_image = m_model_holder->CreateImageFromBuffer(m_input, image_info, ML_READ_WRITE);
 
             if (!m_image)
             {
